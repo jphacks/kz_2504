@@ -1,4 +1,4 @@
-# 4DX@HOME - 手のひらサイズの4DXシアター
+# 4DX@HOME - 一番好きな映画を、一番好きな場所で、今までにない感動を
 
 ![4DX@HOME](assets/images/4DX%20@HOME.png)
 
