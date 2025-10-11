@@ -17,12 +17,12 @@ class Settings(BaseSettings):
     log_format: str = "text"
     
     # サーバー設定（.envから）
-    host: str = "127.0.0.1"
-    port: int = 8001
+    host: str = "0.0.0.0"  # Cloud Run対応
+    port: int = 8080  # Cloud Run標準ポート
     workers: int = 1
     
     # CORS設定（.envから文字列で受け取り、リストに変換）
-    cors_origins: str = "http://localhost:3000,http://127.0.0.1:3000"
+    cors_origins: str = "http://localhost:3000,http://127.0.0.1:3000,https://fourdk-home-frontend.web.app"
     
     # WebSocket設定（.envから）
     websocket_timeout: int = 300
@@ -49,13 +49,13 @@ class Settings(BaseSettings):
     
     @property
     def server_host(self) -> str:
-        """サーバーホスト"""
-        return self.host
+        """サーバーホスト（Cloud Run対応）"""
+        return os.getenv("HOST", self.host)
         
     @property 
     def server_port(self) -> int:
-        """サーバーポート"""
-        return self.port
+        """サーバーポート（Cloud Run対応）"""
+        return int(os.getenv("PORT", self.port))
         
     @property
     def sync_data_directory(self) -> str:

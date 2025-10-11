@@ -37,15 +37,8 @@ Thumbs.db
 .gitignore
 .gitattributes
 
-# ドキュメント
+# ドキュメント（一部のみ除外）
 README.md
-*.md
-docs/
-
-# テスト関連
-tests/
-test_*
-*_test.py
 .coverage
 htmlcov/
 .pytest_cache/
@@ -56,8 +49,8 @@ htmlcov/
 .env.local
 .env.*.local
 
-# 開発用HTML
-websocket_test.html
+# 開発用HTML（コメントアウト - 含める）
+# websocket_test.html
 
 # 一時ファイル
 *.tmp

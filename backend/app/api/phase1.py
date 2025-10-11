@@ -147,6 +147,153 @@ async def get_all_sessions():
     logger.info(f"セッション一覧取得: {len(sessions)}件")
     return {"sessions": sessions, "count": len(sessions)}
 
+# 新仕様対応エンドポイント
+
+@router.post("/sessions/{session_id}/sync-data", summary="同期データファイル送信")
+async def upload_sync_data(session_id: str, sync_data_request: dict):
+    """
+    待機画面時に同期データファイルをデバイスに事前送信（新仕様）
+    
+    - **session_id**: セッションID
+    - **sync_data_request**: 同期データファイル情報
+    """
+    # セッション存在確認
+    session = session_manager.get_session(session_id)
+    if not session:
+        raise HTTPException(status_code=404, detail="セッションが見つかりません")
+    
+    try:
+        from app.models.schemas import SyncDataFile, SyncEvent
+        from app.websocket.manager import websocket_manager
+        
+        # 同期データファイル作成
+        sync_events = [SyncEvent(**event) for event in sync_data_request.get("sync_events", [])]
+        sync_data_file = SyncDataFile(
+            video_id=sync_data_request["video_id"],
+            video_duration=sync_data_request["video_duration"],
+            sync_events=sync_events
+        )
+        
+        # デバイスに送信
+        device_connected = websocket_manager.is_device_connected(session_id)
+        if device_connected:
+            await websocket_manager.send_to_device(session_id, {
+                "type": "sync_data_file",
+                "sync_data_file": sync_data_file.dict(),
+                "message": "同期データファイル事前送信",
+                "timestamp": sync_data_file.created_at.isoformat()
+            })
+        
+        logger.info(f"同期データファイル送信: セッション {session_id}, 動画 {sync_data_file.video_id}")
+        
+        return {
+            "success": True,
+            "video_id": sync_data_file.video_id,
+            "events_count": len(sync_events),
+            "device_connected": device_connected,
+            "message": "同期データファイルが送信されました"
+        }
+        
+    except Exception as e:
+        logger.error(f"同期データファイル送信エラー: {e}")
+        raise HTTPException(status_code=500, detail="同期データファイル送信に失敗しました")
+
+@router.post("/sessions/{session_id}/playback-sync", summary="再生時刻同期送信")
+async def send_playback_sync(session_id: str, playback_data: dict):
+    """
+    リアルタイム再生時刻をデバイスに直接送信（新仕様）
+    
+    - **session_id**: セッションID
+    - **playback_data**: 再生時刻同期データ
+    """
+    # セッション存在確認
+    session = session_manager.get_session(session_id)
+    if not session:
+        raise HTTPException(status_code=404, detail="セッションが見つかりません")
+    
+    try:
+        from app.models.schemas import PlaybackTimeSync
+        from app.websocket.manager import websocket_manager
+        
+        # 再生時刻同期データ作成
+        playback_sync = PlaybackTimeSync(
+            current_time=playback_data["current_time"],
+            is_playing=playback_data.get("is_playing", True),
+            playback_rate=playback_data.get("playback_rate", 1.0),
+            video_id=playback_data["video_id"]
+        )
+        
+        # デバイスに送信
+        device_connected = websocket_manager.is_device_connected(session_id)
+        if device_connected:
+            await websocket_manager.send_to_device(session_id, {
+                "type": "playback_time_sync",
+                "playback_sync": playback_sync.dict(),
+                "timestamp": playback_sync.timestamp.isoformat()
+            })
+        
+        logger.debug(f"再生時刻同期送信: セッション {session_id}, 時刻 {playback_sync.current_time:.2f}s")
+        
+        return {
+            "success": True,
+            "current_time": playback_sync.current_time,
+            "is_playing": playback_sync.is_playing,
+            "device_connected": device_connected
+        }
+        
+    except Exception as e:
+        logger.error(f"再生時刻同期送信エラー: {e}")
+        raise HTTPException(status_code=500, detail="再生時刻同期送信に失敗しました")
+
+@router.post("/sessions/{session_id}/direct-command", summary="直接同期コマンド送信")
+async def send_direct_command(session_id: str, command_data: dict):
+    """
+    即座に実行する同期コマンドをデバイスに送信（新仕様）
+    
+    - **session_id**: セッションID
+    - **command_data**: 同期コマンドデータ
+    """
+    # セッション存在確認
+    session = session_manager.get_session(session_id)
+    if not session:
+        raise HTTPException(status_code=404, detail="セッションが見つかりません")
+    
+    try:
+        from app.models.schemas import SyncCommand
+        from app.websocket.manager import websocket_manager
+        
+        # 直接同期コマンド作成
+        sync_command = SyncCommand(
+            command_type=command_data["command_type"],
+            intensity=command_data.get("intensity", 50),
+            duration=command_data.get("duration", 1000),
+            video_time=command_data.get("video_time", 0)
+        )
+        
+        # デバイスに送信
+        device_connected = websocket_manager.is_device_connected(session_id)
+        if device_connected:
+            await websocket_manager.send_to_device(session_id, {
+                "type": "direct_sync_command",
+                "sync_command": sync_command.dict(),
+                "message": "即時同期コマンド実行",
+                "timestamp": sync_command.timestamp.isoformat()
+            })
+        
+        logger.info(f"直接同期コマンド送信: セッション {session_id}, コマンド {sync_command.command_type}")
+        
+        return {
+            "success": True,
+            "command_type": sync_command.command_type,
+            "video_time": sync_command.video_time,
+            "device_connected": device_connected,
+            "message": "直接同期コマンドが送信されました"
+        }
+        
+    except Exception as e:
+        logger.error(f"直接同期コマンド送信エラー: {e}")
+        raise HTTPException(status_code=500, detail="直接同期コマンド送信に失敗しました")
+
 # ヘルスチェックエンドポイント
 @router.get("/health", summary="ヘルスチェック")
 async def health_check():

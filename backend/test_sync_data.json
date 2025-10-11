@@ -1,0 +1,18 @@
+{
+  "video_id": "test_video_001",
+  "video_duration": 120.0,
+  "sync_events": [
+    {
+      "time": 10.5,
+      "action": "vibration",
+      "intensity": 70,
+      "duration": 1000
+    },
+    {
+      "time": 25.2,
+      "action": "scent",
+      "intensity": 80,
+      "duration": 2000
+    }
+  ]
+}

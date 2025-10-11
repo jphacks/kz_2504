@@ -106,7 +106,7 @@ class CapabilityFilter:
         return adjusted_events
 
 class SyncProcessor:
-    """リアルタイム同期処理メインクラス"""
+    """リアルタイム同期処理メインクラス（新仕様対応）"""
     
     def __init__(self, settings: Settings = None):
         self.settings = settings or Settings()
@@ -117,10 +117,13 @@ class SyncProcessor:
         # 同期データキャッシュ
         self._sync_data_cache: Dict[str, SyncData] = {}
         
-        # アクティブセッション管理
+        # アクティブセッション管理（新仕様：事前データ保存）
         self.active_sessions: Dict[str, Dict[str, Any]] = {}
         
-        logger.info("SyncProcessor初期化完了")
+        # 新仕様：事前送信された同期データファイル管理
+        self.preloaded_sync_data: Dict[str, Dict[str, Any]] = {}
+        
+        logger.info("SyncProcessor初期化完了（新仕様対応）")
     
     async def start_playback_sync(self, session_id: str, video_id: str, 
                                 device_capabilities: List[str] = None,
@@ -247,6 +250,121 @@ class SyncProcessor:
             logger.info(f"期限切れセッション削除: {len(expired_sessions)}件")
             
         return len(expired_sessions)
+    
+    # 新仕様対応メソッド
+    
+    async def preload_sync_data(self, session_id: str, sync_data_file: Dict[str, Any]) -> bool:
+        """
+        同期データファイル事前読み込み（待機画面時）
+        """
+        try:
+            from app.models.schemas import SyncDataFile, SyncEvent
+            
+            # 同期データファイル解析
+            sync_events = [SyncEvent(**event) for event in sync_data_file.get("sync_events", [])]
+            
+            # 事前データ保存
+            self.preloaded_sync_data[session_id] = {
+                "video_id": sync_data_file["video_id"],
+                "video_duration": sync_data_file["video_duration"],
+                "sync_events": sync_events,
+                "preloaded_at": datetime.now(),
+                "processed": False
+            }
+            
+            logger.info(f"同期データ事前読み込み: セッション {session_id}, 動画 {sync_data_file['video_id']}, イベント数 {len(sync_events)}")
+            return True
+            
+        except Exception as e:
+            logger.error(f"同期データ事前読み込みエラー: セッション {session_id}, エラー: {e}")
+            return False
+    
+    async def process_realtime_sync(self, session_id: str, playback_sync: Dict[str, Any]) -> List[Dict[str, Any]]:
+        """
+        リアルタイム再生時刻同期処理（新仕様）
+        """
+        if session_id not in self.preloaded_sync_data:
+            logger.warning(f"事前読み込みデータなし: セッション {session_id}")
+            return []
+        
+        try:
+            current_time = playback_sync["current_time"]
+            is_playing = playback_sync.get("is_playing", True)
+            video_id = playback_sync["video_id"]
+            
+            # 事前読み込みデータ取得
+            preload_data = self.preloaded_sync_data[session_id]
+            
+            if preload_data["video_id"] != video_id:
+                logger.warning(f"動画ID不一致: 事前読み込み {preload_data['video_id']} vs 現在 {video_id}")
+                return []
+            
+            if not is_playing:
+                # 一時停止中は同期処理しない
+                return []
+            
+            # タイムライン同期処理
+            sync_commands = []
+            tolerance = 0.1  # 許容誤差100ms
+            
+            for event in preload_data["sync_events"]:
+                # 現在時刻に対応するイベントを検索
+                if abs(event.time - current_time) <= tolerance:
+                    command = {
+                        "type": "timeline_sync_command",
+                        "command_type": event.action,
+                        "intensity": event.intensity,
+                        "duration": event.duration,
+                        "video_time": event.time,
+                        "sync_precision": abs(event.time - current_time),
+                        "timestamp": datetime.now().isoformat()
+                    }
+                    sync_commands.append(command)
+            
+            # 処理状況更新
+            if sync_commands:
+                preload_data["last_sync_time"] = current_time
+                logger.debug(f"リアルタイム同期処理: セッション {session_id}, 時刻 {current_time:.2f}s, コマンド数 {len(sync_commands)}")
+            
+            return sync_commands
+            
+        except Exception as e:
+            logger.error(f"リアルタイム同期処理エラー: セッション {session_id}, エラー: {e}")
+            return []
+    
+    async def execute_direct_command(self, session_id: str, sync_command: Dict[str, Any]) -> bool:
+        """
+        直接同期コマンド実行（新仕様）
+        """
+        try:
+            # 直接実行のため特別な処理は不要、ログ記録のみ
+            logger.info(f"直接同期コマンド実行: セッション {session_id}, コマンド {sync_command.get('command_type')} @ {sync_command.get('video_time', 0):.1f}s")
+            return True
+            
+        except Exception as e:
+            logger.error(f"直接同期コマンド実行エラー: セッション {session_id}, エラー: {e}")
+            return False
+    
+    def get_preload_status(self, session_id: str) -> Optional[Dict[str, Any]]:
+        """事前読み込み状態取得"""
+        if session_id not in self.preloaded_sync_data:
+            return None
+            
+        preload_data = self.preloaded_sync_data[session_id]
+        return {
+            "session_id": session_id,
+            "video_id": preload_data["video_id"],
+            "events_count": len(preload_data["sync_events"]),
+            "preloaded_at": preload_data["preloaded_at"].isoformat(),
+            "last_sync_time": preload_data.get("last_sync_time", 0),
+            "is_ready": True
+        }
+    
+    def cleanup_preload_data(self, session_id: str):
+        """事前読み込みデータ削除"""
+        if session_id in self.preloaded_sync_data:
+            del self.preloaded_sync_data[session_id]
+            logger.info(f"事前読み込みデータ削除: セッション {session_id}")
 
 # グローバル同期プロセッサ
 sync_processor = SyncProcessor()

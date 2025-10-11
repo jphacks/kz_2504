@@ -1,0 +1,8 @@
+{
+  "product_code": "DH001",
+  "capabilities": ["vibration", "scent", "motion"],
+  "device_info": {
+    "version": "2.0.0",
+    "ip_address": "192.168.1.100"
+  }
+}

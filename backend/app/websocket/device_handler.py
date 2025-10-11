@@ -76,6 +76,12 @@ class DeviceHandler:
         elif message_type == "effect_status":
             await self._handle_effect_status(session_id, message)
             
+        elif message_type == "sync_data_received":
+            await self._handle_sync_data_received(session_id, message)
+            
+        elif message_type == "playback_sync_processed":
+            await self._handle_playback_sync_processed(session_id, message)
+            
         elif message_type == "pong":
             await self._handle_pong(session_id, message)
             
@@ -192,6 +198,38 @@ class DeviceHandler:
         })
         
         self.logger.error(f"デバイスエラー: セッション {session_id}, コード {error_code}, メッセージ: {error_message}")
+    
+    async def _handle_sync_data_received(self, session_id: str, message: Dict[str, Any]):
+        """同期データファイル受信確認処理（新仕様）"""
+        video_id = message.get("video_id")
+        events_count = message.get("events_count", 0)
+        
+        # Webアプリに受信確認通知
+        await websocket_manager.send_to_webapp(session_id, {
+            "type": "sync_data_confirmed",
+            "video_id": video_id,
+            "events_count": events_count,
+            "message": "デバイスが同期データファイルを受信しました",
+            "timestamp": datetime.now().isoformat()
+        })
+        
+        self.logger.info(f"同期データ受信確認: セッション {session_id}, 動画 {video_id}, イベント数 {events_count}")
+    
+    async def _handle_playback_sync_processed(self, session_id: str, message: Dict[str, Any]):
+        """再生時刻同期処理完了通知（新仕様）"""
+        current_time = message.get("current_time")
+        executed_commands = message.get("executed_commands", 0)
+        
+        # Webアプリに処理完了通知
+        await websocket_manager.send_to_webapp(session_id, {
+            "type": "sync_processed",
+            "current_time": current_time,
+            "executed_commands": executed_commands,
+            "message": "デバイス側で同期処理が完了しました",
+            "timestamp": datetime.now().isoformat()
+        })
+        
+        self.logger.debug(f"同期処理完了: セッション {session_id}, 時刻 {current_time:.2f}s, 実行コマンド数 {executed_commands}")
         
     # デバイスへのコマンド送信メソッド
     
@@ -234,6 +272,47 @@ class DeviceHandler:
         
         sent_count = await websocket_manager.send_to_device(session_id, message)
         self.logger.info(f"再生停止コマンド送信: セッション {session_id}")
+        
+        return sent_count > 0
+    
+    async def send_sync_data_file(self, session_id: str, sync_data_file: Dict[str, Any]) -> bool:
+        """同期データファイル送信（新仕様）"""
+        message = {
+            "type": "sync_data_file",
+            "sync_data_file": sync_data_file,
+            "message": "同期データファイル受信してください",
+            "timestamp": datetime.now().isoformat()
+        }
+        
+        sent_count = await websocket_manager.send_to_device(session_id, message)
+        self.logger.info(f"同期データファイル送信: セッション {session_id}, 動画 {sync_data_file.get('video_id')}")
+        
+        return sent_count > 0
+    
+    async def send_playback_time_sync(self, session_id: str, playback_sync: Dict[str, Any]) -> bool:
+        """再生時刻同期送信（新仕様）"""
+        message = {
+            "type": "playback_time_sync",
+            "playback_sync": playback_sync,
+            "timestamp": datetime.now().isoformat()
+        }
+        
+        sent_count = await websocket_manager.send_to_device(session_id, message)
+        self.logger.debug(f"再生時刻同期送信: セッション {session_id}, 時刻 {playback_sync.get('current_time'):.2f}s")
+        
+        return sent_count > 0
+    
+    async def send_direct_sync_command(self, session_id: str, sync_command: Dict[str, Any]) -> bool:
+        """直接同期コマンド送信（新仕様）"""
+        message = {
+            "type": "direct_sync_command",
+            "sync_command": sync_command,
+            "message": "即座に同期コマンドを実行してください",
+            "timestamp": datetime.now().isoformat()
+        }
+        
+        sent_count = await websocket_manager.send_to_device(session_id, message)
+        self.logger.info(f"直接同期コマンド送信: セッション {session_id}, コマンド {sync_command.get('command_type')}")
         
         return sent_count > 0
 

@@ -1,0 +1,58 @@
+
+🎯 Cloud Run 新仕様対応包括的通信テスト結果レポート
+======================================================
+
+📊 テスト概要:
+- 実行日時: 2025-10-11 22:21:11
+- テスト環境: https://fourdk-home-backend-333203798555.asia-northeast1.run.app
+- 総テスト数: 13
+- 成功: 0 ✅
+- 失敗: 13 ❌
+- 成功率: 0.0%
+
+📋 詳細結果:
+  ❌ FAIL API Health Check (0.37s)
+    エラー: HTTP 404
+  ❌ FAIL Session Creation (0.09s)
+    エラー: HTTP 404
+  ❌ FAIL Sync Data Upload API (0.09s)
+    エラー: HTTP 404
+  ❌ FAIL Playback Sync API (0.09s)
+    エラー: HTTP 404
+  ❌ FAIL Direct Command API (0.09s)
+    エラー: HTTP 404
+  ❌ FAIL Device WebSocket Connection (0.34s)
+    エラー: server rejected WebSocket connection: HTTP 403
+  ❌ FAIL WebApp WebSocket Connection (0.27s)
+    エラー: server rejected WebSocket connection: HTTP 403
+  ❌ FAIL Device Sync Data Reception (0.00s)
+    エラー: 'NoneType' object has no attribute 'send'
+  ❌ FAIL Realtime Playback Sync (0.00s)
+    エラー: 'NoneType' object has no attribute 'send'
+  ❌ FAIL Direct Sync Command (0.00s)
+    エラー: 'NoneType' object has no attribute 'send'
+  ❌ FAIL Device Status Reporting (0.00s)
+    エラー: 'NoneType' object has no attribute 'send'
+  ❌ FAIL Concurrent Sync Operations (0.11s)
+    エラー: 成功タスク数不足: 0/2
+  ❌ FAIL Error Handling (0.00s)
+    エラー: 'NoneType' object has no attribute 'send'
+
+🆕 新仕様対応機能分析:
+- 新仕様テスト数: 6
+- 新仕様成功数: 0
+- 新仕様成功率: 0.0%
+
+🔍 重要なポイント:
+- 事前JSONファイル送信: ❌ 要確認
+- リアルタイム時刻同期: ❌ 要確認
+- 直接コマンド実行: ❌ 要確認
+- 並行処理性能: ❌ 要改善
+
+💡 推奨事項:
+- 全体的な成功率が低いため、基本的な接続性を確認してください
+- 新仕様対応機能に問題があります。実装を再確認してください
+- 失敗したテストの詳細ログを確認し、個別に対処してください
+
+📄 詳細ログファイル: cloudrun_new_spec_test_20251011_222111.log
+======================================================

@@ -35,8 +35,8 @@ app = FastAPI(
     title="4DX@HOME Backend API",
     description="WebSocketベースリアルタイム体験同期システム",
     version="1.0.0",
-    docs_url="/docs" if settings.environment != "production" else None,
-    redoc_url="/redoc" if settings.environment != "production" else None
+    docs_url="/docs",  # 本番環境でもAPIドキュメント有効化
+    redoc_url="/redoc"
 )
 
 # CORS設定
@@ -239,11 +239,15 @@ if settings.environment == "development":
     @app.get("/test")
     async def websocket_test_page():
         """WebSocketテストページ（開発環境のみ）"""
-        test_file = os.path.join(os.path.dirname(__file__), "..", "websocket_test.html")
-        if os.path.exists(test_file):
-            return FileResponse(test_file)
-        else:
-            raise HTTPException(status_code=404, detail="Test page not found")
+        return JSONResponse({
+            "message": "WebSocketテストページは削除されました",
+            "alternatives": [
+                "API Documentation: /docs",
+                "Session WebSocket: /ws/sessions/{session_id}",
+                "Device WebSocket: /ws/device/{session_id}",
+                "WebApp WebSocket: /ws/webapp/{session_id}"
+            ]
+        })
 
 # アプリケーション起動時処理
 @app.on_event("startup")

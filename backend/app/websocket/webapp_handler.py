@@ -77,6 +77,12 @@ class WebAppHandler:
         elif message_type == "playback_sync":
             await self._handle_playback_sync(session_id, message)
             
+        elif message_type == "sync_data_upload":
+            await self._handle_sync_data_upload(session_id, message)
+            
+        elif message_type == "direct_sync_command":
+            await self._handle_direct_sync_command(session_id, message)
+            
         elif message_type == "end_playback":
             await self._handle_end_playback(session_id, message)
             
@@ -98,7 +104,7 @@ class WebAppHandler:
             })
             
     async def _handle_start_playback(self, session_id: str, message: Dict[str, Any]):
-        """再生開始処理"""
+        """再生開始処理（新仕様：待機画面時に同期データファイル事前送信）"""
         video_id = message.get("video_id")
         user_settings = message.get("user_settings", {})
         
@@ -119,6 +125,25 @@ class WebAppHandler:
                 "timestamp": datetime.now().isoformat()
             })
             return
+            
+        # 新仕様：同期データファイルを事前にデバイスに送信
+        from app.models.schemas import SyncDataFile
+        sync_data_file = SyncDataFile(
+            video_id=video_id,
+            video_duration=sync_data.duration,
+            sync_events=sync_data.sync_events,
+            created_at=datetime.now()
+        )
+        
+        # デバイスに同期データファイルを事前送信
+        device_connected = websocket_manager.is_device_connected(session_id)
+        if device_connected:
+            await websocket_manager.send_to_device(session_id, {
+                "type": "sync_data_file",
+                "sync_data_file": sync_data_file.dict(),
+                "message": "同期データファイル事前送信",
+                "timestamp": datetime.now().isoformat()
+            })
             
         # セッション情報取得
         session = session_manager.get_session(session_id)
@@ -172,37 +197,121 @@ class WebAppHandler:
             })
             
         self.logger.info(f"再生開始: セッション {session_id}, 動画 {video_id}, 同期イベント数: {len(sync_data.sync_events)}")
+    
+    async def _handle_sync_data_upload(self, session_id: str, message: Dict[str, Any]):
+        """同期データファイルアップロード処理（待機画面時）"""
+        video_id = message.get("video_id")
+        sync_data_raw = message.get("sync_data")
+        
+        if not video_id or not sync_data_raw:
+            await websocket_manager.send_to_webapp(session_id, {
+                "type": "error", 
+                "message": "video_idまたは同期データが不足しています",
+                "timestamp": datetime.now().isoformat()
+            })
+            return
+            
+        # 同期データファイル作成
+        from app.models.schemas import SyncDataFile, SyncEvent
+        sync_events = [SyncEvent(**event) for event in sync_data_raw.get("sync_events", [])]
+        sync_data_file = SyncDataFile(
+            video_id=video_id,
+            video_duration=sync_data_raw.get("video_duration", 0),
+            sync_events=sync_events,
+            created_at=datetime.now()
+        )
+        
+        # デバイスに事前送信
+        device_connected = websocket_manager.is_device_connected(session_id)
+        if device_connected:
+            await websocket_manager.send_to_device(session_id, {
+                "type": "sync_data_file",
+                "sync_data_file": sync_data_file.dict(),
+                "message": "同期データファイル受信完了",
+                "timestamp": datetime.now().isoformat()
+            })
+            
+        # Webアプリに完了通知
+        await websocket_manager.send_to_webapp(session_id, {
+            "type": "sync_data_uploaded",
+            "video_id": video_id,
+            "events_count": len(sync_events),
+            "device_connected": device_connected,
+            "message": "同期データファイルがデバイスに送信されました",
+            "timestamp": datetime.now().isoformat()
+        })
+        
+        self.logger.info(f"同期データ事前送信: セッション {session_id}, 動画 {video_id}, イベント数 {len(sync_events)}")
+    
+    async def _handle_direct_sync_command(self, session_id: str, message: Dict[str, Any]):
+        """直接同期コマンド処理"""
+        command_data = message.get("command")
+        
+        if not command_data:
+            return
+            
+        # 直接同期コマンド作成
+        from app.models.schemas import SyncCommand
+        sync_command = SyncCommand(
+            command_type=command_data.get("command_type"),
+            intensity=command_data.get("intensity", 50),
+            duration=command_data.get("duration", 1000),
+            video_time=command_data.get("video_time", 0),
+            timestamp=datetime.now()
+        )
+        
+        # デバイスに即座に送信
+        device_connected = websocket_manager.is_device_connected(session_id)
+        if device_connected:
+            await websocket_manager.send_to_device(session_id, {
+                "type": "sync_command",
+                "sync_command": sync_command.dict(),
+                "message": "即時同期コマンド実行",
+                "timestamp": datetime.now().isoformat()
+            })
+            
+        self.logger.info(f"直接同期コマンド: セッション {session_id}, コマンド {sync_command.command_type} @ {sync_command.video_time:.1f}s")
         
     async def _handle_playback_sync(self, session_id: str, message: Dict[str, Any]):
-        """再生同期処理"""
+        """再生同期処理（新仕様：直接再生時刻をデバイスに送信）"""
         current_time = message.get("current_time")
         video_id = message.get("video_id")
+        is_playing = message.get("is_playing", True)
+        playback_rate = message.get("playback_rate", 1.0)
         
         if current_time is None:
             return
             
-        # 同期エンジンから高精度同期コマンド取得
-        from app.sync.processor import sync_processor
-        sync_commands = sync_processor.find_sync_events_for_time(session_id, current_time)
+        # 新仕様：PlaybackTimeSyncデータ構造でデバイスに直接送信
+        from app.models.schemas import PlaybackTimeSync
+        playback_sync = PlaybackTimeSync(
+            current_time=current_time,
+            is_playing=is_playing,
+            playback_rate=playback_rate,
+            video_id=video_id,
+            timestamp=datetime.now()
+        )
         
-        # デバイスにエフェクトコマンド送信
-        sent_commands = 0
-        for command in sync_commands:
-            success = await device_handler.send_effect_command(session_id, command)
-            if success:
-                sent_commands += 1
-            
-        # 同期確認応答
+        # デバイスに再生時刻同期データを直接送信
+        device_connected = websocket_manager.is_device_connected(session_id)
+        if device_connected:
+            await websocket_manager.send_to_device(session_id, {
+                "type": "playback_time_sync",
+                "playback_sync": playback_sync.dict(),
+                "timestamp": datetime.now().isoformat()
+            })
+        
+        # 同期確認応答（デバイス接続状況に関わらず）
         await websocket_manager.send_to_webapp(session_id, {
             "type": "sync_acknowledged",
             "current_time": current_time,
-            "events_sent": sent_commands,
-            "sync_precision_ms": 500,  # ±500ms精度
+            "is_playing": is_playing,
+            "device_connected": device_connected,
+            "sync_method": "direct_time_transmission",  # 新仕様表示
             "timestamp": datetime.now().isoformat()
         })
         
-        if sync_commands:
-            self.logger.debug(f"高精度同期処理: セッション {session_id}, 時刻 {current_time:.2f}s, コマンド数 {sent_commands}/{len(sync_commands)}")
+        self.logger.debug(f"直接時刻送信: セッション {session_id}, 時刻 {current_time:.2f}s, 再生中 {is_playing}, デバイス接続 {device_connected}")
         
     async def _handle_end_playback(self, session_id: str, message: Dict[str, Any]):
         """再生終了処理"""

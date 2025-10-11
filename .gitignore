@@ -104,3 +104,18 @@ dist/
 docker-compose.override.yml
 .dockerignore.local
 *.docker.log
+
+# Test files and simulators (not for production)
+*test*.py
+*simulator*.py
+*tester*.py
+test_*.py
+*_test.py
+*_simulator.py
+cloudrun_*.py
+frontend_test_*.py
+end_to_end_*.py
+docker_*_test.py
+simple_ws_test.py
+final_test.py
+websocket_test.html
