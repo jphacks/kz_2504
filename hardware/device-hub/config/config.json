@@ -1,0 +1,12 @@
+# Configuration for 4DX@HOME Device Hub
+# TODO: Add production configuration
+
+{
+  "server_url": "wss://4dx-home.example.com/ws",
+  "serial_port": "/dev/ttyUSB0",
+  "serial_baudrate": 9600,
+  "device_id": "rpi_001",
+  "capabilities": ["vibration", "scent"],
+  "reconnect_interval": 3,
+  "heartbeat_interval": 30
+}
