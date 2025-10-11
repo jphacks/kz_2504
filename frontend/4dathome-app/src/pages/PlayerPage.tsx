@@ -99,8 +99,8 @@ export default function PlayerPage() {
     if (!sessionId) return;
 
     setWsStatus("connecting");
-    const url = `${WS_BASE}/ws?session=${encodeURIComponent(sessionId)}&role=web`;
-    const ws = new WebSocket(url);
+    const ws =  new WebSocket("ws://localhost:8000/ws?session=test&role=web")
+
     wsRef.current = ws;
 
     ws.onopen = () => {
