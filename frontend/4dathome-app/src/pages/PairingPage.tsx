@@ -1,54 +1,52 @@
+// src/pages/PairingPage.tsx
 import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 
-/** Pairing：背景フル / ヘッダーは左=長方形ロゴ（幅は高さ×2）・右=丸アイコン2つ */
+/** Pairing：背景フル / ヘッダーは左=長方形ロゴ・右=白塗りPNGアイコン2つ（丸囲み無し / Selectと同じ幅感） */
 export default function PairingPage() {
   const [code, setCode] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
-  const [deviceReady, setDeviceReady] = useState(false);
+  const [deviceReady] = useState(false); // 今回WS使わない
   const wsRef = useRef<WebSocket | null>(null);
   const navigate = useNavigate();
 
+  const API_BASE = "https://fourdk-home-backend-333203798555.asia-northeast1.run.app";
+
+  // セッション作成（POST）→ 成功で /selectpage
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     const c = code.trim();
-    if (!c) return setError("コードを入力してください");
-    setError(null); setLoading(true); setDeviceReady(false);
+    if (!c) { setError("コードを入力してください"); return; }
+
+    setError(null);
+    setLoading(true);
+
     try {
-      const res = await fetch(`https://your-server-domain/api/sessions/${c}`);
-      if (!res.ok) throw new Error(String(res.status));
-      const data = await res.json();
-      sessionStorage.setItem("sessionCode", c);
-      connectWebSocket(c);
-      if (data?.device_ready) setDeviceReady(true);
-    } catch {
+      const postOnce = async (body: Record<string, string>) => {
+        const res = await fetch(`${API_BASE}/api/sessions`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(body),
+        });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        return res.json().catch(() => ({}));
+      };
+      let data: any;
+      try {
+        data = await postOnce({ session_id: c });
+      } catch {
+        data = await postOnce({ id: c });
+      }
+      const sessionId = String(data?.session_id || c);
+      sessionStorage.setItem("sessionId", sessionId);
+      sessionStorage.setItem("sessionCode", sessionId);
+      navigate("/selectpage", { replace: true });
+    } catch (err) {
+      console.error(err);
       setError("セッションが無効か、サーバーに接続できません");
       setLoading(false);
     }
-  };
-
-  const connectWebSocket = (sessionId: string) => {
-    try {
-      const ws = new WebSocket(`wss://your-server-domain/ws/sessions/${sessionId}`);
-      wsRef.current = ws;
-      ws.onopen = () => setLoading(false);
-      ws.onmessage = (ev) => {
-        const msg = JSON.parse(ev.data);
-        if (msg.type === "ready") setDeviceReady(true);
-        if (msg.type === "error") setError(msg.message || "サーバーエラー");
-      };
-    } catch {
-      setError("WebSocket接続に失敗しました"); setLoading(false);
-    }
-  };
-
-  const handleStart = () => {
-    const sessionCode = code.trim();
-    if (!sessionCode) return;
-    wsRef.current?.send(JSON.stringify({ type: "start_playback" }));
-    sessionStorage.setItem("sessionCode", sessionCode);
-    navigate(`/player?session=${encodeURIComponent(sessionCode)}`);
   };
 
   useEffect(() => () => wsRef.current?.close(), []);
@@ -59,10 +57,10 @@ export default function PairingPage() {
         :root{
           --xh-h: clamp(52px, 7vw, 64px);
           --pad: clamp(12px, 3vw, 18px);
-          --ico: clamp(28px, 5vw, 34px);
-          --gap: clamp(10px, 2.4vw, 16px);
+          --ico: clamp(22px, 4.8vw, 30px);    /* ← ひと回り大きく */
+          --gap: clamp(14px, 3vw, 22px);
           --logo-h: clamp(32px, 5vw, 44px);
-          --logo-w-base: calc(var(--logo-h) * 2); /* 幅=高さ×2（長方形） */
+          --logo-w-base: calc(var(--logo-h) * 2);
           --logo-w: max(80px, min(
             var(--logo-w-base),
             calc(100vw - (var(--pad) * 2) - (var(--ico) * 2) - var(--gap) - 12px)
@@ -73,24 +71,38 @@ export default function PairingPage() {
         .xh-bg{ position:absolute; inset:0; background:url('/PairingPage.jpeg') center/cover no-repeat fixed; }
         .xh-shade{ position:absolute; inset:0; background: radial-gradient(80% 70% at 50% 30%, transparent 0%, rgba(0,0,0,.35) 60%, rgba(0,0,0,.55) 100%); }
 
-        /* 固定ヘッダー（Gridで左右固定/中央スペーサ） */
+        /* TopBar（Selectと同じ中央幅） */
         .xh-top{
           position:fixed; inset:0 0 auto 0; height:var(--xh-h);
           background:#000; border-bottom:1px solid rgba(255,255,255,.1);
-          padding:0 var(--pad); z-index:20;
+          z-index:20; padding:0;
+        }
+        .xh-head{
+          width:min(1280px, 92vw);
+          margin:0 auto; height:100%;
           display:grid; grid-template-columns:auto 1fr auto; align-items:center; column-gap:12px;
+          padding:0 var(--pad);
         }
         .xh-left{ min-width:0; display:flex; align-items:center; }
-        .xh-right{ display:flex; align-items:center; gap:var(--gap); }
-
+        .xh-right{
+          display:flex; align-items:center;
+          gap: calc(var(--gap) + 6px);           
+          padding-right: calc(var(--pad) * .6);  
+        }
         .xh-logoBox{ width:var(--logo-w); height:var(--logo-h); border-radius:8px;
           overflow:hidden; border:1px solid rgba(255,255,255,.12);
           display:grid; place-items:center; background:transparent; }
         .xh-logoImg{ width:100%; height:100%; object-fit:contain; display:block; }
 
-        .xh-ico{ width:var(--ico); height:var(--ico); border-radius:999px; background:#e9e9e9;
-          display:grid; place-items:center; box-shadow:0 1px 0 rgba(0,0,0,.5) inset; }
-        .xh-ico img{ width:60%; height:60%; object-fit:contain; display:block; filter:saturate(0); }
+        /* 丸囲みナシ：透明・白塗りPNGをそのまま表示 */
+        .xh-ico{
+          display:flex; align-items:center; justify-content:center;
+          width:auto; height:auto; background:transparent; border:none; border-radius:0; padding:0;
+        }
+        .xh-ico img{
+          width:var(--ico); height:auto; display:block;
+          filter: brightness(0) invert(1); /* 念のため白化（元が黒系でも白で出る） */
+        }
 
         .xh-content-pad{ padding-top: var(--xh-h); }
 
@@ -102,9 +114,19 @@ export default function PairingPage() {
         .xh-input{ width:100%; height:clamp(40px,6.6vw,48px); background:#fff; color:#111; border-radius:6px; border:2px solid #111; padding:0 12px; font-size:clamp(14px,3.2vw,18px); box-shadow:0 2px 0 rgba(0,0,0,.35); }
         .xh-btn{ margin-top:14px; min-width:160px; height:clamp(42px,7vw,48px); border:none; border-radius:8px; font-weight:700; cursor:pointer; }
         .xh-connect{ background:#fff; color:#111; }
-        .xh-ready{ margin-top:16px; color:#b7f7c5; }
-        .xh-start{ margin-top:10px; background:#34d399; color:#111; }
         .xh-err{ margin-top:8px; color:#ffe08a; }
+
+        /* ふわっと表示 */
+        @keyframes xh-fadeUp {
+          0% { opacity:0; transform: translateY(8px) scale(0.995); filter: blur(4px); }
+          100%{ opacity:1; transform:none; filter: none; }
+        }
+        .xh-fade { animation: xh-fadeUp .6s cubic-bezier(.22,.61,.36,1) both; will-change: transform, opacity, filter; }
+        .xh-d0{ animation-delay: .02s; }
+        .xh-d1{ animation-delay: .09s; }
+        .xh-d2{ animation-delay: .16s; }
+        .xh-d3{ animation-delay: .23s; }
+        @media (prefers-reduced-motion: reduce) { .xh-fade{ animation:none !important; opacity:1 !important; transform:none !important; filter:none !important; } }
       `}</style>
 
       <div className="xh-root" aria-live="polite">
@@ -112,19 +134,21 @@ export default function PairingPage() {
         <div className="xh-shade" aria-hidden="true" />
 
         <header className="xh-top" role="banner">
-          <div className="xh-left">
-            <div className="xh-logoBox" title="Home">
-              <img src="/logg.jpeg" alt="Logo" className="xh-logoImg"
-                   onError={(e)=>{ (e.currentTarget as HTMLImageElement).style.display='none'; }} />
+          <div className="xh-head">
+            <div className="xh-left">
+              <div className="xh-logoBox" title="Home">
+                <img src="/logg.jpeg" alt="Logo" className="xh-logoImg"
+                     onError={(e)=>{ (e.currentTarget as HTMLImageElement).style.display='none'; }} />
+              </div>
             </div>
-          </div>
-          <div aria-hidden="true" />
-          <div className="xh-right">
-            <div className="xh-ico" title="System">
-              <img src="/system.jpeg" alt="" onError={(e)=>{ (e.currentTarget as HTMLImageElement).style.display='none'; }} />
-            </div>
-            <div className="xh-ico" title="Notifications">
-              <img src="/bell.jpeg" alt="" onError={(e)=>{ (e.currentTarget as HTMLImageElement).style.display='none'; }} />
+            <div aria-hidden="true" />
+            <div className="xh-right">
+              <div className="xh-ico" title="System">
+                <img src="/system.png" alt="" onError={(e)=>{ (e.currentTarget as HTMLImageElement).style.display='none'; }} />
+              </div>
+              <div className="xh-ico" title="Notifications">
+                <img src="/bell.png" alt="" onError={(e)=>{ (e.currentTarget as HTMLImageElement).style.display='none'; }} />
+              </div>
             </div>
           </div>
         </header>
@@ -133,26 +157,26 @@ export default function PairingPage() {
           <div />
           <div className="xh-center">
             <form onSubmit={handleSubmit} aria-labelledby="pairingTitle">
-              <h1 id="pairingTitle" className="xh-title">デバイスのIDを入力してください</h1>
-              <div className="xh-field">
-                <input className="xh-input" value={code} onChange={(e)=>setCode(e.target.value)}
-                       placeholder="デバイスID" inputMode="text" autoComplete="one-time-code" />
+              <h1 id="pairingTitle" className="xh-title xh-fade xh-d0">デバイスのIDを入力してください</h1>
+
+              <div className="xh-field xh-fade xh-d1">
+                <input
+                  className="xh-input"
+                  value={code}
+                  onChange={(e)=>setCode(e.target.value)}
+                  placeholder="デバイスID"
+                  inputMode="text"
+                  autoComplete="one-time-code"
+                />
               </div>
 
-              {error && <div className="xh-err">⚠ {error}</div>}
+              {error && <div className="xh-err xh-fade xh-d2">⚠ {error}</div>}
 
-              <div>
+              <div className="xh-fade xh-d3">
                 <button type="submit" className="xh-btn xh-connect" disabled={loading}>
                   {loading ? "接続中..." : "接続"}
                 </button>
               </div>
-
-              {deviceReady && (
-                <div className="xh-ready">
-                  ✅ デバイスが準備できました
-                  <div><button type="button" className="xh-btn xh-start" onClick={handleStart}>再生を開始</button></div>
-                </div>
-              )}
             </form>
           </div>
         </main>
