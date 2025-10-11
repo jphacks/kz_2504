@@ -1,0 +1,222 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>4DX@HOME WebSocket Test</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .container { max-width: 800px; margin: 0 auto; }
+        .section { margin: 20px 0; padding: 15px; border: 1px solid #ccc; border-radius: 5px; }
+        button { margin: 5px; padding: 10px 15px; background: #007bff; color: white; border: none; border-radius: 3px; cursor: pointer; }
+        button:hover { background: #0056b3; }
+        button:disabled { background: #ccc; cursor: not-allowed; }
+        input, select { padding: 8px; margin: 5px; border: 1px solid #ccc; border-radius: 3px; }
+        textarea { width: 100%; height: 200px; margin: 10px 0; padding: 10px; border: 1px solid #ccc; border-radius: 3px; }
+        .status { font-weight: bold; }
+        .connected { color: green; }
+        .disconnected { color: red; }
+        .log { background: #f8f9fa; padding: 10px; margin: 10px 0; border-radius: 3px; font-family: monospace; white-space: pre-wrap; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>4DX@HOME WebSocket テストクライアント</h1>
+        
+        <div class="section">
+            <h3>接続設定</h3>
+            <label>クライアントID: </label>
+            <input type="text" id="clientId" value="test-client-001" />
+            <br>
+            <label>WebSocket URL: </label>
+            <input type="text" id="wsUrl" value="ws://127.0.0.1:8001/ws/" style="width: 300px;" />
+            <br>
+            <button id="connectBtn" onclick="connect()">接続</button>
+            <button id="disconnectBtn" onclick="disconnect()" disabled>切断</button>
+            <span id="connectionStatus" class="status disconnected">未接続</span>
+        </div>
+
+        <div class="section">
+            <h3>セッション管理</h3>
+            <label>セッションコード: </label>
+            <input type="text" id="sessionCode" placeholder="6桁のコード" />
+            <button onclick="joinSession()">セッション参加</button>
+            <button onclick="createNewSession()">新規セッション作成</button>
+        </div>
+
+        <div class="section">
+            <h3>メッセージ送信</h3>
+            <label>メッセージタイプ: </label>
+            <select id="messageType">
+                <option value="echo">エコーテスト</option>
+                <option value="sync_data">同期データ</option>
+                <option value="custom">カスタム</option>
+            </select>
+            <br>
+            <textarea id="messageData" placeholder='{"test": "message"}'></textarea>
+            <button onclick="sendMessage()">送信</button>
+        </div>
+
+        <div class="section">
+            <h3>ログ</h3>
+            <button onclick="clearLog()">ログクリア</button>
+            <div id="log" class="log"></div>
+        </div>
+    </div>
+
+    <script>
+        let ws = null;
+        let currentSessionCode = null;
+
+        function log(message) {
+            const logDiv = document.getElementById('log');
+            const timestamp = new Date().toLocaleTimeString();
+            logDiv.textContent += `[${timestamp}] ${message}\n`;
+            logDiv.scrollTop = logDiv.scrollHeight;
+        }
+
+        function updateConnectionStatus(connected) {
+            const status = document.getElementById('connectionStatus');
+            const connectBtn = document.getElementById('connectBtn');
+            const disconnectBtn = document.getElementById('disconnectBtn');
+            
+            if (connected) {
+                status.textContent = '接続中';
+                status.className = 'status connected';
+                connectBtn.disabled = true;
+                disconnectBtn.disabled = false;
+            } else {
+                status.textContent = '未接続';
+                status.className = 'status disconnected';
+                connectBtn.disabled = false;
+                disconnectBtn.disabled = true;
+            }
+        }
+
+        function connect() {
+            const clientId = document.getElementById('clientId').value;
+            const wsUrl = document.getElementById('wsUrl').value;
+            
+            if (!clientId) {
+                alert('クライアントIDを入力してください');
+                return;
+            }
+
+            const fullUrl = wsUrl + clientId;
+            log(`接続試行: ${fullUrl}`);
+            
+            ws = new WebSocket(fullUrl);
+            
+            ws.onopen = function(event) {
+                log('WebSocket接続成功');
+                updateConnectionStatus(true);
+            };
+            
+            ws.onmessage = function(event) {
+                log(`受信: ${event.data}`);
+                try {
+                    const data = JSON.parse(event.data);
+                    if (data.type === 'session_joined') {
+                        currentSessionCode = data.session_code;
+                        document.getElementById('sessionCode').value = currentSessionCode;
+                    }
+                } catch (e) {
+                    // JSONでない場合はそのまま表示
+                }
+            };
+            
+            ws.onerror = function(error) {
+                log(`WebSocketエラー: ${error}`);
+            };
+            
+            ws.onclose = function(event) {
+                log(`WebSocket切断: Code=${event.code}, Reason=${event.reason}`);
+                updateConnectionStatus(false);
+                ws = null;
+            };
+        }
+
+        function disconnect() {
+            if (ws) {
+                ws.close();
+            }
+        }
+
+        function joinSession() {
+            const sessionCode = document.getElementById('sessionCode').value;
+            if (!sessionCode) {
+                alert('セッションコードを入力してください');
+                return;
+            }
+            
+            if (!ws || ws.readyState !== WebSocket.OPEN) {
+                alert('WebSocketに接続してください');
+                return;
+            }
+
+            const message = {
+                type: 'join_session',
+                session_code: sessionCode
+            };
+            
+            ws.send(JSON.stringify(message));
+            log(`セッション参加リクエスト送信: ${sessionCode}`);
+        }
+
+        async function createNewSession() {
+            try {
+                const response = await fetch('http://127.0.0.1:8001/api/session/create', {
+                    method: 'POST'
+                });
+                const data = await response.json();
+                document.getElementById('sessionCode').value = data.session_code;
+                log(`新規セッション作成: ${data.session_code}`);
+            } catch (error) {
+                log(`セッション作成エラー: ${error}`);
+            }
+        }
+
+        function sendMessage() {
+            if (!ws || ws.readyState !== WebSocket.OPEN) {
+                alert('WebSocketに接続してください');
+                return;
+            }
+
+            const messageType = document.getElementById('messageType').value;
+            const messageData = document.getElementById('messageData').value;
+            
+            let message;
+            try {
+                if (messageType === 'echo') {
+                    message = {
+                        type: 'echo_test',
+                        data: messageData || 'Hello from WebSocket client'
+                    };
+                } else if (messageType === 'sync_data') {
+                    message = {
+                        type: 'sync_data',
+                        session_code: currentSessionCode,
+                        data: JSON.parse(messageData || '{"action": "test", "value": 123}')
+                    };
+                } else {
+                    message = JSON.parse(messageData);
+                }
+                
+                ws.send(JSON.stringify(message));
+                log(`送信: ${JSON.stringify(message)}`);
+            } catch (error) {
+                alert(`メッセージ形式エラー: ${error}`);
+            }
+        }
+
+        function clearLog() {
+            document.getElementById('log').textContent = '';
+        }
+
+        // ページ読み込み時の初期化
+        document.addEventListener('DOMContentLoaded', function() {
+            log('WebSocketテストクライアント起動');
+        });
+    </script>
+</body>
+</html>
