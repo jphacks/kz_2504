@@ -423,7 +423,7 @@ sequenceDiagram
 
 #### **4.2 デモ用ルーティング設計**
 ```
-https://4dx-home.example.com/
+https://fourdk-home-backend.run.app/
 ├── /                    → Cloud Storage (React SPA)
 ├── /assets/             → Cloud Storage (静的リソース)
 │   ├── /videos/         → Cloud Storage (動画ファイル)
@@ -768,7 +768,7 @@ class FourDXWebSocket {
   
   connect(): Promise<void> {
     return new Promise((resolve, reject) => {
-      this.ws = new WebSocket(`wss://4dx-home.example.com/ws/webapp/${this.sessionId}`);
+      this.ws = new WebSocket(`wss://fourdk-home-backend.run.app/ws/webapp/${this.sessionId}`);
       
       this.ws.onopen = () => resolve();
       this.ws.onerror = (error) => reject(error);
@@ -898,7 +898,7 @@ class FourDXDevice:
     def __init__(self, product_code: str = "DH001"):
         self.product_code = product_code
         self.session_id = None
-        self.server_url = "https://4dx-home.example.com"
+        self.server_url = "https://fourdk-home-backend.run.app"
     
     def register_device(self) -> Dict[str, Any]:
         """フェーズ1: デバイス登録"""
@@ -947,7 +947,7 @@ import json
 from typing import Dict, Any
 
 class FourDXWebSocket:
-    def __init__(self, session_id: str, server_url: str = "wss://4dx-home.example.com"):
+    def __init__(self, session_id: str, server_url: str = "wss://fourdk-home-backend.run.app"):
         self.session_id = session_id
         self.ws_url = f"{server_url}/ws/device/{session_id}"
         self.websocket = None
@@ -1121,7 +1121,7 @@ python main.py
 # 実行ログ例：
 # Device registered: DH001 -> ses_123
 # Waiting for WebApp connection...
-# Connected to WebSocket: wss://4dx-home.example.com/ws/device/ses_123
+# Connected to WebSocket: wss://fourdk-home-backend.run.app/ws/device/ses_123
 # Prepare for playback: demo_video
 # Actuators prepared
 # Vibration: intensity=50, duration=1000ms
@@ -1151,7 +1151,7 @@ python main.py
                                |   12. <---- 200 OK
                                |       {video_url, sync_events}
                                |   13. 動画プリロード開始
-                               |   14. WebSocket接続: /ws/webapp/ses_123
+                               |   14. WebSocket接続: wss://fourdk-home-backend.run.app/ws/webapp/ses_123
       |                        |                        |
 15. WebSocket接続確立 <--------|--------> WebSocket接続確立
 16. {type: "device_connected"} |                        |

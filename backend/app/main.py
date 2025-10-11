@@ -9,192 +9,189 @@ import asyncio
 from datetime import datetime
 from typing import Dict, List, Optional
 import logging
-import random
-import string
 import os
 
-# セットアップ
-logging.basicConfig(level=logging.INFO)
+# アプリケーション設定とロギング
+from app.config.settings import Settings
+from app.config.logging import setup_logging
+from app.api.phase1 import router as phase1_router
+from app.models.session_models import session_manager
+
+# 設定読み込み
+settings = Settings()
+
+# ロギング設定
+setup_logging(
+    log_level=settings.log_level,
+    log_file=settings.log_file if settings.environment != "production" else None
+)
 logger = logging.getLogger(__name__)
 
+# FastAPIアプリケーション作成
 app = FastAPI(
-    title="4DX@HOME Backend",
-    description="WebSocketを使用したリアルタイム同期システム",
-    version="1.0.0"
+    title="4DX@HOME Backend API",
+    description="WebSocketベースリアルタイム体験同期システム",
+    version="1.0.0",
+    docs_url="/docs" if settings.environment != "production" else None,
+    redoc_url="/redoc" if settings.environment != "production" else None
 )
 
 # CORS設定
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # 開発環境用、本番では具体的なドメインを指定
+    allow_origins=settings.allowed_origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-# 接続管理クラス
-class ConnectionManager:
-    def __init__(self):
-        self.active_connections: Dict[str, WebSocket] = {}
-        self.sessions: Dict[str, Dict] = {}
-    
-    async def connect(self, websocket: WebSocket, client_id: str):
-        await websocket.accept()
-        self.active_connections[client_id] = websocket
-        logger.info(f"Client {client_id} connected")
-    
-    def disconnect(self, client_id: str):
-        if client_id in self.active_connections:
-            del self.active_connections[client_id]
-            logger.info(f"Client {client_id} disconnected")
-    
-    async def send_personal_message(self, message: str, client_id: str):
-        if client_id in self.active_connections:
-            await self.active_connections[client_id].send_text(message)
-    
-    async def broadcast_to_session(self, message: str, session_code: str):
-        if session_code in self.sessions:
-            for client_id in self.sessions[session_code].get("clients", []):
-                if client_id in self.active_connections:
-                    await self.active_connections[client_id].send_text(message)
-    
-    def create_session(self) -> str:
-        """セッションコードを生成"""
-        session_code = ''.join(random.choices(string.ascii_uppercase + string.digits, k=6))
-        self.sessions[session_code] = {
-            "created_at": datetime.now().isoformat(),
-            "clients": [],
-            "status": "waiting"
-        }
-        return session_code
-    
-    def join_session(self, session_code: str, client_id: str) -> bool:
-        """セッションに参加"""
-        if session_code in self.sessions:
-            if client_id not in self.sessions[session_code]["clients"]:
-                self.sessions[session_code]["clients"].append(client_id)
-            return True
-        return False
+# APIルーター登録
+app.include_router(phase1_router)
 
-manager = ConnectionManager()
+# 静的ファイル設定（開発環境のみ）
+if settings.environment == "development":
+    # アセット用静的ファイル
+    if os.path.exists(settings.assets_directory):
+        app.mount("/assets", StaticFiles(directory=settings.assets_directory), name="assets")
 
+# ルートエンドポイント
 @app.get("/")
 async def root():
+    """APIルート - 基本情報返却"""
+    sessions = session_manager.get_all_sessions()
     return {
-        "message": "4DX@HOME API Server",
+        "service": "4DX@HOME Backend API",
         "status": "running",
-        "version": "1.0.0",
+        "version": "1.0.0", 
+        "environment": settings.environment,
         "timestamp": datetime.now().isoformat(),
-        "active_connections": len(manager.active_connections),
-        "active_sessions": len(manager.sessions)
-    }
-
-@app.post("/api/session/create")
-async def create_session():
-    """新しいセッションを作成"""
-    session_code = manager.create_session()
-    return {
-        "session_code": session_code,
-        "message": f"Session {session_code} created successfully"
-    }
-
-@app.get("/api/session/{session_code}")
-async def get_session_info(session_code: str):
-    """セッション情報を取得"""
-    if session_code in manager.sessions:
-        return {
-            "session_code": session_code,
-            "session_data": manager.sessions[session_code]
+        "active_sessions": len(sessions),
+        "endpoints": {
+            "api_docs": "/docs",
+            "sessions": "/api/sessions",
+            "videos": "/api/videos",
+            "health": "/api/health"
         }
-    raise HTTPException(status_code=404, detail="Session not found")
+    }
 
-@app.websocket("/ws/{client_id}")
-async def websocket_endpoint(websocket: WebSocket, client_id: str):
-    """WebSocket接続エンドポイント"""
-    await manager.connect(websocket, client_id)
+@app.websocket("/ws/sessions/{session_id}")
+async def websocket_endpoint(websocket: WebSocket, session_id: str):
+    """
+    WebSocket接続エンドポイント
+    セッション別WebSocket通信を管理
+    """
+    # セッション存在確認
+    session = session_manager.get_session(session_id)
+    if not session:
+        await websocket.close(code=4004, reason="Session not found")
+        return
+    
+    # WebSocket接続
+    await websocket.accept()
+    session_manager.add_websocket(session_id, websocket)
+    
+    logger.info(f"WebSocket接続: セッション {session_id}")
     
     try:
+        # 接続確認メッセージ送信
+        await websocket.send_json({
+            "type": "connection_established",
+            "session_id": session_id,
+            "message": "WebSocket接続が確立されました",
+            "timestamp": datetime.now().isoformat()
+        })
+        
+        # メッセージ受信ループ
         while True:
-            # クライアントからのメッセージを受信
+            # メッセージ受信
             data = await websocket.receive_text()
-            message_data = json.loads(data)
+            message = json.loads(data)
             
-            # メッセージタイプに応じて処理
-            if message_data.get("type") == "join_session":
-                session_code = message_data.get("session_code")
-                if manager.join_session(session_code, client_id):
-                    await manager.send_personal_message(
-                        json.dumps({
-                            "type": "session_joined",
-                            "session_code": session_code,
-                            "message": "Successfully joined session"
-                        }),
-                        client_id
-                    )
-                    # セッション内の他のクライアントに通知
-                    await manager.broadcast_to_session(
-                        json.dumps({
-                            "type": "client_joined",
-                            "client_id": client_id,
-                            "message": f"Client {client_id} joined the session"
-                        }),
-                        session_code
-                    )
-                else:
-                    await manager.send_personal_message(
-                        json.dumps({
-                            "type": "error",
-                            "message": "Session not found"
-                        }),
-                        client_id
-                    )
+            logger.info(f"WebSocketメッセージ受信: セッション {session_id}, タイプ: {message.get('type')}")
             
-            elif message_data.get("type") == "sync_data":
-                # 同期データの処理とブロードキャスト
-                session_code = message_data.get("session_code")
-                if session_code:
-                    await manager.broadcast_to_session(
-                        json.dumps({
-                            "type": "sync_data",
-                            "data": message_data.get("data"),
-                            "timestamp": datetime.now().isoformat(),
-                            "from_client": client_id
-                        }),
-                        session_code
-                    )
+            # メッセージタイプ別処理
+            message_type = message.get("type")
             
+            if message_type == "ping":
+                # ヘルスチェック
+                await websocket.send_json({
+                    "type": "pong",
+                    "timestamp": datetime.now().isoformat()
+                })
+                
+            elif message_type == "device_status":
+                # デバイス状態更新
+                await session_manager.broadcast_to_session(session_id, {
+                    "type": "device_status_update",
+                    "data": message.get("data"),
+                    "timestamp": datetime.now().isoformat()
+                })
+                
+            elif message_type == "sync_command":
+                # 同期コマンド配信
+                await session_manager.broadcast_to_session(session_id, {
+                    "type": "sync_command",
+                    "command": message.get("command"),
+                    "data": message.get("data"),
+                    "timestamp": datetime.now().isoformat()
+                })
+                
             else:
-                # エコーバック（テスト用）
-                await manager.send_personal_message(
-                    json.dumps({
-                        "type": "echo",
-                        "message": f"Received: {data}",
-                        "timestamp": datetime.now().isoformat()
-                    }),
-                    client_id
-                )
-    
+                # 未知のメッセージタイプ
+                await websocket.send_json({
+                    "type": "error",
+                    "message": f"未対応のメッセージタイプ: {message_type}",
+                    "timestamp": datetime.now().isoformat()
+                })
+                
     except WebSocketDisconnect:
-        manager.disconnect(client_id)
-        logger.info(f"Client {client_id} disconnected")
+        logger.info(f"WebSocket切断: セッション {session_id}")
+        
+    except Exception as e:
+        logger.error(f"WebSocketエラー: セッション {session_id}, エラー: {e}")
+        
+    finally:
+        # WebSocket削除
+        session_manager.remove_websocket(session_id, websocket)
 
-@app.get("/health")
-async def health_check():
-    """ヘルスチェックエンドポイント"""
-    return {
-        "status": "healthy", 
-        "timestamp": datetime.now().isoformat()
-    }
+# 開発用テストページ（開発環境のみ）
+if settings.environment == "development":
+    @app.get("/test")
+    async def websocket_test_page():
+        """WebSocketテストページ（開発環境のみ）"""
+        test_file = os.path.join(os.path.dirname(__file__), "..", "websocket_test.html")
+        if os.path.exists(test_file):
+            return FileResponse(test_file)
+        else:
+            raise HTTPException(status_code=404, detail="Test page not found")
 
-@app.get("/test")
-async def websocket_test_page():
-    """WebSocketテストページ"""
-    test_file = os.path.join(os.path.dirname(__file__), "..", "websocket_test.html")
-    if os.path.exists(test_file):
-        return FileResponse(test_file)
-    else:
-        raise HTTPException(status_code=404, detail="Test page not found")
+# アプリケーション起動時処理
+@app.on_event("startup")
+async def startup_event():
+    """アプリケーション起動処理"""
+    logger.info("4DX@HOME Backend API サーバー起動")
+    logger.info(f"環境: {settings.environment}")
+    logger.info(f"ログレベル: {settings.log_level}")
+    
+    # 期限切れセッション削除（起動時クリーンアップ）
+    cleaned = session_manager.cleanup_expired_sessions()
+    if cleaned > 0:
+        logger.info(f"期限切れセッション削除: {cleaned}件")
 
+@app.on_event("shutdown") 
+async def shutdown_event():
+    """アプリケーション終了処理"""
+    logger.info("4DX@HOME Backend API サーバー終了")
+
+# アプリケーション実行
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run(app, host="127.0.0.1", port=8001)
+    
+    # 設定に基づいて起動
+    uvicorn.run(
+        "app.main:app",
+        host=settings.server_host,
+        port=settings.server_port,
+        log_level=settings.log_level.lower(),
+        reload=settings.environment == "development"
+    )
