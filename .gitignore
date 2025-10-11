@@ -49,10 +49,43 @@ Thumbs.db
 *.log
 logs/
 
-# Environment variables
+# Environment variables and secrets
 .env
-.env.local
-.env.production
+.env.*
+!.env.example
+*.env
+config/secrets/
+credentials/
+secrets.json
+api_keys.txt
+*.key
+*.pem
+*.p12
+*.pfx
+
+# Database and data files
+*.db
+*.sqlite
+*.sqlite3
+data/
+*.csv
+*.json.backup
+
+# Temporary and cache files
+tmp/
+temp/
+.cache/
+.pytest_cache/
+.coverage
+htmlcov/
+.nyc_output/
+
+# Security and authentication
+auth_config.json
+jwt_secret*
+session_keys/
+ssl_certs/
+private_keys/
 
 # Node.js (if frontend uses npm)
 node_modules/
