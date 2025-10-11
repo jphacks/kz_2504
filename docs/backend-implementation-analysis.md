@@ -172,7 +172,7 @@ async def upload_sync_data_enhanced(session_id: str, sync_data_request: dict):
    ↓
 10. 統合テスト実装
    ↓
-11. デプロイメント
+11. Cloud Runデプロイメント (https://fourdk-backend-333203798555.asia-northeast1.run.app)
 ```
 
 ---

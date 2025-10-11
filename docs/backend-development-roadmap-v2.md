@@ -790,6 +790,7 @@ uvicorn app.main:app --reload --host 0.0.0.0 --port 8001
 
 2. **Cloud Runコールドスタート遅延**
    - 対策: keep-aliveリクエスト、最小インスタンス設定
+   - 本番URL: `https://fourdk-backend-333203798555.asia-northeast1.run.app`
 
 3. **同期データ配信遅延**
    - 対策: データ圧縮、配信最適化
@@ -852,7 +853,7 @@ A:
 - [ ] ログ・モニタリング完備
 
 ### デプロイメント
-- [ ] Cloud Run正常デプロイ
+- [ ] Cloud Run正常デプロイ（`https://fourdk-backend-333203798555.asia-northeast1.run.app`）
 - [ ] 外部アクセス確認
 - [ ] 本番環境テスト成功
 

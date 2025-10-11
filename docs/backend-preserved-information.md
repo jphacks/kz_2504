@@ -252,7 +252,7 @@ class Settings(BaseSettings):
     port: int = 8080
     
     # CORS設定
-    cors_origins: str = "http://localhost:3000,http://127.0.0.1:3000,https://fourdk-home-frontend.web.app"
+    cors_origins: str = "http://localhost:3000,http://127.0.0.1:3000,https://fourdk-home-frontend.web.app,https://fourdk-backend-333203798555.asia-northeast1.run.app"
     
     # WebSocket設定
     websocket_timeout: int = 300
@@ -377,9 +377,12 @@ backend/
 ## 🚀 デプロイメント情報
 
 ### Cloud Run設定
+- **URL**: `https://fourdk-backend-333203798555.asia-northeast1.run.app`
+- **リージョン**: asia-northeast1（東京）
 - **ポート**: 8080
 - **ホスト**: 0.0.0.0
 - **環境変数**: `.env`ファイルから読み込み
+- **プロジェクトID**: fourdk-backend-333203798555
 
 ### Docker設定
 ```dockerfile
@@ -413,6 +416,113 @@ CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8080"]
 2. **WebSocket拡張**: 準備通知機能の追加
 3. **テスト充実**: 包括的なテスト実装
 4. **パフォーマンス**: 同期精度の向上
+
+---
+
+## 🖥️ フロントエンド構造（最新）
+
+### 実装済み構造
+```
+frontend/4dathome-app/
+├── public/
+│   ├── vite.svg
+│   └── assets/
+│       ├── movie.mp4           # デモ動画ファイル
+│       └── react.svg
+├── src/
+│   ├── App.tsx                 # メインアプリケーション
+│   ├── main.tsx               # エントリーポイント
+│   ├── components/
+│   │   └── AppHeader.tsx       # 共通ヘッダーコンポーネント
+│   ├── pages/
+│   │   ├── PairingPage.tsx     # デバイス登録画面（実装済み）
+│   │   └── PlayerPage.tsx      # 動画再生画面（実装済み）
+│   ├── hooks/
+│   │   └── useSessionApi.ts    # セッションAPI管理フック
+│   ├── types/
+│   │   └── session.ts          # セッション型定義
+│   ├── utils/
+│   │   ├── apt.ts             # API通信ユーティリティ
+│   │   └── socket.ts          # WebSocket通信管理
+│   └── assets/
+│       └── react.svg
+├── package.json               # 依存関係管理
+├── vite.config.tsx           # Vite設定
+├── tailwind.config.cjs       # TailwindCSS設定
+└── tsconfig.json             # TypeScript設定
+```
+
+### バックエンドとの連携要件
+1. **PairingPage.tsx** → `https://fourdk-backend-333203798555.asia-northeast1.run.app/api/device/register`
+2. **PlayerPage.tsx** → WebSocket同期通信（`wss://fourdk-backend-333203798555.asia-northeast1.run.app/ws/webapp/{session_id}`）
+3. **useSessionApi.ts** → セッション管理API対応
+4. **socket.ts** → Cloud Run WebSocketエンドポイント対応
+
+### 本番環境設定
+- **APIベースURL**: `https://fourdk-backend-333203798555.asia-northeast1.run.app`
+- **WebSocketベースURL**: `wss://fourdk-backend-333203798555.asia-northeast1.run.app`
+- **リージョン**: asia-northeast1（東京）
+
+### 必要な追加実装
+```
+src/
+├── pages/
+│   ├── VideoSelection.tsx      # 動画選択画面（新規）
+│   └── WaitingScreen.tsx      # 準備待機画面（新規）
+├── services/
+│   ├── DeviceService.ts       # デバイス登録API（新規）
+│   ├── VideoService.ts        # 動画管理API（新規）
+│   └── PreparationService.ts  # 準備処理API（新規）
+└── types/
+    ├── device.ts             # デバイス型定義（新規）
+    ├── video.ts              # 動画型定義（新規）
+    └── preparation.ts        # 準備処理型定義（新規）
+```
+
+---
+
+## 🎬 同期データサンプル (demo1.json)
+
+### エフェクト定義
+- **vibration**: 振動効果 (heartbeat, long, strong)
+- **water**: 水効果 (burst)
+- **color**: 色彩効果 (blue, red, green)
+- **flash**: 光効果 (steady, strobe, burst)
+- **wind**: 風効果 (long, burst)
+
+### タイミング仕様
+- 0.5秒間隔でイベントを配置
+- 複数エフェクトの同時実行対応
+- start/stop コマンドによる制御
+
+### サンプルイベント
+```json
+{
+  "t": 7.5,
+  "action": "start",
+  "effect": "vibration",
+  "mode": "strong"
+},
+{
+  "t": 8.0,
+  "action": "stop", 
+  "effect": "vibration",
+  "mode": "strong"
+},
+{
+  "t": 8.0,
+  "action": "shot",
+  "effect": "water",
+  "mode": "burst"
+}
+```
+
+### 主要シーン構成
+1. **0-8秒**: ロボットvs怪獣 (vibration, water, color)
+2. **8-15秒**: 海上戦闘 (water, flash, vibration)
+3. **15-20秒**: 空中戦 (wind, flash, color)
+4. **20-28秒**: 恐竜登場 (vibration, wind, water)
+5. **28-33.5秒**: エンディング (color, vibration)
 
 ---
 
