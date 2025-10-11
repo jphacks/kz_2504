@@ -2,9 +2,16 @@
 
 ## 📋 概要
 - **作成日**: 2025年10月12日
+- **最終更新**: 2025年10月12日 (デバイス検出システム進捗反映)
 - **対象フェーズ**: Phase B-3 ～ Phase B-5+
-- **前提条件**: Phase B-2 完了 (準備処理API 100%実装)
+- **前提条件**: Phase B-2 完了 + JSON送信システム完了
 - **目標**: フル機能4DX体験システム完成
+
+### 📈 **Phase B-2+ 追加実装状況** (2025年10月12日更新)
+- ✅ **JSONファイル送信機能**: サーバ→デバイスハブ通信完成
+- ✅ **デバイスハブ稼働想定テスト**: WebSocket送信テスト成功
+- ✅ **同期データ処理**: demo1.json (28KB, 185エフェクト) 正常送信
+- 🔄 **実デバイス検出移行**: Mock→実WebSocket接続プール準備中
 
 ---
 
@@ -59,6 +66,38 @@ async def seek_playback(session_id: str, seek_request: SeekRequest):
 @router.get("/status/{session_id}")
 async def get_playback_status(session_id: str):
     """再生状態取得"""
+```
+
+#### **0. 実デバイス検出システム** 🆕 **優先実装**
+**ファイル**: `app/services/device_discovery.py` (新規)
+
+```python
+class RealDeviceDiscovery:
+    """実デバイス検出サービス"""
+    
+    async def discover_active_devices(self):
+        """
+        WebSocket接続プールベースのデバイス発見
+        - アクティブWebSocket接続をスキャン
+        - デバイス応答性テスト (ping/pong)
+        - デバイス能力情報取得
+        """
+    
+    async def monitor_device_connections(self):
+        """
+        デバイス接続監視
+        - 接続状態リアルタイム追跡
+        - 接続断絶自動検出
+        - デバイスハブ登録・削除管理
+        """
+    
+    async def validate_device_capabilities(self, device_id: str):
+        """
+        デバイス能力検証
+        - サポートアクチュエーター確認
+        - パフォーマンス測定
+        - 互換性判定
+        """
 ```
 
 #### **2. 同期データ配信システム**

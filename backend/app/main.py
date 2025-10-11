@@ -88,6 +88,10 @@ app.include_router(video_management.router)
 from app.api import preparation
 app.include_router(preparation.router)
 
+# Phase B-3: 再生制御APIルーター
+from app.api import playback_control
+app.include_router(playback_control.router)
+
 # APIバージョン情報
 @app.get("/api/version", response_model=dict)
 async def api_version():
