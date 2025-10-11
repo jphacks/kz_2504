@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import AppHeader from "../components/AppHeader";
 
+/** Pairing：背景フル / ヘッダーは左=長方形ロゴ（幅は高さ×2）・右=丸アイコン2つ */
 export default function PairingPage() {
   const [code, setCode] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -10,148 +10,153 @@ export default function PairingPage() {
   const wsRef = useRef<WebSocket | null>(null);
   const navigate = useNavigate();
 
-  // 接続ボタン
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     const c = code.trim();
-    if (!c) {
-      setError("コードを入力してください");
-      return;
-    }
-    setError(null);
-    setLoading(true);
-    setDeviceReady(false);
-
+    if (!c) return setError("コードを入力してください");
+    setError(null); setLoading(true); setDeviceReady(false);
     try {
-      // APIでセッション確認
       const res = await fetch(`https://your-server-domain/api/sessions/${c}`);
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      if (!res.ok) throw new Error(String(res.status));
       const data = await res.json();
-
-      // デバイスがすでに準備済みならそのままOK
-      if (data.device_ready) {
-        sessionStorage.setItem("sessionCode", c);
-        connectWebSocket(c);
-      } else {
-        // 準備待ち用にWebSocket接続
-        connectWebSocket(c);
-      }
-    } catch (err) {
-      console.error(err);
+      sessionStorage.setItem("sessionCode", c);
+      connectWebSocket(c);
+      if (data?.device_ready) setDeviceReady(true);
+    } catch {
       setError("セッションが無効か、サーバーに接続できません");
       setLoading(false);
     }
   };
 
-  // WebSocket接続
   const connectWebSocket = (sessionId: string) => {
     try {
       const ws = new WebSocket(`wss://your-server-domain/ws/sessions/${sessionId}`);
       wsRef.current = ws;
-
-      ws.onopen = () => {
-        console.log("✅ WebSocket接続完了");
-        setLoading(false);
-      };
-
+      ws.onopen = () => setLoading(false);
       ws.onmessage = (ev) => {
         const msg = JSON.parse(ev.data);
-        console.log("📩 受信:", msg);
-
-        switch (msg.type) {
-          case "ready":
-            setDeviceReady(true);
-            break;
-          case "error":
-            setError(msg.message || "サーバーエラー");
-            break;
-        }
+        if (msg.type === "ready") setDeviceReady(true);
+        if (msg.type === "error") setError(msg.message || "サーバーエラー");
       };
-
-      ws.onclose = () => {
-        console.log("❌ WebSocket切断");
-      };
-    } catch (e) {
-      console.error("WS接続エラー", e);
-      setError("WebSocket接続に失敗しました");
-      setLoading(false);
+    } catch {
+      setError("WebSocket接続に失敗しました"); setLoading(false);
     }
   };
 
-  // 「再生開始」押下
   const handleStart = () => {
     const sessionCode = code.trim();
     if (!sessionCode) return;
-    if (wsRef.current) {
-      wsRef.current.send(JSON.stringify({ type: "start_playback" }));
-    }
+    wsRef.current?.send(JSON.stringify({ type: "start_playback" }));
     sessionStorage.setItem("sessionCode", sessionCode);
     navigate(`/player?session=${encodeURIComponent(sessionCode)}`);
   };
 
-  useEffect(() => {
-    return () => {
-      if (wsRef.current) wsRef.current.close();
-    };
-  }, []);
+  useEffect(() => () => wsRef.current?.close(), []);
 
   return (
-    <div className="min-h-dvh bg-[#4b00ff] text-white">
-      <AppHeader />
+    <>
+      <style>{`
+        :root{
+          --xh-h: clamp(52px, 7vw, 64px);
+          --pad: clamp(12px, 3vw, 18px);
+          --ico: clamp(28px, 5vw, 34px);
+          --gap: clamp(10px, 2.4vw, 16px);
+          --logo-h: clamp(32px, 5vw, 44px);
+          --logo-w-base: calc(var(--logo-h) * 2); /* 幅=高さ×2（長方形） */
+          --logo-w: max(80px, min(
+            var(--logo-w-base),
+            calc(100vw - (var(--pad) * 2) - (var(--ico) * 2) - var(--gap) - 12px)
+          ));
+        }
 
-      <main className="mx-auto flex max-w-[1280px] items-center justify-center px-4 py-14">
-        <form
-          onSubmit={handleSubmit}
-          className="w-full max-w-xl rounded-2xl border border-white/20 bg-black/20 p-8 backdrop-blur"
-        >
-          <h1 className="mb-6 text-center text-lg font-medium">ピン番号を打ち込んでください</h1>
+        .xh-root{ position: fixed; inset:0; color:#fff; }
+        .xh-bg{ position:absolute; inset:0; background:url('/PairingPage.jpeg') center/cover no-repeat fixed; }
+        .xh-shade{ position:absolute; inset:0; background: radial-gradient(80% 70% at 50% 30%, transparent 0%, rgba(0,0,0,.35) 60%, rgba(0,0,0,.55) 100%); }
 
-          <label className="block text-sm text-white/80 mb-2" htmlFor="session">
-            ID
-          </label>
+        /* 固定ヘッダー（Gridで左右固定/中央スペーサ） */
+        .xh-top{
+          position:fixed; inset:0 0 auto 0; height:var(--xh-h);
+          background:#000; border-bottom:1px solid rgba(255,255,255,.1);
+          padding:0 var(--pad); z-index:20;
+          display:grid; grid-template-columns:auto 1fr auto; align-items:center; column-gap:12px;
+        }
+        .xh-left{ min-width:0; display:flex; align-items:center; }
+        .xh-right{ display:flex; align-items:center; gap:var(--gap); }
 
-          <input
-            id="session"
-            type="text"
-            inputMode="text"
-            placeholder="ID"
-            value={code}
-            onChange={(e) => setCode(e.target.value)}
-            className="w-full rounded-md border border-white/30 bg-white text-black placeholder:text-gray-500 px-3 py-3 text-base outline-none focus:ring-2 focus:ring-white/60"
-          />
+        .xh-logoBox{ width:var(--logo-w); height:var(--logo-h); border-radius:8px;
+          overflow:hidden; border:1px solid rgba(255,255,255,.12);
+          display:grid; place-items:center; background:transparent; }
+        .xh-logoImg{ width:100%; height:100%; object-fit:contain; display:block; }
 
-          {error && <p className="mt-2 text-sm text-yellow-300">{error}</p>}
+        .xh-ico{ width:var(--ico); height:var(--ico); border-radius:999px; background:#e9e9e9;
+          display:grid; place-items:center; box-shadow:0 1px 0 rgba(0,0,0,.5) inset; }
+        .xh-ico img{ width:60%; height:60%; object-fit:contain; display:block; filter:saturate(0); }
 
-          {/* 接続ボタン */}
-          <div className="mt-6 flex justify-center">
-            <button
-              type="submit"
-              disabled={loading}
-              className="min-w-40 rounded-md bg-white px-5 py-2.5 text-black hover:bg-white/90 active:scale-[0.99] disabled:opacity-50"
-            >
-              {loading ? "接続中..." : "接続"}
-            </button>
-          </div>
+        .xh-content-pad{ padding-top: var(--xh-h); }
 
-          {/* デバイス準備完了時 */}
-          {deviceReady && (
-            <div className="mt-6 text-center">
-              <p className="mb-3 text-sm text-green-300">✅ デバイスが準備できました</p>
-              <button
-                type="button"
-                onClick={handleStart}
-                className="rounded-md bg-green-400 px-6 py-2.5 text-black font-medium hover:bg-green-300"
-              >
-                再生を開始
-              </button>
+        /* 本文 */
+        .xh-main{ position:relative; min-height:100vh; display:grid; grid-template-rows:var(--xh-h) 1fr; }
+        .xh-center{ display:flex; align-items:center; justify-content:center; padding: clamp(12px,4vw,24px); text-align:center; }
+        .xh-title{ margin:0 0 10px; font-weight:800; font-size:clamp(18px,3.6vw,28px); text-shadow:0 1px 2px rgba(0,0,0,.35); }
+        .xh-field{ width:min(80vw,420px); display:inline-block; }
+        .xh-input{ width:100%; height:clamp(40px,6.6vw,48px); background:#fff; color:#111; border-radius:6px; border:2px solid #111; padding:0 12px; font-size:clamp(14px,3.2vw,18px); box-shadow:0 2px 0 rgba(0,0,0,.35); }
+        .xh-btn{ margin-top:14px; min-width:160px; height:clamp(42px,7vw,48px); border:none; border-radius:8px; font-weight:700; cursor:pointer; }
+        .xh-connect{ background:#fff; color:#111; }
+        .xh-ready{ margin-top:16px; color:#b7f7c5; }
+        .xh-start{ margin-top:10px; background:#34d399; color:#111; }
+        .xh-err{ margin-top:8px; color:#ffe08a; }
+      `}</style>
+
+      <div className="xh-root" aria-live="polite">
+        <div className="xh-bg" aria-hidden="true" />
+        <div className="xh-shade" aria-hidden="true" />
+
+        <header className="xh-top" role="banner">
+          <div className="xh-left">
+            <div className="xh-logoBox" title="Home">
+              <img src="/logg.jpeg" alt="Logo" className="xh-logoImg"
+                   onError={(e)=>{ (e.currentTarget as HTMLImageElement).style.display='none'; }} />
             </div>
-          )}
+          </div>
+          <div aria-hidden="true" />
+          <div className="xh-right">
+            <div className="xh-ico" title="System">
+              <img src="/system.jpeg" alt="" onError={(e)=>{ (e.currentTarget as HTMLImageElement).style.display='none'; }} />
+            </div>
+            <div className="xh-ico" title="Notifications">
+              <img src="/bell.jpeg" alt="" onError={(e)=>{ (e.currentTarget as HTMLImageElement).style.display='none'; }} />
+            </div>
+          </div>
+        </header>
 
-          <p className="mt-4 text-center text-xs text-white/80">
-            開発用テストコード：<code className="font-mono">test</code>
-          </p>
-        </form>
-      </main>
-    </div>
+        <main className="xh-main xh-content-pad">
+          <div />
+          <div className="xh-center">
+            <form onSubmit={handleSubmit} aria-labelledby="pairingTitle">
+              <h1 id="pairingTitle" className="xh-title">デバイスのIDを入力してください</h1>
+              <div className="xh-field">
+                <input className="xh-input" value={code} onChange={(e)=>setCode(e.target.value)}
+                       placeholder="デバイスID" inputMode="text" autoComplete="one-time-code" />
+              </div>
+
+              {error && <div className="xh-err">⚠ {error}</div>}
+
+              <div>
+                <button type="submit" className="xh-btn xh-connect" disabled={loading}>
+                  {loading ? "接続中..." : "接続"}
+                </button>
+              </div>
+
+              {deviceReady && (
+                <div className="xh-ready">
+                  ✅ デバイスが準備できました
+                  <div><button type="button" className="xh-btn xh-start" onClick={handleStart}>再生を開始</button></div>
+                </div>
+              )}
+            </form>
+          </div>
+        </main>
+      </div>
+    </>
   );
 }
