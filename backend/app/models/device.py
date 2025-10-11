@@ -71,12 +71,11 @@ class DeviceSession(BaseModel):
 
 # バリデーション定数
 VALID_CAPABILITIES = [
-    "VIBRATION",   # 振動
-    "MOTION",      # モーション
-    "SCENT",       # 香り
-    "AUDIO",       # オーディオ
-    "LIGHTING",    # ライティング
-    "WIND"         # 風
+    "VIBRATION",   # 振動クッション
+    "WATER",       # 水しぶきスプレー
+    "WIND",        # 風ファン
+    "FLASH",       # フラッシュライト
+    "COLOR"        # 色ライト
 ]
 
 DEVICE_STATUS_CODES = {

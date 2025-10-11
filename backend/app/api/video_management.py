@@ -10,9 +10,9 @@ import logging
 from typing import List, Optional, Dict, Any
 from datetime import datetime
 
-from config.settings import settings
-from models.video import VideoListResponse, VideoSelectRequest, VideoSelectResponse
-from services.video_service import video_service
+from app.config.settings import settings
+from app.models.video import VideoListResponse, VideoSelectRequest, VideoSelectResponse
+from app.services.video_service import video_service
 
 # ログ設定
 logger = logging.getLogger(__name__)
@@ -272,7 +272,7 @@ async def get_video_categories():
     """
     利用可能な動画カテゴリ一覧を取得
     """
-    from models.video import VIDEO_CATEGORIES
+    from app.models.video import VIDEO_CATEGORIES
     
     return {
         "categories": VIDEO_CATEGORIES,

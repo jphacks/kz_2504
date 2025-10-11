@@ -11,8 +11,8 @@ from pathlib import Path
 from typing import List, Dict, Any, Optional, Tuple
 from datetime import datetime
 
-from config.settings import settings
-from models.video import (
+from app.config.settings import settings
+from app.models.video import (
     EnhancedVideo, VideoInfo, VideoCompatibility, EffectInfo,
     VideoStatus, EffectComplexity, ContentRating,
     VIDEO_CATEGORIES, EFFECT_TYPES

@@ -14,8 +14,8 @@ import logging
 from datetime import datetime, timedelta
 from pathlib import Path
 
-from config.settings import settings
-from models.device import (
+from app.config.settings import settings
+from app.models.device import (
     DeviceRegistrationRequest,
     DeviceRegistrationResponse, 
     DeviceError,
@@ -211,7 +211,7 @@ async def get_supported_capabilities():
     システムでサポートされているデバイス機能の一覧を返します。
     """
     
-    from models.device import VALID_CAPABILITIES
+    from app.models.device import VALID_CAPABILITIES
     
     return {
         "supported_capabilities": VALID_CAPABILITIES,

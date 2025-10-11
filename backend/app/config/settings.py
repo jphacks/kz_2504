@@ -76,8 +76,8 @@ class Settings(BaseSettings):
     logs_path: str = Field(default="./logs", description="ログファイルパス")
     
     # 動画アセット設定
-    video_assets_path: str = Field(default="../../assets/videos", description="動画アセットパス")
-    sync_data_path: str = Field(default="../../assets/sync-data", description="シンクデータパス")
+    video_assets_path: str = Field(default="../assets/videos", description="動画アセットパス")
+    sync_data_path: str = Field(default="../assets/sync-data", description="シンクデータパス")
     
     # Cloud Run / GCP設定（機密情報）
     cloud_project_id: Optional[str] = Field(default=None, description="GCPプロジェクトID")
@@ -139,6 +139,10 @@ class Settings(BaseSettings):
     def get_sync_data_path(self) -> Path:
         """シンクデータパスをPathオブジェクトで取得"""
         return Path(self.sync_data_path)
+    
+    def get_device_data_path(self) -> Path:
+        """デバイスデータファイルパスを取得"""
+        return Path("./data/devices.json")
 
 # グローバル設定インスタンス
 settings = Settings()

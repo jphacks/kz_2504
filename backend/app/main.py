@@ -13,10 +13,10 @@ from datetime import datetime
 import os
 
 # 設定管理
-from config.settings import settings
+from app.config.settings import settings
 
 # API ルーター  
-from api import device_registration
+from app.api import device_registration
 
 # ログ設定（環境変数から）
 logging.basicConfig(
@@ -81,8 +81,12 @@ async def health_check():
 app.include_router(device_registration.router)
 
 # 動画管理APIルーター
-from api import video_management
+from app.api import video_management
 app.include_router(video_management.router)
+
+# 準備処理APIルーター
+from app.api import preparation
+app.include_router(preparation.router)
 
 # APIバージョン情報
 @app.get("/api/version", response_model=dict)
@@ -103,7 +107,12 @@ async def api_version():
             "/api/videos/available",
             "/api/videos/{video_id}",
             "/api/videos/select",
-            "/api/videos/categories/list"
+            "/api/videos/categories/list",
+            "/api/preparation/start/{session_id}",
+            "/api/preparation/status/{session_id}",
+            "/api/preparation/stop/{session_id}",
+            "/api/preparation/ws/{session_id}",
+            "/api/preparation/health"
         ],
         "documentation": "/docs" if settings.is_development() else "disabled"
     }
