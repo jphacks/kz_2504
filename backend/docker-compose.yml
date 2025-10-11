@@ -4,32 +4,39 @@
 version: '3.8'
 
 services:
-  # FastAPI WebSocketサーバー
+  # FastAPI WebSocketサーバー (開発環境)
   fourdk-backend:
     build: 
       context: .
-      dockerfile: Dockerfile
-    container_name: fourdk-backend
+      dockerfile: Dockerfile.dev
+    container_name: fourdk-backend-dev
     ports:
-      - "8001:8080"  # ローカル8001 → コンテナ8080
+      - "8001:8001"  # ローカル8001 → コンテナ8001
     environment:
       - ENVIRONMENT=development
-      - PORT=8080
-      - CORS_ORIGINS=http://localhost:3000,http://127.0.0.1:3000
+      - DEBUG=true
       - LOG_LEVEL=DEBUG
+      - HOST=0.0.0.0
+      - PORT=8001
+      - CORS_ORIGINS=http://localhost:3000,http://127.0.0.1:3000,http://localhost:8001
+      - ASSETS_PATH=/app/assets
+      - DATA_PATH=/app/data/sync-patterns
+      - VIDEO_PATH=/app/assets/videos
     volumes:
-      # 開発時のホットリロード用（本番では無効）
-      - ./app:/app/app:ro
+      # ホットリロード用ボリュームマウント
+      - ./app:/app/app:rw
       - ./data:/app/data:rw
+      - ./assets:/app/assets:rw
+      - ./.env:/app/.env:ro
     networks:
       - fourdk-network
     restart: unless-stopped
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
-      interval: 30s
+      test: ["CMD", "curl", "-f", "http://localhost:8001/api/health"]
+      interval: 20s
       timeout: 10s
-      retries: 3
-      start_period: 40s
+      retries: 5
+      start_period: 30s
 
   # 将来の拡張用（Redis, PostgreSQL等）
   # redis:

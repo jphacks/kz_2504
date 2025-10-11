@@ -16,6 +16,9 @@ from app.config.settings import Settings
 from app.config.logging import setup_logging
 from app.api.phase1 import router as phase1_router
 from app.models.session_models import session_manager
+from app.websocket.manager import websocket_manager, ClientType
+from app.websocket.device_handler import handle_device_message
+from app.websocket.webapp_handler import handle_webapp_message
 
 # 設定読み込み
 settings = Settings()
@@ -60,7 +63,7 @@ async def root():
     """APIルート - 基本情報返却"""
     sessions = session_manager.get_all_sessions()
     return {
-        "service": "4DX@HOME Backend API",
+        "service": "4DX@HOME Backend API (Docker Hot Reload Test)",
         "status": "running",
         "version": "1.0.0", 
         "environment": settings.environment,
@@ -77,7 +80,7 @@ async def root():
 @app.websocket("/ws/sessions/{session_id}")
 async def websocket_endpoint(websocket: WebSocket, session_id: str):
     """
-    WebSocket接続エンドポイント
+    WebSocket接続エンドポイント（レガシー互換性維持）
     セッション別WebSocket通信を管理
     """
     # セッション存在確認
@@ -90,15 +93,16 @@ async def websocket_endpoint(websocket: WebSocket, session_id: str):
     await websocket.accept()
     session_manager.add_websocket(session_id, websocket)
     
-    logger.info(f"WebSocket接続: セッション {session_id}")
+    logger.info(f"WebSocket接続: セッション {session_id} (レガシーエンドポイント)")
     
     try:
         # 接続確認メッセージ送信
         await websocket.send_json({
             "type": "connection_established",
             "session_id": session_id,
-            "message": "WebSocket接続が確立されました",
-            "timestamp": datetime.now().isoformat()
+            "message": "WebSocket接続が確立されました (レガシーエンドポイント)",
+            "timestamp": datetime.now().isoformat(),
+            "client_type": "legacy"
         })
         
         # メッセージ受信ループ
@@ -153,6 +157,82 @@ async def websocket_endpoint(websocket: WebSocket, session_id: str):
     finally:
         # WebSocket削除
         session_manager.remove_websocket(session_id, websocket)
+
+@app.websocket("/ws/device/{session_id}")
+async def device_websocket_endpoint(websocket: WebSocket, session_id: str):
+    """デバイス専用WebSocket接続エンドポイント"""
+    
+    # セッション存在確認
+    session = session_manager.get_session(session_id)
+    if not session:
+        await websocket.close(code=4004, reason="Session not found")
+        return
+    
+    connection_id = await websocket_manager.connect(
+        websocket, session_id, ClientType.DEVICE
+    )
+    
+    logger.info(f"デバイスWebSocket接続: セッション {session_id}")
+    
+    try:
+        # 接続確認メッセージ送信
+        await websocket.send_json({
+            "type": "connection_established",
+            "client_type": "device",
+            "session_id": session_id,
+            "message": "デバイス制御チャネル接続確立",
+            "timestamp": datetime.now().isoformat()
+        })
+        
+        while True:
+            # メッセージ受信
+            data = await websocket.receive_text()
+            message = json.loads(data)
+            
+            # デバイス専用メッセージ処理
+            await handle_device_message(session_id, message, websocket_manager)
+            
+    except WebSocketDisconnect:
+        logger.info(f"デバイスWebSocket切断: セッション {session_id}")
+        websocket_manager.disconnect(websocket)
+
+@app.websocket("/ws/webapp/{session_id}")
+async def webapp_websocket_endpoint(websocket: WebSocket, session_id: str):
+    """Webアプリ専用WebSocket接続エンドポイント"""
+    
+    # セッション存在確認
+    session = session_manager.get_session(session_id)
+    if not session:
+        await websocket.close(code=4004, reason="Session not found")
+        return
+    
+    connection_id = await websocket_manager.connect(
+        websocket, session_id, ClientType.WEBAPP
+    )
+    
+    logger.info(f"WebアプリWebSocket接続: セッション {session_id}")
+    
+    try:
+        # 接続確認メッセージ送信
+        await websocket.send_json({
+            "type": "connection_established",
+            "client_type": "webapp",
+            "session_id": session_id,
+            "message": "Webアプリ同期チャネル接続確立",
+            "timestamp": datetime.now().isoformat()
+        })
+        
+        while True:
+            # メッセージ受信
+            data = await websocket.receive_text()
+            message = json.loads(data)
+            
+            # Webアプリ専用メッセージ処理
+            await handle_webapp_message(session_id, message, websocket_manager)
+            
+    except WebSocketDisconnect:
+        logger.info(f"WebアプリWebSocket切断: セッション {session_id}")
+        websocket_manager.disconnect(websocket)
 
 # 開発用テストページ（開発環境のみ）
 if settings.environment == "development":

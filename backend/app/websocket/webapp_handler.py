@@ -278,5 +278,11 @@ class WebAppHandler:
             "timestamp": datetime.now().isoformat()
         })
 
+# グローバル関数（main.pyから呼び出し用）
+async def handle_webapp_message(session_id: str, message: Dict[str, Any], ws_manager):
+    """Webアプリメッセージ処理のグローバル関数"""
+    webapp_handler = WebAppHandler()
+    await webapp_handler._handle_webapp_message(session_id, message)
+
 # グローバルWebアプリハンドラー
 webapp_handler = WebAppHandler()

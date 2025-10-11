@@ -208,5 +208,11 @@ class DeviceHandler:
         
         return sent_count > 0
 
+# グローバル関数（main.pyから呼び出し用）
+async def handle_device_message(session_id: str, message: Dict[str, Any], ws_manager):
+    """デバイスメッセージ処理のグローバル関数"""
+    device_handler = DeviceHandler()
+    await device_handler._handle_device_message(session_id, message)
+
 # グローバルデバイスハンドラー
 device_handler = DeviceHandler()
