@@ -1,6 +1,6 @@
 # 4DX@HOME - あなたの世界で「最高の映像」が「最強の体験」へ。
 
-![4DX@HOME](assets/images/4DX@HOME.png)
+![4DX@HOME](assets/images/4DX＠HOME.png)
 
 ## 製品概要
 ### 背景(製品開発のきっかけ、課題等）
