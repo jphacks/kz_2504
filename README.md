@@ -1,6 +1,8 @@
 # 4DX@HOME - あなたの世界で「最高の映像」が「最強の体験」へ。
 
-![4DX@HOME](assets/images/4DX＠HOME.png)
+<div align="center">
+  <img src="assets/images/4DX＠HOME.png" alt="4DX@HOME" width="800">
+</div>
 
 ## 製品概要
 ### 背景(製品開発のきっかけ、課題等）
