@@ -1,4 +1,4 @@
-# 4DX@HOME - おうちで「最高の映画」が「最強の体験」へ。
+# 4DX@HOME - あなたの世界で「最高の映画」が「最強の体験」へ。
 
 ![4DX@HOME](assets/images/4DX%20@HOME.png)
 
