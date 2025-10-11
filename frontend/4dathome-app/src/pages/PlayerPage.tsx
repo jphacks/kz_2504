@@ -1,281 +1,287 @@
+// src/pages/PlayerPage.tsx
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 
-const SKIP_SEC = 3;
-const SPEEDS = [0.5, 0.75, 1, 1.25, 1.5, 2] as const;
-const EPS = 0.04; // 終端シークでの停止回避用の少し手前
+/** ---- 設定 ---- */
+const WS_BASE =
+  import.meta.env.VITE_WS_URL ||
+  (location.protocol === "https:" ? "wss://" : "ws://") + location.host;
+// 例) VITE_WS_URL=wss://your-server-domain
+const SYNC_INTERVAL_MS = 500;
+
+/** ---- 型 ---- */
+type WSIn =
+  | { type: "ready" }
+  | { type: "effect"; action: string }
+  | { type: string; [k: string]: any };
+
+type WSOut =
+  | { type: "select_video"; video: string }
+  | { type: "start_playback" }
+  | { type: "sync"; time: number }
+  | { type: "end_playback" };
+
+/** ---- 簡易カタログ（必要に応じて差し替え） ---- */
+const CATALOG = [
+  { title: "デモ映像 1", src: "/assets/movie.mp4", poster: "/assets/poster.jpg" },
+  { title: "デモ映像 2", src: "/assets/movie2.mp4" },
+];
+
+/** ---- サムネ付きの簡易ピッカー ---- */
+function VideoPicker({
+  items,
+  value,
+  onChange,
+}: {
+  items: { title: string; src: string; poster?: string }[];
+  value?: string | null;
+  onChange: (src: string) => void;
+}) {
+  return (
+    <div className="grid gap-3 grid-cols-[repeat(auto-fit,minmax(180px,1fr))]">
+      {items.map((v) => (
+        <button
+          key={v.src}
+          onClick={() => onChange(v.src)}
+          className={`text-left rounded-xl overflow-hidden border ${
+            value === v.src ? "border-rose-500 bg-zinc-800" : "border-zinc-700 bg-zinc-900"
+          } hover:border-rose-400 transition`}
+        >
+          <div className="aspect-video bg-black">
+            {v.poster ? (
+              <img
+                src={v.poster}
+                alt=""
+                className="w-full h-full object-cover select-none pointer-events-none"
+                draggable={false}
+              />
+            ) : null}
+          </div>
+          <div className="px-3 py-2 text-sm text-white">{v.title}</div>
+        </button>
+      ))}
+    </div>
+  );
+}
 
 export default function PlayerPage() {
+  /** --- セッションID取得 --- */
   const [params] = useSearchParams();
-  const sessionCode = useMemo(
-    () => params.get("session") || sessionStorage.getItem("sessionCode") || "N/A",
+  const sessionId = useMemo(
+    () => params.get("session") || sessionStorage.getItem("sessionCode") || "",
     [params]
   );
 
-  const vref = useRef<HTMLVideoElement | null>(null);
-  const containerRef = useRef<HTMLDivElement | null>(null);
-  const hideTimer = useRef<number | null>(null);
-  const rafId = useRef<number | null>(null);
-  const wasPlayingRef = useRef(false); // シーク/ドラッグ前の再生状態を保持
-  const lastLogRef = useRef(0);
-
+  /** --- 状態 --- */
+  const [selected, setSelected] = useState<string | null>(null); // 選択した動画
+  const [deviceReady, setDeviceReady] = useState(false); // デバイス準備OK
+  const [wsStatus, setWsStatus] = useState<"idle" | "connecting" | "open" | "closed">("idle");
+  const [log, setLog] = useState<string[]>([]);
   const [playing, setPlaying] = useState(false);
-  const [rate, setRate] = useState<number>(1);
-  const [uiVisible, setUiVisible] = useState(true);
-  const [time, setTime] = useState(0);
-  const [dur, setDur] = useState(0);
-  const [dragTime, setDragTime] = useState<number | null>(null);
 
-  // 表示用フォーマット
-  const fmt = (s: number) => {
-    if (!isFinite(s)) return "0:00";
-    const m = Math.floor(s / 60);
-    const ss = Math.floor(s % 60).toString().padStart(2, "0");
-    return `${m}:${ss}`;
-  };
-  const logSeek = (label: string, t: number, d: number) => {
-    console.log(`[${label}] ${t.toFixed(2)}s / ${Number.isFinite(d) ? d.toFixed(2) : "--.--"}s`);
-  };
+  /** --- 参照 --- */
+  const videoRef = useRef<HTMLVideoElement | null>(null);
+  const wsRef = useRef<WebSocket | null>(null);
+  const syncTimerRef = useRef<number | null>(null);
 
-  // ===== 再生・操作系 =====
-  const togglePlay = async () => {
-    const v = vref.current; if (!v) return;
-    if (v.paused) { try { await v.play(); setPlaying(true); } catch {} }
-    else { v.pause(); setPlaying(false); }
+  /** --- ログ追加 --- */
+  const pushLog = (s: string) => {
+    setLog((prev) => {
+      const next = [s, ...prev];
+      return next.length > 50 ? next.slice(0, 50) : next;
+    });
+    // console側にも出しておく
+    console.log(s);
   };
 
-  const skip = async (sec: number) => {
-    const v = vref.current; if (!v || !Number.isFinite(v.duration)) return;
-    const wasPlaying = !v.paused;
-    const target = Math.max(0, Math.min(v.duration - EPS, (v.currentTime || 0) + sec));
-    v.currentTime = target;
-    setTime(target); // UI即時反映
-    logSeek(sec >= 0 ? "SKIP+" + Math.abs(sec) : "SKIP-" + Math.abs(sec), target, v.duration);
-    if (wasPlaying) { try { await v.play(); } catch {} }
-  };
-
-  const changeSpeed = (s: number) => {
-    const v = vref.current; if (!v) return;
-    v.playbackRate = s; setRate(s);
-  };
-
-  // ===== UI 表示管理 =====
-  const showUi = () => {
-    setUiVisible(true);
-    if (hideTimer.current) window.clearTimeout(hideTimer.current);
-    hideTimer.current = window.setTimeout(() => setUiVisible(false), 2500);
-  };
-
-  // 初期表示
+  /** --- WebSocket 接続 --- */
   useEffect(() => {
-    showUi();
-    return () => { if (hideTimer.current) window.clearTimeout(hideTimer.current); };
-  }, []);
+    if (!sessionId) return;
 
-  // コンテナの操作で UI 表示延長
-  useEffect(() => {
-    const el = containerRef.current; if (!el) return;
-    const onInteract = () => showUi();
-    el.addEventListener("click", onInteract);
-    el.addEventListener("mousemove", onInteract, { passive: true });
-    el.addEventListener("touchstart", onInteract, { passive: true });
-    return () => {
-      el.removeEventListener("click", onInteract);
-      el.removeEventListener("mousemove", onInteract);
-      el.removeEventListener("touchstart", onInteract);
+    setWsStatus("connecting");
+    const url = `${WS_BASE}/ws?session=${encodeURIComponent(sessionId)}&role=web`;
+    const ws = new WebSocket(url);
+    wsRef.current = ws;
+
+    ws.onopen = () => {
+      setWsStatus("open");
+      pushLog("✅ WS connected");
     };
-  }, []);
 
-  // キー操作（Space / ← → / 速度調整）
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      if (!vref.current) return;
-      switch (e.key) {
-        case " ":
-          e.preventDefault(); togglePlay(); showUi(); break;
-        case "ArrowRight":
-          skip(+SKIP_SEC); showUi(); break;
-        case "ArrowLeft":
-          skip(-SKIP_SEC); showUi(); break;
-        case "[": {
-          const i = Math.max(0, SPEEDS.indexOf(rate as any) - 1);
-          changeSpeed(SPEEDS[i]); showUi(); break;
+    ws.onclose = () => {
+      setWsStatus("closed");
+      pushLog("❌ WS closed");
+    };
+
+    ws.onerror = (e) => {
+      pushLog("⚠️ WS error");
+    };
+
+    ws.onmessage = (ev) => {
+      try {
+        const msg: WSIn = JSON.parse(ev.data);
+        pushLog(`📩 RECV: ${ev.data}`);
+
+        switch (msg.type) {
+          case "ready":
+            setDeviceReady(true);
+            break;
+          case "effect":
+            // デバイス側の効果（例：vibrate）をUIに表示したり、何らかの連動があればここで。
+            pushLog(`💥 effect: ${msg.action}`);
+            break;
+          default:
+            // 任意のメッセージはログに
+            break;
         }
-        case "]": {
-          const i = Math.min(SPEEDS.length - 1, SPEEDS.indexOf(rate as any) + 1);
-          changeSpeed(SPEEDS[i]); showUi(); break;
-        }
+      } catch {
+        pushLog("⚠️ invalid WS message");
       }
     };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [rate]);
 
-  // メタデータ取得
-  const onLoadedMeta = (e: React.SyntheticEvent<HTMLVideoElement, Event>) => {
-    const v = e.currentTarget;
-    const d = Number.isFinite(v.duration) ? v.duration : 0;
-    setDur(d);
-    setTime(v.currentTime || 0);
-  };
+    return () => {
+      ws.close();
+      wsRef.current = null;
+    };
+  }, [sessionId]);
 
-  // 再生中は rAF で UI を追従（ズレ防止）
-  useEffect(() => {
-    if (!playing) {
-      if (rafId.current) cancelAnimationFrame(rafId.current);
-      rafId.current = null;
+  /** --- WS送信ヘルパ --- */
+  const send = (msg: WSOut) => {
+    const ws = wsRef.current;
+    if (!ws || ws.readyState !== WebSocket.OPEN) {
+      pushLog("⛔ WS not open");
       return;
     }
+    const s = JSON.stringify(msg);
+    ws.send(s);
+    pushLog(`📤 SEND: ${s}`);
+  };
+
+  /** --- 動画選択 → サーバーへ通知（select_video） --- */
+  const onSelectVideo = (src: string) => {
+    setSelected(src);
+    setDeviceReady(false); // 新しい準備を待つ想定
+    send({ type: "select_video", video: src });
+
+    // サーバーから {type:"ready"} が来たら deviceReady が true になる
+    // デモ用途で”すぐOK”にする場合は↓（本番では不要）
+    // setTimeout(() => setDeviceReady(true), 1000);
+  };
+
+  /** --- 再生開始 --- */
+  const handleStart = async () => {
+    if (!selected) return;
+    send({ type: "start_playback" });
+
+    try {
+      await videoRef.current?.play();
+      setPlaying(true);
+      startSyncLoop();
+    } catch {
+      pushLog("⚠️ autoplay blocked");
+    }
+  };
+
+  /** --- 同期ループ（0.5sごとに currentTime を送る） --- */
+  const startSyncLoop = () => {
+    stopSyncLoop();
     const tick = () => {
-      const v = vref.current;
-      if (v) setTime(v.currentTime || 0);
-      rafId.current = requestAnimationFrame(tick);
+      const t = videoRef.current?.currentTime ?? 0;
+      send({ type: "sync", time: Number.isFinite(t) ? t : 0 });
+      syncTimerRef.current = window.setTimeout(tick, SYNC_INTERVAL_MS);
     };
-    rafId.current = requestAnimationFrame(tick);
-    return () => {
-      if (rafId.current) cancelAnimationFrame(rafId.current);
-      rafId.current = null;
-    };
-  }, [playing]);
+    tick();
+  };
+
+  const stopSyncLoop = () => {
+    if (syncTimerRef.current) {
+      window.clearTimeout(syncTimerRef.current);
+      syncTimerRef.current = null;
+    }
+  };
+
+  /** --- 再生終了時 --- */
+  const handleEnded = () => {
+    setPlaying(false);
+    stopSyncLoop();
+    send({ type: "end_playback" });
+  };
+
+  /** --- 一時停止時（任意。必要なら同期継続してもOK） --- */
+  const handlePause = () => {
+    setPlaying(false);
+    stopSyncLoop();
+    // 一時停止をサーバーに送りたいならメッセージを追加してOK
+  };
 
   return (
-    <section className="mx-auto max-w-5xl">
-      <div ref={containerRef} className="relative overflow-hidden rounded-2xl border border-black/5 bg-black shadow-sm">
-        <video
-          ref={vref}
-          src="/assets/movie.mp4"
-          poster="/assets/poster.jpg"
-          preload="auto"
-          playsInline
-          // controls は非表示（カスタムUI）
-          onLoadedMetadata={onLoadedMeta}
-          onPlay={() => setPlaying(true)}
-          onPause={() => setPlaying(false)}
-          onTimeUpdate={(e) => {
-            // 停止中など rAF が動いていない時の補助更新 & ログ
-            const v = e.currentTarget;
-            const now = performance.now();
-            if (now - lastLogRef.current > 500) {
-              logSeek("TIME", v.currentTime, v.duration);
-              lastLogRef.current = now;
-            }
-          }}
-          onWaiting={() => console.log("[EVENT] waiting")}
-          onCanPlay={() => console.log("[EVENT] canplay")}
-          onCanPlayThrough={() => console.log("[EVENT] canplaythrough")}
-          className="aspect-video w-full"
-        />
+    <div className="min-h-dvh bg-black text-white p-4">
+      <header className="mb-4 flex flex-wrap items-center gap-3">
+        <div className="text-sm opacity-80">セッション: <span className="font-mono">{sessionId || "N/A"}</span></div>
+        <div className="text-sm opacity-80">WS: {wsStatus}</div>
+        <div className="text-sm opacity-80">選択: {selected ? selected.split("/").pop() : "-"}</div>
+        <div className={`text-sm ${deviceReady ? "text-green-400" : "text-yellow-300"}`}>
+          {deviceReady ? "デバイス準備OK" : "準備待ち…"}
+        </div>
+      </header>
 
-        {/* === オーバーレイ === */}
-        <div
-          className={`pointer-events-none absolute inset-0 transition-opacity duration-200 ${uiVisible ? "opacity-100" : "opacity-0"}`}
-          aria-hidden={!uiVisible}
-        >
-          {/* グラデ */}
-          <div className="absolute inset-x-0 top-0 h-20 bg-gradient-to-b from-black/60 to-transparent" />
-          <div className="absolute inset-x-0 bottom-0 h-28 bg-gradient-to-t from-black/60 to-transparent" />
+      {/* 動画選択 */}
+      <section className="mb-6">
+        <h3 className="mb-2 font-semibold">動画を選択</h3>
+        <VideoPicker items={CATALOG} value={selected} onChange={onSelectVideo} />
+      </section>
 
-          {/* 上段：タイトル/セッション */}
-          <div className="pointer-events-auto absolute left-0 right-0 top-0 flex items-center justify-between px-4 py-2 text-white">
-            <div className="flex items-center gap-2">
-              <span className="inline-block h-4 w-1 rounded bg-rose-500" />
-              <span className="text-sm font-medium">デモ動画</span>
-            </div>
-            <span className="rounded bg-white/10 px-2 py-0.5 text-xs">セッション: {sessionCode}</span>
-          </div>
-
-          {/* 中央：⏪ / ▶or⏸ / ⏩ */}
-          <div className="pointer-events-auto absolute inset-0 flex items-center justify-center">
-            <div className="flex items-center gap-6 sm:gap-8">
-              <button
-                onClick={(e) => { e.stopPropagation(); skip(-SKIP_SEC); showUi(); }}
-                disabled={!dur}
-                className="rounded-full bg-white/20 p-4 sm:p-5 backdrop-blur hover:bg-white/30 active:scale-[0.98] transition disabled:opacity-40"
-                aria-label={`${SKIP_SEC}秒戻る`}
-                title={`${SKIP_SEC}秒戻る`}
-              >
-                <span className="text-3xl text-white">⏪</span>
-              </button>
-
-              <button
-                onClick={(e) => { e.stopPropagation(); togglePlay(); showUi(); }}
-                className="rounded-full bg-white/20 p-4 sm:p-5 backdrop-blur hover:bg-white/30 active:scale-[0.98] transition"
-                aria-label={playing ? "一時停止" : "再生"}
-                title={playing ? "一時停止" : "再生"}
-              >
-                <span className="text-3xl text-white">{playing ? "⏸" : "▶"}</span>
-              </button>
-
-              <button
-                onClick={(e) => { e.stopPropagation(); skip(+SKIP_SEC); showUi(); }}
-                disabled={!dur}
-                className="rounded-full bg-white/20 p-4 sm:p-5 backdrop-blur hover:bg-white/30 active:scale-[0.98] transition disabled:opacity-40"
-                aria-label={`${SKIP_SEC}秒送る`}
-                title={`${SKIP_SEC}秒送る`}
-              >
-                <span className="text-3xl text-white">⏩</span>
-              </button>
-            </div>
-          </div>
-
-          {/* 下段：シーク & 速度 */}
-          <div className="pointer-events-auto absolute inset-x-0 bottom-0 px-4 pb-3 text-white">
-            <div className="flex items-center gap-3">
-              <span className="text-xs tabular-nums">{fmt(dragTime ?? time)}</span>
-
-              <input
-                type="range"
-                min={0}
-                max={dur > 0 ? Math.max(dur - EPS, 0.1) : 1}
-                step={0.1}
-                value={dragTime ?? Math.min(time, Math.max(dur - EPS, 0))}
-                disabled={!dur}
-                onPointerDown={() => {
-                  showUi();
-                  const v = vref.current; if (!v) return;
-                  wasPlayingRef.current = !v.paused;
-                  v.pause(); setPlaying(false);
-                  setDragTime(time);
-                }}
-                onChange={(e) => {
-                  const val = Number(e.target.value);
-                  setDragTime(val);
-                }}
-                onPointerUp={async (e) => {
-                  const v = vref.current; if (!v) return;
-                  const val = Number((e.target as HTMLInputElement).value);
-                  const target = Math.max(0, Math.min((v.duration || 0) - EPS, val));
-                  v.currentTime = target;
-                  setTime(target);
-                  setDragTime(null);
-                  logSeek("SEEK", target, v.duration);
-                  if (wasPlayingRef.current) { try { await v.play(); setPlaying(true); } catch {} }
-                  showUi();
-                }}
-                className="w-full accent-rose-500"
-              />
-
-              <span className="text-xs tabular-nums">{fmt(dur)}</span>
-            </div>
-
-            <div className="mt-2 flex items-center justify-end gap-2">
-              <span className="text-xs">速度</span>
-              <select
-                value={rate}
-                onChange={(e) => { changeSpeed(Number(e.target.value)); showUi(); }}
-                className="rounded-md bg-white/10 px-2 py-1 text-sm backdrop-blur"
-              >
-                {SPEEDS.map((s) => <option key={s} value={s}>{s}x</option>)}
-              </select>
-            </div>
+      {/* プレイヤー */}
+      <section className="grid lg:grid-cols-3 gap-4">
+        <div className="lg:col-span-2">
+          <video
+            ref={videoRef}
+            src={selected ?? undefined}
+            poster={selected ? undefined : "/assets/poster.jpg"}
+            className="w-full max-w-[1000px] aspect-video bg-black rounded-xl"
+            controls={false}
+            playsInline
+            preload="auto"
+            onEnded={handleEnded}
+            onPause={handlePause}
+          />
+          <div className="mt-3 flex items-center gap-8">
+            <button
+              onClick={handleStart}
+              disabled={!deviceReady || !selected}
+              className={`rounded-md px-5 py-2 font-semibold ${
+                !deviceReady || !selected
+                  ? "bg-zinc-700 text-zinc-400 cursor-not-allowed"
+                  : "bg-white text-black hover:bg-zinc-100"
+              }`}
+            >
+              {selected ? (deviceReady ? "▶ 再生開始" : "デバイス準備待ち…") : "動画を選択"}
+            </button>
+            <button
+              onClick={() => videoRef.current?.pause()}
+              className="rounded-md px-4 py-2 bg-zinc-800 hover:bg-zinc-700"
+            >
+              ⏸ 一時停止
+            </button>
+            <button
+              onClick={() => { videoRef.current && (videoRef.current.currentTime = 0); }}
+              className="rounded-md px-4 py-2 bg-zinc-800 hover:bg-zinc-700"
+            >
+              ⏮ 頭出し
+            </button>
           </div>
         </div>
-        {/* === /オーバーレイ === */}
-      </div>
 
-      <p className="mt-3 text-sm text-gray-600">
-        画面をタップ/クリックでコントロール表示（2.5秒で自動非表示）。Space/←/→/[/] も使用可。
-      </p>
-    </section>
+        {/* ログパネル */}
+        <aside className="bg-zinc-900/70 rounded-xl border border-zinc-800 p-3 h-[300px] overflow-auto">
+          <div className="text-sm opacity-80 mb-2">通信ログ</div>
+          <ul className="text-xs space-y-1">
+            {log.map((l, i) => (
+              <li key={i} className="font-mono whitespace-pre-wrap">{l}</li>
+            ))}
+          </ul>
+        </aside>
+      </section>
+    </div>
   );
 }
