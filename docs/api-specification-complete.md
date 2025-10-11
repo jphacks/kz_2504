@@ -4,7 +4,7 @@
 
 ### Base URL
 ```
-Production: https://fourdk-home-backend-333203798555.asia-northeast1.run.app
+Production: https://fourdk-backend-333203798555.asia-northeast1.run.app
 Development: http://localhost:8001
 ```
 

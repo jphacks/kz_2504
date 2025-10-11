@@ -15,6 +15,7 @@ import os
 from app.config.settings import Settings
 from app.config.logging import setup_logging
 from app.api.phase1 import router as phase1_router
+from app.api.device_registration import router as device_router
 from app.models.session_models import session_manager
 from app.websocket.manager import websocket_manager, ClientType
 from app.websocket.device_handler import handle_device_message
@@ -50,6 +51,11 @@ app.add_middleware(
 
 # APIルーター登録
 app.include_router(phase1_router)
+app.include_router(device_router)
+
+# Phase 2: ビデオ管理APIルーター追加
+from app.api.video_management import router as video_router
+app.include_router(video_router)
 
 # 静的ファイル設定（開発環境のみ）
 if settings.environment == "development":
