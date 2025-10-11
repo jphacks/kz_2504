@@ -100,6 +100,7 @@ class WebAppHandler:
     async def _handle_start_playback(self, session_id: str, message: Dict[str, Any]):
         """再生開始処理"""
         video_id = message.get("video_id")
+        user_settings = message.get("user_settings", {})
         
         if not video_id:
             await websocket_manager.send_to_webapp(session_id, {
@@ -119,72 +120,97 @@ class WebAppHandler:
             })
             return
             
-        # セッション状態更新
+        # セッション情報取得
         session = session_manager.get_session(session_id)
+        device_capabilities = session.device_capabilities if session else []
+            
+        # 同期エンジン開始
+        from app.sync.processor import sync_processor
+        sync_success = await sync_processor.start_playback_sync(
+            session_id, video_id, device_capabilities, user_settings
+        )
+        
+        if not sync_success:
+            await websocket_manager.send_to_webapp(session_id, {
+                "type": "error", 
+                "message": "同期エンジン開始に失敗しました",
+                "timestamp": datetime.now().isoformat()
+            })
+            return
+            
+        # セッション状態更新
         if session:
             session.status = "playing"
             
-        # デバイスに再生準備コマンド送信
-        success = await device_handler.send_prepare_playback(
-            session_id, video_id, sync_data.dict()
-        )
+        # WebSocketManagerでデバイス接続確認
+        device_connected = websocket_manager.is_device_connected(session_id)
         
-        if success:
-            # Webアプリに開始確認
+        if device_connected:
+            # デバイスに再生準備コマンド送信
+            success = await device_handler.send_prepare_playback(
+                session_id, video_id, sync_data.dict()
+            )
+            
+            # Webアプリに開始確認（デバイス接続状況に関わらず同期エンジンは開始）
             await websocket_manager.send_to_webapp(session_id, {
                 "type": "playback_started",
                 "video_id": video_id,
                 "message": "再生が開始されました",
+                "sync_events_count": len(sync_data.sync_events),
+                "device_connected": device_connected,
                 "timestamp": datetime.now().isoformat()
             })
         else:
-            # デバイス未接続
+            # デバイス未接続でも同期エンジンは開始（テスト用）
             await websocket_manager.send_to_webapp(session_id, {
-                "type": "error",
-                "message": "デバイスが接続されていません",
+                "type": "playback_started",
+                "video_id": video_id,
+                "message": "再生が開始されました（デバイス未接続）",
+                "sync_events_count": len(sync_data.sync_events),
+                "device_connected": device_connected,
                 "timestamp": datetime.now().isoformat()
             })
             
-        self.logger.info(f"再生開始: セッション {session_id}, 動画 {video_id}")
+        self.logger.info(f"再生開始: セッション {session_id}, 動画 {video_id}, 同期イベント数: {len(sync_data.sync_events)}")
         
     async def _handle_playback_sync(self, session_id: str, message: Dict[str, Any]):
         """再生同期処理"""
         current_time = message.get("current_time")
         video_id = message.get("video_id")
         
-        if current_time is None or not video_id:
+        if current_time is None:
             return
             
-        # 同期イベント検索
-        sync_events = self.video_service.get_sync_events_for_timeframe(
-            video_id, current_time - 0.5, current_time + 0.5
-        )
+        # 同期エンジンから高精度同期コマンド取得
+        from app.sync.processor import sync_processor
+        sync_commands = sync_processor.find_sync_events_for_time(session_id, current_time)
         
-        # エフェクトコマンド送信
-        for event in sync_events:
-            effect_data = {
-                "effect_id": f"{video_id}_{event.time}_{event.action}",
-                "action": event.action,
-                "intensity": event.intensity,
-                "duration": event.duration
-            }
-            
-            await device_handler.send_effect_command(session_id, effect_data)
+        # デバイスにエフェクトコマンド送信
+        sent_commands = 0
+        for command in sync_commands:
+            success = await device_handler.send_effect_command(session_id, command)
+            if success:
+                sent_commands += 1
             
         # 同期確認応答
         await websocket_manager.send_to_webapp(session_id, {
             "type": "sync_acknowledged",
             "current_time": current_time,
-            "events_sent": len(sync_events),
+            "events_sent": sent_commands,
+            "sync_precision_ms": 500,  # ±500ms精度
             "timestamp": datetime.now().isoformat()
         })
         
-        if sync_events:
-            self.logger.debug(f"同期処理: セッション {session_id}, 時刻 {current_time}, イベント数 {len(sync_events)}")
+        if sync_commands:
+            self.logger.debug(f"高精度同期処理: セッション {session_id}, 時刻 {current_time:.2f}s, コマンド数 {sent_commands}/{len(sync_commands)}")
         
     async def _handle_end_playback(self, session_id: str, message: Dict[str, Any]):
         """再生終了処理"""
         video_id = message.get("video_id")
+        
+        # 同期エンジン停止
+        from app.sync.processor import sync_processor
+        sync_processor.stop_playback_sync(session_id)
         
         # セッション状態更新
         session = session_manager.get_session(session_id)

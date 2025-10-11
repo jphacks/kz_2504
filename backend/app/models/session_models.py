@@ -10,6 +10,7 @@ class SessionData:
         self.session_id = session_id
         self.product_code = product_code
         self.capabilities = capabilities
+        self.device_capabilities = capabilities  # エイリアス追加
         self.device_info = device_info
         self.status = "registered"
         self.websocket = None

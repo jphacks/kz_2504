@@ -67,6 +67,9 @@ class DeviceHandler:
         if message_type == "device_connected":
             await self._handle_device_connected(session_id, message)
             
+        elif message_type == "device_ready":
+            await self._handle_device_ready(session_id, message)
+            
         elif message_type == "ready_for_playback":
             await self._handle_ready_for_playback(session_id, message)
             
@@ -112,6 +115,32 @@ class DeviceHandler:
         })
         
         self.logger.info(f"デバイス接続確認: セッション {session_id}")
+        
+    async def _handle_device_ready(self, session_id: str, message: Dict[str, Any]):
+        """デバイス準備完了処理"""
+        device_info = message.get("device_info", {})
+        
+        # セッション状態更新
+        session = session_manager.get_session(session_id)
+        if session:
+            session.status = "connected"
+            
+        # Webアプリに準備完了通知
+        await websocket_manager.send_to_webapp(session_id, {
+            "type": "device_ready",
+            "message": "デバイスが準備完了しました",
+            "device_info": device_info,
+            "timestamp": datetime.now().isoformat()
+        })
+        
+        # デバイスに確認応答
+        await websocket_manager.send_to_device(session_id, {
+            "type": "ready_acknowledged",
+            "message": "デバイス準備完了を確認しました",
+            "timestamp": datetime.now().isoformat()
+        })
+        
+        self.logger.info(f"デバイス準備完了: セッション {session_id}")
         
     async def _handle_ready_for_playback(self, session_id: str, message: Dict[str, Any]):
         """再生準備完了通知処理"""

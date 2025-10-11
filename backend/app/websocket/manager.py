@@ -153,6 +153,18 @@ class WebSocketManager:
             result[session_id] = self.get_session_info(session_id)
         return result
         
+    def is_device_connected(self, session_id: str) -> bool:
+        """デバイス接続状態確認"""
+        if session_id not in self.sessions:
+            return False
+        return len(self.sessions[session_id].get(ClientType.DEVICE, set())) > 0
+        
+    def is_webapp_connected(self, session_id: str) -> bool:
+        """Webアプリ接続状態確認"""
+        if session_id not in self.sessions:
+            return False
+        return len(self.sessions[session_id].get(ClientType.WEBAPP, set())) > 0
+        
     async def cleanup_inactive_connections(self, timeout_minutes: int = 30):
         """非アクティブ接続のクリーンアップ"""
         current_time = datetime.now()
