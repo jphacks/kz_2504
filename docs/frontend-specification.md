@@ -1,10 +1,3 @@
-<img width="1710" height="981" alt="スクリーンショット 2025-10-12 21 21 46" src="https://github.com/user-attachments/assets/513dc3f2-d293-4fb0-95d7-cee28adcad99" /><img width="1710" height="981" alt="スクリーンショット 2025-10-12 21 21 46" src="https://github.com/user-attachments/assets/6d6ca382-e399-4d21-ac16-c68ef757616a" /># 4DX@HOME — フロントエンド (JPHACKS 2025)
-
-React + TypeScript 製のシングルページアプリケーション（SPA）。動画再生とデバイス制御（振動・香り等）を WebSocket 経由で同期し、映像体験を拡張します。
-
----
-![Uploading スクリーンショット 2025-10-12 21.21.56.png…]()
-
 
 ## 1. 概要
 
@@ -57,10 +50,10 @@ React + TypeScript 製のシングルページアプリケーション（SPA）�
 
 | ページ                          | 説明                     | 画像例                                 |
 | ---------------------------- | ---------------------- | ----------------------------------- |
-| ホーム (`HomePage`)             | キャッチコピー、開始導線           | ![Home](/images/home.png)       |
-| セッション（ペアリング） (`PairingPage`) | セッションコード入力、接続状態        | ![Session](/images/session.png) |
-| 動画選択 (`SelectPage`)          | 一覧/カテゴリ/ランキング          | ![Select](/images/select.png)   |
-| 動画視聴（プレイヤー） (`PlayerPage`)   | 再生/一時停止・シーク・音量・フルスクリーン | ![Player](/images/player.png)   |
+| ホーム (`HomePage`)             | キャッチコピー、開始導線           | ![Home](../assets/images/home.png)       |
+| セッション（ペアリング） (`PairingPage`) | セッションコード入力、接続状態        | ![Session](../assets/images/session.png) |
+| 動画選択 (`SelectPage`)          | 一覧/カテゴリ/ランキング          | ![Select](../assets/images/images/select.png)   |
+| 動画視聴（プレイヤー） (`PlayerPage`)   | 再生/一時停止・シーク・音量・フルスクリーン | ![Player](../assets/images//player.png)   |
 
 ---
 
