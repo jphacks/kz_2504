@@ -85,8 +85,8 @@ WebSocketを用いたリアルタイム通信により、動画再生と物理�
 
 ### 独自技術
 #### ハッカソンで開発した独自機能・技術
-* **AI動画解析エンジン**: GPT-4o-mini Visionのバッチ処理（15枚同時）による効率的な映像解析と、ルールベース判定による高精度な効果タイムライン生成 ([tools/sync-generator/](tools/sync-generator/))
+* **AI動画解析エンジン**: GPT-4o-mini Visionのバッチ処理（15枚同時）による効率的な映像解析と、ルールベース判定による高精度な効果タイムライン生成
 * **最小継続時間制御システム**: 効果のチラつき防止のため、各効果に最小継続時間を設定し、安定した体験を提供
-* セッションコード方式によるシンプルなペアリングシステム ([session/manager.py](backend/app/session/manager.py))
-* 動画再生タイムスタンプに基づくリアルタイム同期処理 ([sync/processor.py](backend/app/sync/processor.py))
-* WebSocketによるWebアプリ・サーバー・デバイスハブの3者間通信アーキテクチャ ([websocket/manager.py](backend/app/websocket/manager.py), [hardware/device-hub/src/websocket_client.py](hardware/device-hub/src/websocket_client.py))
+* セッションコード方式によるシンプルなペアリングシステム
+* 動画再生タイムスタンプに基づくリアルタイム同期処理
+* WebSocketによるWebアプリ・サーバー・デバイスハブの3者間通信アーキテクチャ
