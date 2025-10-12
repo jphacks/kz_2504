@@ -2,7 +2,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useLocation } from "react-router-dom";
 
-const FIXED_SESSION_ID = "demo-session";
+const FIXED_SESSION_ID = "demo_session";
 const WS_SYNC = () =>
   `wss://fourdk-backend-333203798555.asia-northeast1.run.app/api/playback/ws/sync/${encodeURIComponent(FIXED_SESSION_ID)}`;
 
