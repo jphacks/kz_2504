@@ -66,6 +66,7 @@ WebSocketを用いたリアルタイム通信により、動画再生と物理�
 - **[📱 フロントエンド仕様書](./docs/frontend-specification.md)** - React + TypeScript Webアプリケーション
 - **[🔧 バックエンド仕様書](./docs/backend-specification.md)** - FastAPI WebサーバーとAPI
 - **[⚙️ ハードウェア仕様書](./docs/hardware-specification.md)** - Raspberry Pi + Arduino 物理制御システム
+- **[🎬 AI動画解析システム](./tools/sync-generator/README.md)** - GPT-4o-mini Visionによる4DXタイムライン自動生成
 - **[📖 総合仕様書](./docs/README.md)** - システム全体概要とセットアップガイド
 
 ## 開発技術
