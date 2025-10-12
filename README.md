@@ -29,8 +29,8 @@
 - **動画解析エンジン** (Python + OpenCV + GPT-4o-mini): 動画からタイムラインJSON自動生成
 - **Webアプリ** (React 18.3.1 + TypeScript 5.9.3): 動画再生とセッション管理、WebSocketリアルタイム通信
 - **サーバー** (FastAPI 0.104.1 + WebSocket): RESTful API、セッション管理、リアルタイム同期処理
-- **デバイスハブ** (Raspberry Pi 4): TCP/WebSocket通信、タイムライン管理、デバイス制御
-- **アクチュエーター** (Arduino Uno x3-4台): 振動・光・風・水・色の5種類物理効果制御
+- **デバイスハブ** (Raspberry Pi 3 Model B): TCP/WebSocket通信、タイムライン管理、デバイス制御
+- **アクチュエーター** (Arduino Uno R3 x2台 + ESP-12E): 振動・光・風・水・色の5種類物理効果制御
 
 ### 特長
 
@@ -88,14 +88,14 @@ WebSocketを用いたリアルタイム通信により、動画再生と物理�
 - ![OpenCV](https://img.shields.io/badge/OpenCV-4.8.0-red) ![Python](https://img.shields.io/badge/Python-3.9+-blue) **AI・動画処理**: OpenCV (opencv-python), requests (OpenAI API通信)
 - ![FastAPI](https://img.shields.io/badge/FastAPI-0.104.1-green) ![Uvicorn](https://img.shields.io/badge/Uvicorn-0.24.0-blue) **バックエンド**: FastAPI 0.104.1, Uvicorn 0.24.0, websockets 11.0.3, Pydantic 2.5.0, aiofiles 25.1.0
 - ![React](https://img.shields.io/badge/React-18.3.1-blue) ![TypeScript](https://img.shields.io/badge/TypeScript-5.9.3-blue) ![Vite](https://img.shields.io/badge/Vite-7.1.9-yellow) **フロントエンド**: React 18.3.1, TypeScript 5.9.3, Vite 7.1.9, React Router DOM 6.30.1, Tailwind CSS 4.1.14
-- ![Raspberry Pi](https://img.shields.io/badge/Raspberry%20Pi-4-red) ![Arduino](https://img.shields.io/badge/Arduino-Uno%20R3-teal) ![ESP32](https://img.shields.io/badge/ESP32-振動制御-blue) **デバイス**: Python 3.9+ (Raspberry Pi), pyserial 3.5, paho-mqtt-client, RPi.GPIO 0.7.1, Arduino (C++), ESP32 (C++)
+- ![Raspberry Pi](https://img.shields.io/badge/Raspberry%20Pi-3%20Model%20B-red) ![Arduino](https://img.shields.io/badge/Arduino-Uno%20R3%20×2台-teal) ![ESP-12E](https://img.shields.io/badge/ESP--12E-振動制御-blue) **デバイス**: Python 3.9+ (Raspberry Pi), pyserial 3.5, paho-mqtt-client, RPi.GPIO 0.7.1, Arduino (C++), ESP-12E (C++)
 
 #### デバイス
-- ![Raspberry Pi](https://img.shields.io/badge/Raspberry%20Pi-4%20Model%20B-red) **Raspberry Pi 4 Model B (4GB RAM)** - デバイスハブとして、TCP/WebSocket通信、タイムライン管理、Arduino/ESP32制御を担当
-- ![Arduino](https://img.shields.io/badge/Arduino-Uno%20R3%20×3--4台-teal) **Arduino Uno R3 (3-4台)** - シリアル通信経由で光・風・水効果を個別制御
-- ![ESP32](https://img.shields.io/badge/ESP32-振動クッション制御-blue) **ESP32** - Wi-Fi/MQTT経由で振動クッション制御、3Dプリントケース内偏心モーター駆動
-- ![振動](https://img.shields.io/badge/振動モーター-ESP32%20MQTT制御-purple) **振動モーター** - ESP32経由MQTT制御、映像に合わせた触覚フィードバック（3モード: 弱い振動、強い衝撃、ドキドキ）
-- ![3Dプリント](https://img.shields.io/badge/3Dプリント-偏心モーターケース-orange) **3Dプリント振動ケース** - ESP32+偏心モーター用カスタムケース、クッション内組み込み型設計
+- ![Raspberry Pi](https://img.shields.io/badge/Raspberry%20Pi-3%20Model%20B-red) **Raspberry Pi 3 Model B** - デバイスハブとして、TCP/WebSocket通信、タイムライン管理、Arduino/ESP-12E制御を担当
+- ![Arduino](https://img.shields.io/badge/Arduino-Uno%20R3%20×2台-teal) **Arduino Uno R3 (2台)** - シリアル通信経由で光・風・水効果を個別制御
+- ![ESP-12E](https://img.shields.io/badge/ESP--12E-振動クッション制御-blue) **ESP-12E** - Wi-Fi/MQTT経由で振動クッション制御、3Dプリントケース内偏心モーター駆動
+- ![振動](https://img.shields.io/badge/振動モーター-ESP--12E%20MQTT制御-purple) **振動モーター** - ESP-12E経由MQTT制御、映像に合わせた触覚フィードバック（3モード: 弱い振動、強い衝撃、ドキドキ）
+- ![3Dプリント](https://img.shields.io/badge/3Dプリント-偏心モーターケース-orange) **3Dプリント振動ケース** - ESP-12E+偏心モーター用カスタムケース、クッション内組み込み型設計
 - ![LED](https://img.shields.io/badge/RGB%20LED-PWM制御-rainbow) **RGB LED + 高輝度LED** - PWM制御による光の演出（3モード: ストロボ、閃光、照明）+ 色表現（RGB 256段階）
 - ![ファン](https://img.shields.io/badge/DCファン-風生成-lightblue) **DCファン** - 風生成装置（2モード: 瞬間風、持続風）
 - ![ポンプ](https://img.shields.io/badge/小型ポンプ-水噴射-blue) **小型ポンプ** - 水噴射装置（瞬間噴射、安全制限付き）
@@ -103,7 +103,7 @@ WebSocketを用いたリアルタイム通信により、動画再生と物理�
 - ![香り](https://img.shields.io/badge/香り拡散器-予定-pink) **香り拡散器 (予定)** - ペルチェ素子加熱式、シーンに応じた香りの演出
 
 #### 対応効果
-- ![振動](https://img.shields.io/badge/振動-3モード-purple) **振動（vibration）**: 弱い振動（long）、強い衝撃（strong）、ドキドキ（heartbeat） - ESP32 MQTT制御
+- ![振動](https://img.shields.io/badge/振動-3モード-purple) **振動（vibration）**: 弱い振動（long）、強い衝撃（strong）、ドキドキ（heartbeat） - ESP-12E MQTT制御
 - ![光](https://img.shields.io/badge/光-3モード-yellow) **光（flash）**: ストロボ（strobe）、閃光（burst）、照明（steady） - シリアル制御、PWM調光
 - ![風](https://img.shields.io/badge/風-2モード-lightblue) **風（wind）**: 一瞬の風（burst）、長い風（long） - シリアル制御、DCファン可変速
 - ![水](https://img.shields.io/badge/水-瞬間噴射-blue) **水（water）**: 水しぶき（burst）※shot型一度きり発動 - シリアル制御、安全制限付き
@@ -130,7 +130,7 @@ WebSocketを用いたリアルタイム通信により、動画再生と物理�
 - **要件定義**: システム全体のアーキテクチャと技術選定の大枠
 
 #### 🔧 ハードウェア開発
-- ![振動](https://img.shields.io/badge/振動システム-事前開発-purple) **振動デバイス**: ESP32+偏心モーター構成、3Dプリントケース設計・製作
+- ![振動](https://img.shields.io/badge/振動システム-事前開発-purple) **振動デバイス**: ESP-12E+偏心モーター構成、3Dプリントケース設計・製作
 - ![ポンプ](https://img.shields.io/badge/水噴射システム-事前開発-blue) **ポンプシステム**: 小型ポンプによる水噴射機構の実装
 - ![木工](https://img.shields.io/badge/固定台-事前開発-brown) **木工製固定台**: デバイス群を統合固定する木製土台の設計・製作
 

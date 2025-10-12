@@ -18,16 +18,16 @@
 ```
 
 ### 主要コンポーネント
-1. **デバイスハブ**: Raspberry Pi 4 - 通信・制御管理
-2. **アクチュエーター制御**: Arduino Uno - 物理デバイス制御
+1. **デバイスハブ**: Raspberry Pi 3 Model B - 通信・制御管理
+2. **アクチュエーター制御**: Arduino Uno R3 ×2台 + ESP-12E - 物理デバイス制御
 3. **物理フィードバック**: 各種センサー・モーター
 
 ## デバイスハブ仕様 (Raspberry Pi)
 
 ### ハードウェア要件
-- **Raspberry Pi 4 Model B** (推奨)
-  - CPU: ARM Cortex-A72 (4コア 1.8GHz)
-  - RAM: 4GB以上推奨
+- **Raspberry Pi 3 Model B**
+  - CPU: ARM Cortex-A53 (4コア 1.2GHz)
+  - RAM: 1GB
   - Storage: microSD 32GB以上 (Class 10)
   - 接続: Wi-Fi, Ethernet, USB, GPIO
 
@@ -158,19 +158,21 @@ MAX_WORKERS = 10
 ## アクチュエーター仕様 (Arduino)
 
 ### ハードウェア要件
-- **Arduino Uno R3** (各効果1台)
-- **動作電圧**: 5V
+- **Arduino Uno R3** ×2台 (風・水・光制御)
+- **ESP-12E** ×1台 (振動制御)
+- **動作電圧**: 5V (Arduino) / 3.3V (ESP-12E)
 - **電源**: USB/外部アダプター 9V-12V
 - **I/O**: デジタル・アナログピン使用
 
 ### 対応効果・デバイス
 
-#### 1. 振動システム (MQTT制御)
+#### 1. 振動システム (ESP-12E - MQTT制御)
 ```cpp
 // 振動モーター仕様
 - DCモーター 3V-5V
 - PWM制御対応
 - 振動パターン: 3種類
+- 制御基板: ESP-12E (Wi-Fi内蔵)
 
 // 制御モード
 enum VibrationMode {
@@ -253,9 +255,9 @@ enum WindMode {
 
 ### Arduino制御プログラム
 
-#### vibration.ino (振動制御)
+#### vibration.ino (ESP-12E振動制御)
 ```cpp
-#include <WiFi.h>
+#include <ESP8266WiFi.h>
 #include <PubSubClient.h>
 
 // MQTT設定
@@ -359,10 +361,7 @@ void splash() {
 - **安全保護**: ヒューズ、サージ保護
 
 ### 筐体設計
-- **サイズ**: 150mm × 100mm × 80mm (手のひらサイズ)
-- **材質**: ABS樹脂、アクリル
-- **防水**: IP54相当 (水噴射部分)
-- **放熱**: ファン冷却、ヒートシンク
+- **材質**: 木材（メイン筐体）、3Dプリント（振動モーターケース）
 
 ### 配線・接続
 ```
@@ -453,8 +452,9 @@ WATCHDOG_TIMEOUT = 5.0          # ウォッチドッグタイムアウト
 
 ### 必要部品リスト
 #### 電子部品
-- Raspberry Pi 4 (4GB) × 1
-- Arduino Uno R3 × 3-4台
+- Raspberry Pi 3 Model B × 1
+- Arduino Uno R3 × 2台
+- ESP-12E × 1台
 - DCモーター(振動用) × 2
 - RGB LED × 1
 - 高輝度LED × 1  
@@ -463,7 +463,8 @@ WATCHDOG_TIMEOUT = 5.0          # ウォッチドッグタイムアウト
 - ブレッドボード・ジャンパー線
 
 #### 機構部品
-- 筐体 (3Dプリント/アクリル加工)
+- 筐体 (3Dプリント/木材加工)
+- 振動モーターケース (3Dプリント)
 - ネジ・スペーサー
 - 配線・コネクター
 - 電源アダプター (12V/5A)
