@@ -1,3 +1,4 @@
+# 4DX@HOME フロントエンド仕様書
 
 ## 1. 概要
 
@@ -6,81 +7,51 @@
 * プロジェクト名: 4DX@HOME
 * コンセプト: 映像解析で得た同期データをサーバ経由でデバイスへ配信し、動画と物理フィードバックをフレーム近傍で同期
 
----
-
-## 2. 目次
-
-1. 概要
-2. 目次
-3. スクリーンショット & UI（各ページ）
-4. 技術スタック
-5. アーキテクチャ
-6. 主要機能
-7. アプリケーション状態
-8. プロトコル/データ構造
-9. データフロー
-10. ローカル開発
-11. 環境変数
-12. ビルド & デプロイ
-13. トラブルシュート
-14. 今後の拡張予定
-15. ライセンス
+### 1.1 デモ（UI のみ体験可）
+- デモURL: https://kz-2504.onrender.com/
+- 説明:
+  - **ID 登録は実機デバイスが必要**です（セッションIDはデバイス同期用）。
+  - デバイスがなくても、トップ画面の **Register** を押すと、**UI を見て操作するデモ**を体験できます（同期は行われません）。
+  - 実機連携時は、表示されるセッションIDをデバイス側にも設定してください。
 
 ---
 
-## 3. スクリーンショット & UI（各ページ）
+## 2. スクリーンショット & UI（各ページ）
 
-**配置規則**
 
-* ベースパス: `docs/images/`
-* 命名: `<page>[-variant][-device].<ext>` 例: `home.png`, `player-mobile.png`, `session-error.png`
-
-**最小セット（必須）**
-
-* `docs/images/home.png`
-* `docs/images/session.png`
-* `docs/images/select.png`
-* `docs/images/player.png`
-
-**任意の追加（推奨）**
-
-* `*-mobile.png` / `*-desktop.png`（レスポンシブ差分）
-* `session-success.png` / `session-error.png`（接続状態差分）
-* `player-fullscreen.png`（フルスクリーン時）
-
-| ページ                          | 説明                     | 画像例                                 |
-| ---------------------------- | ---------------------- | ----------------------------------- |
+| ページ                          | 説明                     | 画像例                               |
+| ---------------------------- | ---------------------- | ---------------------------------- |
 | ホーム (`HomePage`)             | キャッチコピー、開始導線           | ![Home](../assets/images/home.png)       |
 | セッション（ペアリング） (`PairingPage`) | セッションコード入力、接続状態        | ![Session](../assets/images/session.png) |
-| 動画選択 (`SelectPage`)          | 一覧/カテゴリ/ランキング          | ![Select](../assets/images/images/select.png)   |
-| 動画視聴（プレイヤー） (`PlayerPage`)   | 再生/一時停止・シーク・音量・フルスクリーン | ![Player](../assets/images//player.png)   |
+| 動画選択 (`SelectPage`)          | 一覧/カテゴリ/ランキング          | ![Select](../assets/images/select.png)   |
+| 動画視聴（プレイヤー） (`PlayerPage`)   | 再生/一時停止・シーク・音量・フルスクリーン | ![Player](../assets/images/player.png)   |
 
 ---
 
-## 4. 技術スタック
+## 3. 技術スタック
 
-### 4.1 主要フレームワーク・ライブラリ
+### 3.1 主要フレームワーク・ライブラリ
 
 * React 18.3.1（UI）
 * TypeScript 5.9.3（型安全）
 * React Router DOM 6.30.1（SPA ルーティング）
 
-### 4.2 開発・ビルドツール
+### 3.2 開発・ビルドツール
 
 * Vite 7.1.9（高速ビルド）
 * PostCSS 8.5.6（CSS 処理）
 * Tailwind CSS 4.1.14（ユーティリティファースト）
 
-### 4.3 開発環境
+### 3.3 開発環境
 
 * @vitejs/plugin-react 4.7.0
 * @types/react, @types/react-dom
 
 ---
 
-## 5. アーキテクチャ
+## 4. アーキテクチャ
 
-### 5.1 ディレクトリ構造
+### 4.1 ディレクトリ構造
 
 ```
 frontend/4dathome-app/
@@ -106,7 +77,7 @@ frontend/4dathome-app/
     └── assets/
 ```
 
-### 5.2 ルーティング構成
+### 4.2 ルーティング構成
 
 | パス            | コンポーネント       | 用途                   |
 | ------------- | ------------- | -------------------- |
@@ -117,28 +88,28 @@ frontend/4dathome-app/
 
 ---
 
-## 6. 主要機能
+## 5. 主要機能
 
-### 6.1 セッション管理
+### 5.1 セッション管理
 
 * 6 桁コードによるペアリング
 * デバイス接続状態の監視と UI 反映
 * WebSocket の自動接続/再接続
 
-### 6.2 動画管理
+### 5.2 動画管理
 
 * 一覧/カテゴリ/ランキング表示
 * メタデータ・サムネイル
 * 選択 → プレイヤー遷移
 
-### 6.3 動画再生制御
+### 5.3 動画再生制御
 
 * HTML5 Video（ネイティブ）
 * 再生/一時停止・シーク・音量
 * フルスクリーン対応（モバイル/デスクトップ）
 * タイムスタンプ送信による同期
 
-### 6.4 WebSocket 通信
+### 5.4 WebSocket 通信
 
 * 双方向リアルタイム通信（JSON）
 * 接続断時の自動復旧
@@ -146,69 +117,7 @@ frontend/4dathome-app/
 
 ---
 
-## 7. アプリケーション状態
-
-```ts
-interface AppState {
-  sessionId: string | null;
-  deviceConnected: boolean;
-  selectedVideo: VideoInfo | null;
-  playbackState: PlaybackState;
-  websocketConnection: WebSocket | null;
-}
-
-interface PlaybackState {
-  isPlaying: boolean;
-  currentTime: number;
-  duration: number;
-  volume: number;
-}
-```
-
----
-
-## 8. プロトコル/データ構造
-
-> 実際のバックエンド仕様に合わせて調整してください。
-
-```ts
-// 受信（サーバ → クライアント）
-type SyncState = "play" | "pause" | "seeking" | "seeked";
-
-type InMsg =
-  | {
-      type: "connection_established";
-      connection_id: string;
-      session_id: string;
-      server_time: string; // ISO8601
-      message: string;
-    }
-  | {
-      type: "sync_ack";
-      session_id: string;
-      received_time: number; // epoch ms
-      received_state: SyncState;
-      server_time: string; // ISO8601
-      relayed_to_devices?: boolean;
-    }
-  | { type: string; [k: string]: any };
-
-// 送信（クライアント → サーバ）
-type OutMsg = {
-  type: "sync";
-  state: SyncState; // 再生状態
-  time: number;     // 現在位置(秒)
-  duration: number; // 総再生時間(秒)
-  ts: number;       // 送信時刻 epoch ms
-};
-```
-
-固定セッション（例: `demo_session`）を用いる場合:
-`wss://<origin>/api/playback/ws/sync/demo_session`
-
----
-
-## 9. データフロー
+## 6. データフロー
 
 1. セッション作成 → セッションコード生成 → デバイス待機
 2. 動画選択 → メタデータ取得 → 4DX 効果データ準備
@@ -237,91 +146,111 @@ sequenceDiagram
 
 ---
 
-## 10. ローカル開発
+## 7. 今後の拡張予定
 
-ルート例: `frontend/4dathome-app`
+* ユーザー設定
+* 視聴履歴・お気に入り
+* レスポンシブ最適化
+* ストリーム再生の実行
+
+---
+
+## 8. クイックスタート（ローカル）
 
 ```bash
-pnpm i          # 依存関係の導入（npm/yarn でも可）
-pnpm dev        # http://localhost:5173
-pnpm build      # 本番ビルド
-pnpm preview    # http://localhost:4173
-```
+# Node 20+ 推奨（Corepack 有効化）
+corepack enable
 
-* Tailwind 4 を利用しているため、`postcss.config.*` / `tailwind.config.*` は既存設定に従ってください。
-* ルート配下に `frontend/4dathome-app/` がある構成でも、CI/CD 側でビルドコマンドと公開ディレクトリを調整することで対応可能です。
+# 1) 依存関係のインストール
+pnpm install    # npm / yarn でも可
+
+# 2) 環境変数の設定
+cp .env.example .env   # 後述のキーを編集
+
+# 3) 開発サーバ起動
+pnpm dev
+# http://localhost:5173 にアクセス
+```
 
 ---
 
-## 11. 環境変数
-
-`.env`（開発） / `.env.production`（本番）等に設定します。
+## 9. 環境変数（.env / .env.example）
 
 ```env
-# HTTP API のベース URL（例）
-VITE_API_ORIGIN=https://fourdk-backend-xxxxxxxx-asia-northeast1.run.app
+# バックエンドHTTP/HTTPSエンドポイント
+VITE_API_ORIGIN=https://fourdk-backend-xxxxxxxxxx-asia-northeast1.run.app
 
-# 再生同期用 WebSocket エンドポイント（例）
-VITE_WS_SYNC=wss://fourdk-backend-xxxxxxxx-asia-northeast1.run.app/api/playback/ws/sync/demo_session
+# 再生同期WebSocket（末尾に /<session_id> を連結）
+VITE_WS_SYNC_BASE=wss://fourdk-backend-xxxxxxxxxx-asia-northeast1.run.app/api/playback/ws/sync
+
+# 既定のセッションID（デモ用・任意）
+VITE_DEFAULT_SESSION_ID=demo_session
 ```
 
-アプリ内では `import.meta.env.VITE_*` で参照します。
+- `VITE_API_ORIGIN`: デバイス情報・制御APIのベースURL  
+- `VITE_WS_SYNC_BASE`: 再生同期用WSのベースURL（クライアント側でセッションIDを連結）  
+- `VITE_DEFAULT_SESSION_ID`: デモ接続で使う既定セッションID（任意）
 
 ---
 
-## 12. ビルド & デプロイ
+## 10. スクリプト（package.json）
 
-### 12.1 静的ホスティング（Render / Vercel / Firebase Hosting 等）
-
-1. `pnpm build` で `dist/` を生成
-2. `dist/` をホスティング先にデプロイ
-3. SPA ルーティングのため、404 を `/index.html` にフォールバックする設定を有効化
-
-### 12.2 Cloud Run / 任意サーバ利用時の留意点
-
-* WebSocket は TLS 化された `wss://` を利用
-* CORS: 別オリジンからの API 呼び出し時は `Access-Control-Allow-Origin` を適切に設定
-* PORT: コンテナは環境変数 `PORT`（例: 8080）で待受け
-* ヘルスチェックのタイムアウトは十分に確保
+```json
+{
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview --port 4173"
+  }
+}
+```
 
 ---
 
-## 13. トラブルシュート
+## 11. 同期プロトコル（WebSocket）
 
-### 13.1 CORS エラー
+### 11.1 Client → Server 例
 
-* 現象: `No 'Access-Control-Allow-Origin' header is present ...`
-* 対策: バックエンドで許可オリジン（例: `https://<frontend-host>`）を設定。`OPTIONS` も許可。
+```json
+{
+  "type": "sync",
+  "state": "play",
+  "time": 12.34,
+  "duration": 123.45,
+  "ts": 1730000000000
+}
+```
 
-### 13.2 WebSocket 接続失敗
+### 11.2 Server → Client 例
 
-* `wss://` で公開しているか（証明書/プロキシ設定）
-* リバースプロキシで `Upgrade` ヘッダが維持されているか
-* サーバの待受ポートとパスがクライアント URL と一致しているか
+```json
+{
+  "type": "sync_ack",
+  "session_id": "demo_session",
+  "received_state": "play",
+  "server_time": "2025-10-12T12:34:56.789Z",
+  "relayed_to_devices": true
+}
+```
 
-### 13.3 Cloud Run 起動失敗
-
-* ログに `failed to start and listen on PORT=8080` → 待受ポートを確認
-* タイムアウト/メモリ不足 → サービス設定を見直し
-* `PERMISSION_DENIED` → デプロイアカウントに Cloud Run Admin 等の権限を付与
-
-### 13.4 TypeScript ビルドエラー例
-
-* `TS2554: Expected 0 arguments, but got 1.` → 関数シグネチャの不一致
-* `BlobPart` 関連 → `Uint8Array.buffer` を渡す等、型の不一致を解消
-
----
-
-## 14. 今後の拡張予定
-
-* 多言語対応（i18n）
-* ユーザー設定（強度・頻度等のカスタマイズ）
-* 視聴履歴・お気に入り
-* レスポンシブ最適化（モバイル優先）
-* アクセシビリティ改善（キーボード操作・スクリーンリーダ）
+**備考**  
+- `state`: `play | pause | seeking | seeked`  
+- `time`: 現在の再生位置（秒）  
+- `duration`: コンテンツ総尺（秒）  
+- `ts`: クライアント送信時刻（ミリ秒・UNIX TIME）
 
 ---
 
-## 15. ライセンス
+## 12. デプロイ（Render / Static Sites）
 
-本リポジトリ内のライセンスファイル（例: MIT）に準拠します。`LICENSE` を参照してください。
+本フロントエンドは **Render** の Static Site でのホスティングを想定しています。
+
+- **Build Command**: `pnpm install && pnpm build`  
+- **Publish Directory**: `dist`  
+- **Routing（SPA）**: 404 時は `index.html` へフォールバック（Render の Redirects/Rewrites 設定）  
+- **環境変数**: `VITE_` プレフィックスの値は **ビルド時** に注入されます（変更時は再ビルド）
+
+> 既存デモ: https://kz-2504.onrender.com/
+
+---
+
