@@ -5,7 +5,7 @@
 
   [![JPHacks 2025](https://img.shields.io/badge/JPHacks%202025-Best%20Hackday%20Award-gold?style=for-the-badge&logo=trophy)](https://github.com/jphacks/kz_2504)
 
-  🎉 **JPHacks2025 Hack Day (金沢会場)** 🎉
+  🎉 **JPHacks2025 Hack Day (金沢会場)** 🎉<br>
   🥇 **「Best Hackday Award」受賞** 🥇
   
 </div>
