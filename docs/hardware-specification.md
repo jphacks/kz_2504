@@ -7,14 +7,81 @@
 ## システム構成
 
 ### アーキテクチャ概要
+
+#### システム全体構成
+```mermaid
+graph TD
+    Server[バックエンドサーバー<br/>FastAPI + WebSocket] 
+    RaspberryPi[Raspberry Pi 3 Model B<br/>デバイスハブ]
+    Arduino1[Arduino Uno R3 #1<br/>光・風制御]
+    Arduino2[Arduino Uno R3 #2<br/>水制御]
+    ESP12E[ESP-12E<br/>振動制御]
+    
+    Server -->|WebSocket/TCP| RaspberryPi
+    RaspberryPi -->|Serial /dev/ttyACM0| Arduino1
+    RaspberryPi -->|Serial /dev/ttyACM1| Arduino2
+    RaspberryPi -->|MQTT/Wi-Fi| ESP12E
+    
+    Arduino1 --> LED[RGB LED + 高輝度LED]
+    Arduino1 --> Fan[DCファン]
+    Arduino2 --> Pump[小型ポンプ]
+    ESP12E --> Motor[振動モーター×2]
 ```
-[バックエンドサーバー] 
-        ↓ WebSocket/TCP
-[Raspberry Pi デバイスハブ] 
-        ↓ Serial/MQTT
-[Arduino アクチュエーター群]
-        ↓ 物理制御
-[振動・光・風・水・香り デバイス]
+
+#### マイコン・ハードウェア接続図
+```mermaid
+graph LR
+    subgraph "Raspberry Pi 3 Model B"
+        RPi_GPIO[GPIO]
+        RPi_USB[USB ポート]
+        RPi_WiFi[Wi-Fi]
+        RPi_Power[5V電源]
+    end
+    
+    subgraph "Arduino Uno R3 #1 (光・風)"
+        A1_Digital[デジタルピン 2-13]
+        A1_PWM[PWMピン 9-11]
+        A1_Power1[5V/GND]
+        A1_USB1[USB]
+    end
+    
+    subgraph "Arduino Uno R3 #2 (水)"
+        A2_Digital[デジタルピン 7]
+        A2_Analog[アナログピン A0]
+        A2_Power2[5V/GND]
+        A2_USB2[USB]
+    end
+    
+    subgraph "ESP-12E (振動)"
+        ESP_GPIO[GPIO 0,2]
+        ESP_PWM[PWM出力]
+        ESP_WiFi[Wi-Fi]
+        ESP_Power[3.3V]
+    end
+    
+    subgraph "物理デバイス"
+        RGB[RGB LED]
+        Flash[高輝度LED]
+        Fan[DCファン 12V]
+        Pump[小型ポンプ 5V]
+        WaterSensor[水位センサー]
+        Motor1[振動モーター #1]
+        Motor2[振動モーター #2]
+    end
+    
+    RPi_USB -->|シリアル通信| A1_USB1
+    RPi_USB -->|シリアル通信| A2_USB2
+    RPi_WiFi -.->|MQTT| ESP_WiFi
+    
+    A1_PWM --> RGB
+    A1_Digital --> Flash
+    A1_Digital --> Fan
+    
+    A2_Digital --> Pump
+    A2_Analog --> WaterSensor
+    
+    ESP_PWM --> Motor1
+    ESP_PWM --> Motor2
 ```
 
 ### 主要コンポーネント
@@ -47,6 +114,53 @@ asyncio                # 非同期処理
 ```
 
 ### 通信プロトコル
+
+#### 通信フロー図
+```mermaid
+sequenceDiagram
+    participant Frontend as Webアプリ
+    participant Backend as バックエンドサーバー
+    participant RaspberryPi as Raspberry Pi Hub
+    participant Arduino1 as Arduino #1 (光・風)
+    participant Arduino2 as Arduino #2 (水)
+    participant ESP12E as ESP-12E (振動)
+    
+    Frontend->>Backend: 動画再生開始
+    Backend->>RaspberryPi: WebSocket接続 & タイムライン送信
+    
+    loop リアルタイム同期
+        Backend->>RaspberryPi: 時刻同期データ (WebSocket)
+        RaspberryPi->>Arduino1: シリアルコマンド (USB)
+        RaspberryPi->>Arduino2: シリアルコマンド (USB)
+        RaspberryPi->>ESP12E: MQTTメッセージ (Wi-Fi)
+        
+        Arduino1->>Arduino1: LED/ファン制御
+        Arduino2->>Arduino2: ポンプ制御
+        ESP12E->>ESP12E: 振動モーター制御
+    end
+```
+
+#### データフロー構成図
+```mermaid
+graph LR
+    subgraph "通信レイヤー"
+        WebSocket[WebSocket<br/>バックエンド↔Pi]
+        Serial1[Serial /dev/ttyACM0<br/>Pi↔Arduino#1]
+        Serial2[Serial /dev/ttyACM1<br/>Pi↔Arduino#2]
+        MQTT[MQTT over Wi-Fi<br/>Pi↔ESP-12E]
+    end
+    
+    subgraph "プロトコル詳細"
+        WS_Data["{type: 'timeline_update',<br/>events: [...]}"]
+        Serial_Cmd["'FLASH 15\\n'<br/>'COLOR 255 0 0\\n'<br/>'SPLASH\\n'"]
+        MQTT_Topic["Topic: /vibration/heart<br/>Payload: ''<br/>QoS: 1"]
+    end
+    
+    WebSocket --> WS_Data
+    Serial1 --> Serial_Cmd
+    Serial2 --> Serial_Cmd  
+    MQTT --> MQTT_Topic
+```
 
 #### 1. WebSocket通信 (バックエンド ↔ デバイスハブ)
 ```python
@@ -361,20 +475,137 @@ void splash() {
 - **安全保護**: ヒューズ、サージ保護
 
 ### 筐体設計
+
+#### 物理配置図
+```mermaid
+graph TB
+    subgraph "メイン筐体 (木材製) 150×100×80mm"
+        subgraph "上段レイヤー"
+            RPI[Raspberry Pi 3B<br/>70×50×15mm]
+            Fan[DCファン<br/>40×40×10mm]
+            LED_Board[LED基板<br/>20×15×5mm]
+        end
+        
+        subgraph "中段レイヤー"
+            Arduino1[Arduino #1<br/>70×55×15mm]
+            Arduino2[Arduino #2<br/>70×55×15mm]
+            PSU[電源基板<br/>50×30×20mm]
+        end
+        
+        subgraph "下段レイヤー"
+            Water_Tank[水タンク<br/>60×40×25mm]
+            Pump[ポンプ<br/>30×20×15mm]
+            Wiring[配線スペース]
+        end
+    end
+    
+    subgraph "外部デバイス"
+        subgraph "3Dプリントケース (振動)"
+            ESP_Case[ESP-12Eケース<br/>40×30×20mm]
+            Motor_Case1[モーターケース#1<br/>25×25×15mm]
+            Motor_Case2[モーターケース#2<br/>25×25×15mm]
+        end
+        
+        Cushion[クッション<br/>300×200×50mm]
+    end
+    
+    ESP_Case --> Motor_Case1
+    ESP_Case --> Motor_Case2
+    Motor_Case1 --> Cushion
+    Motor_Case2 --> Cushion
+```
+
+#### 配線経路図
+```mermaid
+graph TD
+    subgraph "筐体内配線"
+        PowerEntry[電源入力<br/>12V/5A]
+        PowerDist[電源分配基板]
+        USBHub[USB分配]
+        
+        PowerEntry --> PowerDist
+        PowerDist --> RPI_Power[Pi 5V]
+        PowerDist --> Arduino_Power[Arduino 5V×2]
+        PowerDist --> ESP_Power[ESP 3.3V]
+        PowerDist --> Device_Power[デバイス電源]
+        
+        RPI_USB --> USBHub
+        USBHub --> Arduino1_USB[Arduino #1]
+        USBHub --> Arduino2_USB[Arduino #2]
+    end
+    
+    subgraph "外部接続"
+        RPI_WiFi -.->|Wi-Fi信号| ESP_WiFi[ESP-12E Wi-Fi]
+        Water_Tube[給水チューブ] --> Pump_Out[ポンプ出力]
+        Cushion_Wire[振動線] --> Motor_Drive[モーター駆動]
+    end
+```
+
+- **サイズ**: 150mm × 100mm × 80mm (手のひらサイズ)
 - **材質**: 木材（メイン筐体）、3Dプリント（振動モーターケース）
+- **防水**: IP54相当 (水噴射部分)
+- **放熱**: ファン冷却、ヒートシンク
 
 ### 配線・接続
-```
-Raspberry Pi GPIO:
-├── UART (Serial) → Arduino通信
-├── I2C → センサー接続
-├── SPI → 拡張ボード  
-└── PWM → サーボ制御
 
-Arduino Digital Pins:
-├── Pin 2-13 → アクチュエーター制御
-├── Pin 9-11 → PWM制御 (RGB LED)
-└── Pin A0-A5 → アナログセンサー
+#### 電源系統図
+```mermaid
+graph TD
+    AC[AC 100V] --> PSU[電源アダプター<br/>12V 5A]
+    PSU --> Buck1[DC-DCコンバーター<br/>12V→5V]
+    PSU --> Buck2[DC-DCコンバーター<br/>12V→3.3V]
+    
+    Buck1 --> RaspberryPi[Raspberry Pi 3B<br/>5V 2.5A]
+    Buck1 --> Arduino1[Arduino Uno R3 #1<br/>5V 500mA]
+    Buck1 --> Arduino2[Arduino Uno R3 #2<br/>5V 500mA]
+    Buck1 --> LED_Power[LED電源<br/>5V 200mA]
+    Buck1 --> Pump_Power[ポンプ電源<br/>5V 1A]
+    
+    Buck2 --> ESP_Power[ESP-12E<br/>3.3V 250mA]
+    Buck2 --> Motor_Power[振動モーター<br/>3.3V 400mA]
+    
+    PSU --> Fan_Power[DCファン<br/>12V 500mA]
+    
+    subgraph "安全機能"
+        Fuse1[ヒューズ 5A]
+        Fuse2[サージプロテクタ]
+        PSU --> Fuse1
+        Fuse1 --> Fuse2
+    end
+```
+
+#### ピン配置詳細図
+```mermaid
+graph TB
+    subgraph "Arduino Uno R3 #1 (光・風制御)"
+        A1P9[Pin 9 - PWM] --> RGB_R[RGB LED 赤]
+        A1P10[Pin 10 - PWM] --> RGB_G[RGB LED 緑]
+        A1P11[Pin 11 - PWM] --> RGB_B[RGB LED 青]
+        A1P13[Pin 13 - Digital] --> Flash_LED[高輝度LED]
+        A1P7[Pin 7 - Digital] --> Fan_Control[DCファンコントロール]
+        A1P12[Pin 12 - Digital] --> Fan_Enable[DCファンイネーブル]
+    end
+    
+    subgraph "Arduino Uno R3 #2 (水制御)"
+        A2P7[Pin 7 - Digital] --> Pump_Control[ポンプ制御リレー]
+        A2A0[Pin A0 - Analog] --> Water_Sensor[水位センサー]
+        A2P2[Pin 2 - Digital] --> Pump_LED[動作表示LED]
+    end
+    
+    subgraph "ESP-12E (振動制御)"
+        ESP_GPIO0[GPIO 0] --> Motor1_PWM[振動モーター #1]
+        ESP_GPIO2[GPIO 2] --> Motor2_PWM[振動モーター #2]
+        ESP_GPIO15[GPIO 15] --> Status_LED[ステータスLED]
+        ESP_GPIO16[GPIO 16] --> Reset_Button[リセットボタン]
+    end
+    
+    subgraph "Raspberry Pi 3 Model B"
+        RPI_USB1[USB Port 1] -.->|シリアル| A1_USB[Arduino #1 USB]
+        RPI_USB2[USB Port 2] -.->|シリアル| A2_USB[Arduino #2 USB]
+        RPI_GPIO2[GPIO 2 - SDA] --> I2C_Devices[I2Cセンサー群]
+        RPI_GPIO3[GPIO 3 - SCL] --> I2C_Devices
+        RPI_GPIO18[GPIO 18 - PWM] --> System_LED[システム状態LED]
+    end
 ```
 
 ## 同期制御
