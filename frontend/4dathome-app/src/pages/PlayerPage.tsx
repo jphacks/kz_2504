@@ -177,7 +177,7 @@ export default function PlayerPage() {
   /* ====== WebSocket 接続 ====== */
   const connectWS = () => {
     try {
-      const ws = new WebSocket(WS_SYNC(sessionId));
+      const ws = new WebSocket(WS_SYNC());
       wsRef.current = ws;
 
       ws.onopen = () => {
