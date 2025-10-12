@@ -135,7 +135,7 @@ WebSocketによる**ミリ秒精度のリアルタイム通信**で動画と物�
 * **ハイブリッド通信アーキテクチャ**: WebSocket（同期制御）+ シリアル通信（Arduino制御）+ MQTT（振動制御）の統合システム  
   → [`hardware/device-hub/src/hub.py`](./hardware/device-hub/src/hub.py), [`hardware/device-hub/src/serial_controller.py`](./hardware/device-hub/src/serial_controller.py), [`hardware/vibration.ino`](./hardware/vibration.ino)
 * **カスタムハードウェア設計**: 3Dプリンターによる偏心モーター専用ケース設計、クッション内蔵型振動システム  
-  → [`hardware/actuators/vibration-motor/`](./hardware/actuators/vibration-motor/), [`hardware/vibration.ino`](./hardware/vibration.ino)
+  → [`assets/images/Cushion_Motor_Case_3D_Model.png`](./assets/images/Cushion_Motor_Case_3D_Model.png), [`hardware/vibration.ino`](./hardware/vibration.ino)
 * **物理デバイス統合**: 木工製固定台によるデバイス群の安定配置、配線管理とメンテナンス性を両立  
   → [`hardware/lights.ino`](./hardware/lights.ino), [`hardware/water.ino`](./hardware/water.ino), [`hardware/device-hub/src/serial_controller.py`](./hardware/device-hub/src/serial_controller.py)
 * **タイムライン管理システム**: 継続効果・瞬間効果を区別し、最適なタイミングでアクチュエーター制御を実行  
