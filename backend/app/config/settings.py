@@ -29,6 +29,13 @@ class SecuritySettings(BaseModel):
     secret_key: str = "default-secret-key-change-in-production"
     session_expire_minutes: int = 60
     max_failed_attempts: int = 5
+
+class DebugSettings(BaseModel):
+    """デバッグ設定"""
+    enabled: bool = False
+    skip_preparation: bool = False
+    auto_device_ready: bool = False
+    fast_connection: bool = False
     lockout_duration_minutes: int = 15
 
 class CloudSettings(BaseModel):
@@ -75,6 +82,12 @@ class Settings(BaseSettings):
         default="wss://fourdk-backend-333203798555.asia-northeast1.run.app",
         description="マイコンWebSocket接続ベースURL"
     )
+    
+    # デバッグ設定
+    debug_mode: bool = Field(default=False, description="デバッグモード有効化")
+    debug_skip_preparation: bool = Field(default=False, description="準備処理スキップ")
+    debug_auto_ready: bool = Field(default=False, description="自動Ready状態")
+    debug_fast_connection: bool = Field(default=False, description="高速接続モード")
     
     # ファイルパス設定
     data_path: str = Field(default="./data", description="データファイルパス")
@@ -153,6 +166,18 @@ class Settings(BaseSettings):
     def get_device_websocket_url(self, session_id: str) -> str:
         """マイコンWebSocket URL生成"""
         return f"{self.device_websocket_base_url}/api/preparation/ws/{session_id}"
+    
+    def is_debug_mode(self) -> bool:
+        """デバッグモード判定"""
+        return self.debug_mode or self.environment.lower() == "development"
+    
+    def should_skip_preparation(self) -> bool:
+        """準備処理スキップ判定"""
+        return self.is_debug_mode() and self.debug_skip_preparation
+    
+    def should_auto_ready(self) -> bool:
+        """自動Ready状態判定"""
+        return self.is_debug_mode() and self.debug_auto_ready
 
 # グローバル設定インスタンス
 settings = Settings()

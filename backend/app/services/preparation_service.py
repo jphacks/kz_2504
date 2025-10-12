@@ -51,6 +51,21 @@ MOCK_VIDEO_INFO = {
 
 logger = logging.getLogger(__name__)
 
+# デバッグ用モックデータ
+MOCK_VIDEO_INFO = {
+    "demo1": {
+        "duration": 120.0,
+        "video_info": {"file_name": "demo1.mp4", "file_size_mb": 50.0}
+    }
+}
+
+MOCK_DEVICE_INFO = {
+    "test_device_premium": {
+        "device_name": "Premium Test Device",
+        "capabilities": ["VIBRATION", "WATER", "WIND", "FLASH", "COLOR"]
+    }
+}
+
 class PreparationService:
     """準備処理管理サービス"""
     
@@ -79,6 +94,12 @@ class PreparationService:
             準備処理状態
         """
         logger.info(f"準備処理開始: session={session_id}, video={video_id}, device={device_id}")
+        
+        # デバッグモードチェック
+        from app.config.settings import settings
+        if settings.should_skip_preparation():
+            logger.info(f"デバッグモード: 準備処理スキップ - {session_id}")
+            return await self._create_debug_ready_state(session_id, video_id, device_id)
         
         # 既存の準備処理確認
         if session_id in self.active_preparations and not force_restart:
@@ -790,7 +811,7 @@ class PreparationService:
             return []
     
     async def _notify_progress(
-        self, session_id: str, component: str, progress: int, 
+        self, session_id: str, component: str, progress: int,
         status: PreparationStatus, message: str
     ):
         """進捗通知"""
@@ -810,5 +831,79 @@ class PreparationService:
                 except Exception as e:
                     logger.error(f"進捗コールバックエラー: {e}")
 
-# グローバルインスタンス
+    async def _create_debug_ready_state(
+        self, session_id: str, video_id: str, device_id: str
+    ) -> PreparationState:
+        """デバッグ用即座Ready状態作成"""
+        logger.info(f"デバッグモード: 即座Ready状態作成 - {session_id}")
+        
+        # モック動画情報
+        video = MOCK_VIDEO_INFO.get(video_id, {
+            "duration": 120.0,
+            "video_info": {"file_name": f"{video_id}.mp4", "file_size_mb": 50.0}
+        })
+        
+        # モックデバイス情報
+        device_info = MOCK_DEVICE_INFO.get("test_device_premium", {
+            "device_name": "Debug Device",
+            "capabilities": ["VIBRATION", "WATER", "WIND", "FLASH", "COLOR"]
+        })
+        
+        # Ready状態で初期化
+        prep_state = PreparationState(
+            session_id=session_id,
+            video_id=video_id,
+            device_id=device_id,
+            overall_status=PreparationStatus.COMPLETED,
+            overall_progress=100,
+            ready_for_playback=True,
+            started_at=datetime.now(),
+            video_preparation=VideoPreparationInfo(
+                video_url=f"/api/videos/{video_id}",
+                thumbnail_url=f"/api/videos/{video_id}/thumbnail",
+                duration_seconds=video["duration"],
+                file_size_mb=video["video_info"]["file_size_mb"],
+                preload_progress=100,
+                preparation_status=PreparationStatus.COMPLETED
+            ),
+            sync_data_preparation=SyncDataPreparationInfo(
+                sync_data_url=f"/assets/sync-data/{video_id}.json",
+                file_size_kb=30.0,
+                effects_count=150,
+                required_actuators=[ActuatorType.VIBRATION, ActuatorType.WATER, ActuatorType.WIND],
+                download_progress=100,
+                parsing_progress=100,
+                preparation_status=PreparationStatus.COMPLETED,
+                transmission_result=SyncDataTransmissionResult(
+                    success=True,
+                    transmitted_at=datetime.now(),
+                    file_size_kb=30.0,
+                    checksum="debug123",
+                    response_time_ms=10
+                )
+            ),
+            device_communication=DeviceCommunicationInfo(
+                device_id=device_id,
+                device_name=device_info["device_name"],
+                connection_status=PreparationStatus.COMPLETED,
+                websocket_connected=True,
+                last_ping_ms=5,
+                supported_actuators=[ActuatorType(cap) for cap in device_info["capabilities"]
+                                   if cap in [act.value for act in ActuatorType]],
+                actuator_tests={
+                    ActuatorType.VIBRATION: ActuatorTestResult(
+                        status=ActuatorTestStatus.PASSED,
+                        tested_at=datetime.now(),
+                        response_time_ms=15
+                    )
+                }
+            ),
+            completed_at=datetime.now()
+        )
+        
+        # アクティブ準備処理に追加
+        self.active_preparations[session_id] = prep_state
+        
+        logger.info(f"デバッグモード: Ready状態作成完了 - {session_id}")
+        return prep_state# グローバルインスタンス
 preparation_service = PreparationService()

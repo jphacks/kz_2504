@@ -130,12 +130,17 @@ async def register_device(request: DeviceRegistrationRequest):
         # セッションタイムアウト設定
         timeout_minutes = device_data.get('validation_rules', {}).get('session_timeout_minutes', 60)
         
+        # デバッグモード検出
+        from app.config.settings import settings
+        debug_mode = settings.is_debug_mode()
+        device_status = "debug_ready" if debug_mode else "registered"
+        
         # レスポンス作成
         response = DeviceRegistrationResponse(
             device_id=device_id,
             device_name=device_info.device_name,
             capabilities=device_info.capabilities,
-            status="registered",
+            status=device_status,
             session_timeout=timeout_minutes
         )
         
