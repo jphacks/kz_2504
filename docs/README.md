@@ -98,7 +98,7 @@ python3 hardware_server.py
 ### システム要件
 - **フロントエンド**: Node.js 18+, モダンブラウザ
 - **バックエンド**: Python 3.9+, 512MB RAM
-- **ハードウェア**: Raspberry Pi 4, Arduino Uno, 12V/5A電源
+- **ハードウェア**: Raspberry Pi 3 Model B, Arduino Uno, 12V/5A電源
 
 ## API一覧
 

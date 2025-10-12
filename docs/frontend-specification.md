@@ -158,7 +158,7 @@ sequenceDiagram
 ## 8. クイックスタート（ローカル）
 
 ```bash
-# Node 20+ 推奨（Corepack 有効化）
+# Node 18+ 推奨（Corepack 有効化）
 corepack enable
 
 # 1) 依存関係のインストール
