@@ -1,15 +1,15 @@
 # 4DX@HOME - あなたの世界で「最高の映像」が「最強の体験」へ。
 
-## 🌐 Live Demo
-**フロントエンドアプリ**: https://kz-2504.onrender.com/ (フロントのみ稼働)
-
 <div align="center">
   <img src="assets/images/4DX＠HOME.png" alt="4DX@HOME" width="800">
-</div>
 
 [![JPHacks 2025](https://img.shields.io/badge/JPHacks%202025-Best%20Hackday%20Award-gold?style=for-the-badge&logo=trophy)](https://github.com/jphacks/kz_2504)
 
 **JPHacks2025 Hack Day (金沢会場)** にて **「Best Hackday Award」** を受賞しました！
+</div>
+
+## 🌐 Live Demo
+**フロントエンドアプリ**: https://kz-2504.onrender.com/ (フロントのみ稼働)
 
 ## 製品概要
 ### 背景(製品開発のきっかけ、課題等）
