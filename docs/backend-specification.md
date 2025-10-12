@@ -16,6 +16,11 @@
 - **aiofiles** 25.1.0 - 非同期ファイル操作
 - **python-multipart** 0.0.6 - マルチパート形式対応
 - **httpx** 0.25.2 - 非同期HTTPクライアント
+- **aiohttp** 3.9.5 - 非同期HTTP通信
+- **pydantic-settings** 2.1.0 - Pydantic設定管理拡張
+
+### ログ・開発支援
+- **python-json-logger** 2.0.7 - 構造化ログ出力
 
 ### 開発・テスト
 - **pytest** 7.4.3 - テストフレームワーク
@@ -25,20 +30,31 @@
 
 ### ディレクトリ構造
 ```
-backend/app/
-├── main.py                    # FastAPIアプリエントリーポイント
-├── config/
-│   └── settings.py            # 環境設定管理
-├── api/                       # APIエンドポイント
-│   ├── device_registration.py # デバイス登録API
-│   ├── video_management.py    # 動画管理API
-│   ├── preparation.py         # 準備処理API
-│   └── playback_control.py    # 再生制御API
-├── models/                    # データモデル
-├── services/                  # ビジネスロジック
-└── data/                      # データファイル
-    ├── devices.json           # デバイス情報
-    └── videos/                # 動画メタデータ
+backend/
+├── app/                       # アプリケーションコード
+│   ├── main.py               # FastAPIアプリエントリーポイント
+│   ├── config/
+│   │   └── settings.py       # 環境設定管理
+│   ├── api/                  # APIエンドポイント
+│   │   ├── device_registration.py # デバイス登録API
+│   │   ├── video_management.py    # 動画管理API
+│   │   ├── preparation.py         # 準備処理API
+│   │   └── playback_control.py    # 再生制御API
+│   ├── models/               # Pydanticデータモデル
+│   │   ├── device.py         # デバイス関連モデル
+│   │   ├── video.py          # 動画関連モデル
+│   │   └── preparation.py    # 準備処理関連モデル
+│   └── services/             # ビジネスロジック
+├── data/                     # データファイル（実際の配置）
+│   ├── devices.json          # デバイス情報
+│   └── videos/               # 動画メタデータ
+├── assets/                   # 静的アセット
+│   ├── thumbnails/           # サムネイル画像
+│   └── videos/               # 動画ファイル
+├── logs/                     # ログファイル
+├── requirements.txt          # Python依存関係
+├── Dockerfile               # Docker設定
+└── docker-compose.yml       # Docker Compose設定
 ```
 
 ### アプリケーション構成
@@ -74,6 +90,18 @@ Response: 詳細ヘルスチェック情報
 
 GET /api/version
 Response: APIバージョンとエンドポイント一覧
+- /api/device/register
+- /api/device/info/{product_code}  
+- /api/device/capabilities
+- /api/videos/available
+- /api/videos/{video_id}
+- /api/videos/select
+- /api/videos/categories/list
+- /api/preparation/start/{session_id}
+- /api/preparation/status/{session_id}
+- /api/preparation/stop/{session_id}
+- /api/preparation/ws/{session_id}
+- /api/preparation/health
 ```
 
 ### 2. デバイス管理 (`/api/device/`)
@@ -84,19 +112,17 @@ Content-Type: application/json
 
 Request:
 {
-  "product_code": "4DX001",
-  "session_id": "1234"
+  "product_code": "DH001"
 }
 
 Response:
 {
-  "success": true,
-  "message": "Device registered successfully",
-  "session_id": "1234",
-  "device_info": {
-    "product_code": "4DX001",
-    "capabilities": ["vibration", "flash", "wind", "water", "color"]
-  }
+  "device_id": "device_12345678",
+  "device_name": "4DX Home Basic",
+  "capabilities": ["VIBRATION", "MOTION", "AUDIO"],
+  "status": "registered",
+  "registered_at": "2024-10-13T12:00:00Z",
+  "session_timeout": 60
 }
 ```
 
@@ -106,10 +132,15 @@ GET /api/device/info/{product_code}
 
 Response:
 {
-  "product_code": "4DX001",
-  "name": "4DX Home Device",
-  "capabilities": ["vibration", "flash", "wind", "water", "color"],
-  "version": "1.0.0"
+  "product_code": "DH001",
+  "device_name": "4DX Home Basic",
+  "manufacturer": "4DX Technologies",
+  "model": "Home Basic v1.0",
+  "capabilities": ["VIBRATION", "MOTION", "AUDIO"],
+  "max_connections": 1,
+  "is_active": true,
+  "description": "基本的な4D体験機能を提供する家庭用デバイス",
+  "price_tier": "basic"
 }
 ```
 
@@ -119,17 +150,14 @@ GET /api/device/capabilities
 
 Response:
 {
-  "vibration": {
-    "modes": ["long", "strong", "heartbeat"],
-    "description": "触覚フィードバック"
-  },
-  "flash": {
-    "modes": ["strobe", "burst", "steady"],
-    "description": "光演出"
-  },
-  "color": {
-    "modes": ["red", "green", "blue"],
-    "description": "カラー照明"
+  "supported_capabilities": ["VIBRATION", "MOTION", "SCENT", "AUDIO", "LIGHTING", "WIND"],
+  "descriptions": {
+    "VIBRATION": "振動機能",
+    "MOTION": "モーション機能",
+    "SCENT": "香り機能", 
+    "AUDIO": "オーディオ機能",
+    "LIGHTING": "ライティング機能",
+    "WIND": "風機能"
   }
 }
 ```
@@ -182,17 +210,36 @@ Content-Type: application/json
 Request:
 {
   "video_id": "demo1",
-  "session_id": "1234"
+  "device_id": "device_12345678"
 }
 
 Response:
 {
-  "success": true,
-  "message": "Video selected successfully",
-  "video_info": {
-    "video_id": "demo1",
-    "title": "Demo Video 1",
-    "sync_data_loaded": true
+  "session_id": "session_20241013_120000_demo1",
+  "video_url": "/assets/videos/demo1.mp4",
+  "sync_data_url": "/assets/sync-data/demo1.json",
+  "preparation_started": true,
+  "estimated_preparation_time": 30
+}
+```
+
+#### 動画カテゴリ一覧
+```http
+GET /api/videos/categories/list
+
+Response:
+{
+  "categories": ["action", "horror", "adventure", "comedy", "drama", "scifi", "fantasy", "demo", "test"],
+  "descriptions": {
+    "action": "アクション映画",
+    "horror": "ホラー映画", 
+    "adventure": "アドベンチャー",
+    "comedy": "コメディ",
+    "drama": "ドラマ",
+    "scifi": "SF映画",
+    "fantasy": "ファンタジー",
+    "demo": "デモンストレーション",
+    "test": "テスト用"
   }
 }
 ```
@@ -225,21 +272,54 @@ Response:
 }
 ```
 
+#### 準備停止
+```http
+DELETE /api/preparation/stop/{session_id}
+
+Response:
+{
+  "success": true,
+  "message": "準備処理を停止しました"
+}
+```
+
+#### 準備処理ヘルスチェック
+```http
+GET /api/preparation/health
+
+Response:
+{
+  "status": "healthy",
+  "active_preparations": 2,
+  "websocket_connections": 2,
+  "timestamp": "2024-10-13T12:00:00Z"
+}
+```
+
 #### WebSocket接続
 ```websocket
 WS /api/preparation/ws/{session_id}
 
-# 受信メッセージ例
+# 受信メッセージ例（進捗更新）
 {
-  "type": "video_time_update",
-  "current_time": 15.5,
-  "session_id": "1234"
+  "type": "progress_update",
+  "data": {
+    "component": "video_preparation",
+    "progress": 75,
+    "status": "preparing",
+    "message": "動画データ読み込み中...",
+    "timestamp": "2024-10-13T12:00:00Z"
+  }
 }
 
-# 送信メッセージ例
+# 送信メッセージ例（状態更新）
 {
-  "type": "sync_ready",
-  "message": "Synchronization ready"
+  "type": "status_update", 
+  "data": {
+    "overall_status": "ready",
+    "overall_progress": 100,
+    "ready_for_playback": true
+  }
 }
 ```
 
@@ -247,15 +327,27 @@ WS /api/preparation/ws/{session_id}
 
 ### デバイス情報
 ```python
+class DeviceRegistrationRequest(BaseModel):
+    product_code: str = Field(..., min_length=5, max_length=6)
+
 class DeviceInfo(BaseModel):
     product_code: str
-    name: str
-    capabilities: List[str]
-    version: str
+    device_name: str
+    manufacturer: str
+    model: str
+    capabilities: List[str]  # ["VIBRATION", "MOTION", "AUDIO", etc.]
+    max_connections: int
+    is_active: bool
+    description: str
+    price_tier: str
 
-class DeviceRegistration(BaseModel):
-    product_code: str
-    session_id: str
+class DeviceRegistrationResponse(BaseModel):
+    device_id: str
+    device_name: str
+    capabilities: List[str]
+    status: str = "registered"
+    registered_at: datetime
+    session_timeout: int = 60
 ```
 
 ### 動画情報
@@ -263,23 +355,51 @@ class DeviceRegistration(BaseModel):
 class VideoInfo(BaseModel):
     video_id: str
     title: str
-    description: Optional[str]
-    duration: int
-    thumbnail: Optional[str]
-    category: str
-    effects_available: bool
+    description: str
+    duration_seconds: float
+    file_name: str
+    file_size_mb: Optional[float]
+    thumbnail_url: Optional[str]
+    categories: List[str]
+    tags: List[str]
+    content_rating: ContentRating = ContentRating.G
+    created_at: datetime
+    updated_at: Optional[datetime]
 
-class VideoSelection(BaseModel):
+class VideoCompatibility(BaseModel):
+    required_capabilities: List[str]
+    recommended_capabilities: List[str]
+    supported_effects: List[EffectInfo]
+    effect_complexity: EffectComplexity
+    min_device_version: Optional[str]
+
+class EnhancedVideo(BaseModel):
+    video_info: VideoInfo
+    compatibility: VideoCompatibility
+    status: VideoStatus = VideoStatus.READY
+    sync_data_file: Optional[str]
+    play_count: int = 0
+    avg_rating: Optional[float]
+
+class VideoSelectRequest(BaseModel):
     video_id: str
+    device_id: str
+    session_preferences: Optional[Dict[str, Any]] = {}
+
+class VideoSelectResponse(BaseModel):
     session_id: str
+    video_url: str
+    sync_data_url: Optional[str]
+    preparation_started: bool = False
+    estimated_preparation_time: int = 30
 ```
 
-### 同期データ
+### 同期データ・準備処理
 ```python
 class SyncEvent(BaseModel):
     t: float                    # タイムスタンプ(秒)
     action: str                # "start", "stop", "shot"
-    effect: str                # "vibration", "flash", "wind", etc.
+    effect: str                # "VIBRATION", "MOTION", "SCENT", etc.
     mode: str                  # 効果のモード
     intensity: Optional[float] # 強度(0.0-1.0)
 
@@ -287,6 +407,23 @@ class TimelineData(BaseModel):
     events: List[SyncEvent]
     video_id: str
     duration: float
+
+class PreparationState(BaseModel):
+    session_id: str
+    overall_status: PreparationStatus
+    overall_progress: int
+    ready_for_playback: bool
+    estimated_completion_time: Optional[datetime]
+    video_preparation: VideoPreparation
+    sync_data_preparation: SyncDataPreparation
+    device_communication: DeviceCommunication
+
+class PreparationProgress(BaseModel):
+    component: str
+    progress: int
+    status: PreparationStatus
+    message: str
+    timestamp: datetime
 ```
 
 ## WebSocket通信プロトコル
@@ -297,37 +434,42 @@ class TimelineData(BaseModel):
 3. **初期化**: デバイス状態とタイムラインデータ送信
 4. **リアルタイム同期**: 動画時刻の連続送信
 
-### メッセージ形式
+### メッセージ形式（準備処理用）
 ```python
-# フロントエンド → バックエンド
+# 進捗更新メッセージ
 {
-  "type": "video_time_update",
-  "current_time": 15.5,
-  "session_id": "1234",
-  "playback_state": "playing"
+  "type": "progress_update",
+  "data": {
+    "component": "video_preparation",
+    "progress": 75,
+    "status": "preparing",
+    "message": "動画データ読み込み中...",
+    "timestamp": "2024-10-13T12:00:00Z"
+  }
 }
 
-# バックエンド → デバイス
+# 状態更新メッセージ
 {
-  "type": "device_control",
-  "events": [
-    {
-      "t": 15.5,
-      "action": "start",
-      "effect": "vibration",
-      "mode": "strong"
-    }
-  ]
+  "type": "status_update",
+  "data": {
+    "overall_status": "ready",
+    "overall_progress": 100,
+    "ready_for_playback": true
+  }
 }
+
+# Ping/Pongメッセージ
+# クライアント → サーバー: "ping"
+# サーバー → クライアント: "pong"
 ```
 
 ### エラーハンドリング
 ```python
 {
   "type": "error",
-  "code": "DEVICE_NOT_FOUND",
-  "message": "Device not connected",
-  "session_id": "1234"
+  "error_code": "SESSION_NOT_FOUND",
+  "message": "Session not found or expired",
+  "timestamp": "2024-10-13T12:00:00Z"
 }
 ```
 
@@ -343,11 +485,15 @@ class TimelineData(BaseModel):
 ```python
 class SessionState(BaseModel):
     session_id: str
+    device_id: str
+    video_id: str
     device_connected: bool
     video_selected: bool
     sync_data_loaded: bool
     websocket_connected: bool
     status: str  # "created", "ready", "active", "ended"
+    created_at: datetime
+    expires_at: datetime
 ```
 
 ## 設定管理
@@ -360,24 +506,96 @@ APP_VERSION="1.0.0"
 ENVIRONMENT="development"
 DEBUG=true
 HOST="0.0.0.0"
-PORT=8000
+PORT=8080
 LOG_LEVEL="INFO"
 CORS_ORIGINS="http://localhost:3000,http://localhost:5173"
+
+# セキュリティ設定
+SECRET_KEY="4dx-home-super-secret-key-change-in-production"
+API_KEY=""
+
+# WebSocket設定
+WEBSOCKET_TIMEOUT=300
+MAX_CONNECTIONS=100
+PING_INTERVAL=30
+
+# デバイス接続設定
+DEVICE_WEBSOCKET_BASE_URL="wss://fourdk-backend-333203798555.asia-northeast1.run.app"
+
+# デバッグ設定
+DEBUG_MODE=false
+DEBUG_SKIP_PREPARATION=false
+DEBUG_AUTO_READY=false
+DEBUG_FAST_CONNECTION=false
+
+# クラウド設定（GCP）
+CLOUD_PROJECT_ID=""
+CLOUD_REGION="asia-northeast1"
+SERVICE_ACCOUNT_KEY=""
+
+# データベース設定（将来用）
+DATABASE_URL=""
+REDIS_URL=""
 ```
 
 ### 設定クラス
 ```python
 class Settings(BaseSettings):
+    # アプリケーション基本情報
     app_name: str = "4DX@HOME Backend"
     app_version: str = "1.0.0"
     environment: str = "development"
-    debug: bool = False
+    debug: bool = True
+    
+    # サーバー設定
     host: str = "0.0.0.0"
-    port: int = 8000
+    port: int = 8080
+    reload: bool = True
+    workers: int = 1
+    
+    # CORS設定
+    cors_origins: str = "http://localhost:3000,http://localhost:5173"
+    
+    # セキュリティ設定
+    secret_key: str = "4dx-home-super-secret-key-change-in-production"
+    api_key: Optional[str] = None
+    
+    # WebSocket設定
+    websocket_timeout: int = 300
+    max_connections: int = 100
+    ping_interval: int = 30
+    
+    # デバイス接続設定
+    device_websocket_base_url: str = "wss://fourdk-backend-333203798555.asia-northeast1.run.app"
+    
+    # デバッグ設定
+    debug_mode: bool = False
+    debug_skip_preparation: bool = False
+    debug_auto_ready: bool = False
+    debug_fast_connection: bool = False
+    
+    # ファイルパス設定
+    data_path: str = "./data"
+    assets_path: str = "../../assets"
+    logs_path: str = "./logs"
+    video_assets_path: str = "../assets/videos"
+    sync_data_path: str = "../assets/sync-data"
+    
+    # ログ設定
     log_level: str = "INFO"
+    log_format: str = "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
 
+    def get_cors_origins(self) -> List[str]:
+        return [origin.strip() for origin in self.cors_origins.split(",") if origin.strip()]
+    
+    def is_production(self) -> bool:
+        return self.environment.lower() == "production"
+    
     def is_development(self) -> bool:
-        return self.environment == "development"
+        return self.environment.lower() == "development"
+    
+    def get_device_websocket_url(self, session_id: str) -> str:
+        return f"{self.device_websocket_base_url}/api/preparation/ws/{session_id}"
 ```
 
 ## ログ・監視
