@@ -7,11 +7,10 @@
 
   🎉 **JPHacks2025 Hack Day (金沢会場)** 🎉<br>
   🥇 **「Best Hackday Award」受賞** 🥇
-  
 </div>
 
 ## 🌐 Live Demo
-**フロントエンドアプリ**: https://kz-2504.onrender.com/ (現在はフロントのみ稼働)
+**Webアプリ**: https://kz-2504.onrender.com/ (現在はフロントのみ稼働)
 
 ## 製品概要
 
@@ -86,11 +85,11 @@ WebSocketを用いたリアルタイム通信により、動画再生と物理�
 
 詳細な技術仕様については、以下の専門仕様書をご参照ください：
 
-- **[📱 フロントエンド仕様書](./docs/frontend-specification.md)** - React + TypeScript Webアプリケーション
-- **[🔧 バックエンド仕様書](./docs/backend-specification.md)** - FastAPI WebサーバーとAPI
-- **[⚙️ ハードウェア仕様書](./docs/hardware-specification.md)** - Raspberry Pi + Arduino 物理制御システム
-- **[🎬 AI動画解析システム](./tools/sync-generator/README.md)** - GPT-4o-mini Visionによる4DXタイムライン自動生成
-- **[📖 総合仕様書](./docs/README.md)** - システム全体概要とセットアップガイド
+- **[フロントエンド仕様書](./docs/frontend-specification.md)** - React + TypeScript Webアプリケーション
+- **[バックエンド仕様書](./docs/backend-specification.md)** - FastAPI WebサーバーとAPI
+- **[ハードウェア仕様書](./docs/hardware-specification.md)** - Raspberry Pi + Arduino 物理制御システム
+- **[AI動画解析システム](./tools/sync-generator/README.md)** - GPT-4o-mini Visionによる4DXタイムライン自動生成
+- **[総合仕様書](./docs/README.md)** - システム全体概要とセットアップガイド
 
 ## 開発技術
 ### 活用した技術
@@ -135,21 +134,21 @@ WebSocketを用いたリアルタイム通信により、動画再生と物理�
 * **物理デバイス統合**: 木工製固定台によるデバイス群の安定配置、配線管理とメンテナンス性を両立
 * **タイムライン管理システム**: 継続効果・瞬間効果を区別し、最適なタイミングでアクチュエーター制御を実行
 
-## 📝 事前開発について
+## 事前開発について
 
 ### 事前準備の範囲
 本プロジェクトでは、ハッカソン開発期間を最大限に活用するため、以下の要素について事前開発を実施しました：
 
-#### 🧠 企画・設計フェーズ
+#### 企画・設計フェーズ
 - **アイデア出し**: 4DX@HOMEの基本コンセプトとシステム構想
 - **要件定義**: システム全体のアーキテクチャと技術選定の大枠
 
-#### 🔧 ハードウェア開発
+#### ハードウェア開発
 - ![振動](https://img.shields.io/badge/振動システム-事前開発-purple) **振動デバイス**: ESP-12E+偏心モーター構成、3Dプリントケース設計・製作
 - ![ポンプ](https://img.shields.io/badge/水噴射システム-事前開発-blue) **ポンプシステム**: 小型ポンプによる水噴射機構の実装
 - ![木工](https://img.shields.io/badge/固定台-事前開発-brown) **木工製固定台**: デバイス群を統合固定する木製土台の設計・製作
 
-#### 🎬 AI解析システム
+#### AI解析システム
 - ![AI](https://img.shields.io/badge/AI動画解析-事前開発ベース-green) **AI動画解析エンジン**: GPT-4o-mini Visionによるタイムライン生成システムの基本実装
 
 ### 開発期間中の作業
@@ -170,7 +169,7 @@ WebSocketを用いたリアルタイム通信により、動画再生と物理�
 
 ---
 
-## 📚 参考文献
+## 参考文献
 
 <a id="ref1">[1]</a> NTTドコモ モバイル社会研究所「2024年スマホ利用者動向調査」  
 https://www.moba-ken.jp/project/lifestyle/20241021.html
