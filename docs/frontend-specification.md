@@ -53,7 +53,7 @@
 | ホーム (`HomePage`)             | キャッチコピー、開始導線           | ![Home](../assets/images/home.png)       |
 | セッション（ペアリング） (`PairingPage`) | セッションコード入力、接続状態        | ![Session](../assets/images/session.png) |
 | 動画選択 (`SelectPage`)          | 一覧/カテゴリ/ランキング          | ![Select](../assets/images/select.png)   |
-| 動画視聴（プレイヤー） (`PlayerPage`)   | 再生/一時停止・シーク・音量・フルスクリーン | ![Player](../assets/images/player.jpg)   |
+| 動画視聴（プレイヤー） (`PlayerPage`)   | 再生/一時停止・シーク・音量・フルスクリーン | ![Player](../assets/images/player.png)   |
 
 ---
 
@@ -146,69 +146,8 @@ frontend/4dathome-app/
 
 ---
 
-## 7. アプリケーション状態
 
-```ts
-interface AppState {
-  sessionId: string | null;
-  deviceConnected: boolean;
-  selectedVideo: VideoInfo | null;
-  playbackState: PlaybackState;
-  websocketConnection: WebSocket | null;
-}
-
-interface PlaybackState {
-  isPlaying: boolean;
-  currentTime: number;
-  duration: number;
-  volume: number;
-}
-```
-
----
-
-## 8. プロトコル/データ構造
-
-> 実際のバックエンド仕様に合わせて調整してください。
-
-```ts
-// 受信（サーバ → クライアント）
-type SyncState = "play" | "pause" | "seeking" | "seeked";
-
-type InMsg =
-  | {
-      type: "connection_established";
-      connection_id: string;
-      session_id: string;
-      server_time: string; // ISO8601
-      message: string;
-    }
-  | {
-      type: "sync_ack";
-      session_id: string;
-      received_time: number; // epoch ms
-      received_state: SyncState;
-      server_time: string; // ISO8601
-      relayed_to_devices?: boolean;
-    }
-  | { type: string; [k: string]: any };
-
-// 送信（クライアント → サーバ）
-type OutMsg = {
-  type: "sync";
-  state: SyncState; // 再生状態
-  time: number;     // 現在位置(秒)
-  duration: number; // 総再生時間(秒)
-  ts: number;       // 送信時刻 epoch ms
-};
-```
-
-固定セッション（例: `demo_session`）を用いる場合:
-`wss://<origin>/api/playback/ws/sync/demo_session`
-
----
-
-## 9. データフロー
+## 7. データフロー
 
 1. セッション作成 → セッションコード生成 → デバイス待機
 2. 動画選択 → メタデータ取得 → 4DX 効果データ準備
@@ -236,83 +175,7 @@ sequenceDiagram
 ```
 
 ---
-
-## 10. ローカル開発
-
-ルート例: `frontend/4dathome-app`
-
-```bash
-pnpm i          # 依存関係の導入（npm/yarn でも可）
-pnpm dev        # http://localhost:5173
-pnpm build      # 本番ビルド
-pnpm preview    # http://localhost:4173
-```
-
-* Tailwind 4 を利用しているため、`postcss.config.*` / `tailwind.config.*` は既存設定に従ってください。
-* ルート配下に `frontend/4dathome-app/` がある構成でも、CI/CD 側でビルドコマンドと公開ディレクトリを調整することで対応可能です。
-
----
-
-## 11. 環境変数
-
-`.env`（開発） / `.env.production`（本番）等に設定します。
-
-```env
-# HTTP API のベース URL（例）
-VITE_API_ORIGIN=https://fourdk-backend-xxxxxxxx-asia-northeast1.run.app
-
-# 再生同期用 WebSocket エンドポイント（例）
-VITE_WS_SYNC=wss://fourdk-backend-xxxxxxxx-asia-northeast1.run.app/api/playback/ws/sync/demo_session
-```
-
-アプリ内では `import.meta.env.VITE_*` で参照します。
-
----
-
-## 12. ビルド & デプロイ
-
-### 12.1 静的ホスティング（Render / Vercel / Firebase Hosting 等）
-
-1. `pnpm build` で `dist/` を生成
-2. `dist/` をホスティング先にデプロイ
-3. SPA ルーティングのため、404 を `/index.html` にフォールバックする設定を有効化
-
-### 12.2 Cloud Run / 任意サーバ利用時の留意点
-
-* WebSocket は TLS 化された `wss://` を利用
-* CORS: 別オリジンからの API 呼び出し時は `Access-Control-Allow-Origin` を適切に設定
-* PORT: コンテナは環境変数 `PORT`（例: 8080）で待受け
-* ヘルスチェックのタイムアウトは十分に確保
-
----
-
-## 13. トラブルシュート
-
-### 13.1 CORS エラー
-
-* 現象: `No 'Access-Control-Allow-Origin' header is present ...`
-* 対策: バックエンドで許可オリジン（例: `https://<frontend-host>`）を設定。`OPTIONS` も許可。
-
-### 13.2 WebSocket 接続失敗
-
-* `wss://` で公開しているか（証明書/プロキシ設定）
-* リバースプロキシで `Upgrade` ヘッダが維持されているか
-* サーバの待受ポートとパスがクライアント URL と一致しているか
-
-### 13.3 Cloud Run 起動失敗
-
-* ログに `failed to start and listen on PORT=8080` → 待受ポートを確認
-* タイムアウト/メモリ不足 → サービス設定を見直し
-* `PERMISSION_DENIED` → デプロイアカウントに Cloud Run Admin 等の権限を付与
-
-### 13.4 TypeScript ビルドエラー例
-
-* `TS2554: Expected 0 arguments, but got 1.` → 関数シグネチャの不一致
-* `BlobPart` 関連 → `Uint8Array.buffer` を渡す等、型の不一致を解消
-
----
-
-## 14. 今後の拡張予定
+## 8. 今後の拡張予定
 
 * 多言語対応（i18n）
 * ユーザー設定（強度・頻度等のカスタマイズ）
@@ -322,6 +185,3 @@ VITE_WS_SYNC=wss://fourdk-backend-xxxxxxxx-asia-northeast1.run.app/api/playback/
 
 ---
 
-## 15. ライセンス
-
-本リポジトリ内のライセンスファイル（例: MIT）に準拠します。`LICENSE` を参照してください。
