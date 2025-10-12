@@ -11,6 +11,7 @@ import json
 import logging
 from typing import Dict, Set
 import asyncio
+import time
 from datetime import datetime
 
 # 簡素化されたPlaybackモデルをインポート
@@ -19,6 +20,10 @@ from app.models.playback import (
     ConnectionEstablished, SyncAcknowledge, DeviceConnected,
     create_relay_data, validate_sync_message, validate_device_status
 )
+
+# 新しい同期サービスをインポート
+from app.services.sync_data_service import sync_data_service
+from app.services.continuous_sync_service import continuous_sync_service
 
 # ロガー設定
 logger = logging.getLogger(__name__)
@@ -262,8 +267,8 @@ async def device_websocket(websocket: WebSocket, session_id: str):
 
 async def handle_sync_message(session_id: str, connection_id: str, data: dict):
     """
-    同期メッセージ処理（Pydanticモデル使用）
-    ws_video_sync_sender.htmlからのメッセージを処理
+    同期メッセージ処理（ラズパイパターン対応強化版）
+    JSON同期データとcurrentTime両方に対応
     """
     message_type = data.get("type")
     logger.info(f"[SYNC] メッセージ処理開始: type={message_type}, session={session_id}, connection={connection_id}")
@@ -278,15 +283,98 @@ async def handle_sync_message(session_id: str, connection_id: str, data: dict):
         }
         logger.info(f"[SYNC] Hello応答送信: {response_message}")
         await ws_manager.send_to_session(session_id, response_message)
+    
+    elif message_type == "timeline_data_request":
+        # タイムラインファイル事前送信要求（ラズパイパターン）
+        video_id = data.get("video_id", "demo1")
+        logger.info(f"[SYNC] タイムラインデータ要求: {video_id} (session: {session_id})")
+        
+        try:
+            # タイムラインデータ準備・送信
+            bulk_data = await sync_data_service.send_timeline_data_bulk(session_id, video_id)
+            await ws_manager.send_to_session(session_id, bulk_data)
+            logger.info(f"[SYNC] タイムラインデータ送信完了: {video_id}")
+            
+        except Exception as e:
+            logger.error(f"[SYNC] タイムラインデータ送信エラー: {e}")
+            error_response = {
+                "type": "timeline_data_error",
+                "video_id": video_id,
+                "error": str(e)
+            }
+            await ws_manager.send_to_session(session_id, error_response)
+    
+    elif message_type == "start_continuous_sync":
+        # 連続時間同期開始要求
+        logger.info(f"[SYNC] 連続同期開始要求: {session_id}")
+        
+        async def sync_callback(time_data: dict):
+            """時間更新コールバック - デバイスに中継"""
+            await relay_sync_to_devices(session_id, time_data)
+        
+        try:
+            await continuous_sync_service.start_continuous_sync(session_id, sync_callback)
+            
+            response = {
+                "type": "continuous_sync_started",
+                "session_id": session_id,
+                "message": "連続同期を開始しました"
+            }
+            await ws_manager.send_to_session(session_id, response)
+            
+        except Exception as e:
+            logger.error(f"[SYNC] 連続同期開始エラー: {e}")
+            error_response = {
+                "type": "continuous_sync_error", 
+                "error": str(e)
+            }
+            await ws_manager.send_to_session(session_id, error_response)
+    
+    elif message_type == "stop_continuous_sync":
+        # 連続時間同期停止
+        logger.info(f"[SYNC] 連続同期停止要求: {session_id}")
+        
+        await continuous_sync_service.stop_sync(session_id)
+        
+        response = {
+            "type": "continuous_sync_stopped",
+            "session_id": session_id,
+            "message": "連続同期を停止しました"
+        }
+        await ws_manager.send_to_session(session_id, response)
+    
+    elif message_type == "sync_control":
+        # 同期制御（pause/resume/seek）
+        action = data.get("action")
+        logger.info(f"[SYNC] 同期制御: {action} (session: {session_id})")
+        
+        if action == "pause":
+            continuous_sync_service.pause_sync(session_id)
+        elif action == "resume":
+            continuous_sync_service.resume_sync(session_id)
+        elif action == "seek":
+            seek_time = data.get("time", 0.0)
+            continuous_sync_service.seek_sync(session_id, seek_time)
+        
+        status = continuous_sync_service.get_sync_status(session_id)
+        response = {
+            "type": "sync_control_ack",
+            "action": action,
+            "status": status
+        }
+        await ws_manager.send_to_session(session_id, response)
         
     elif message_type == "sync":
-        # receiver.pyパターン: 受信したデータをそのまま中継
+        # 従来の動画同期メッセージ（既存機能維持）
         current_time = data.get("time", 0)
         state = data.get("state", "unknown")
         duration = data.get("duration")
         ts = data.get("ts")
         
         logger.info(f"[SYNC] 動画同期: {state} at {current_time}s (session: {session_id})")
+        
+        # 同期データサービスに時刻更新
+        time_state = sync_data_service.update_current_time(session_id, current_time, state == "play")
         
         # 受信データをそのままデバイスに中継（receiver.pyパターン）
         relay_data = create_relay_data(session_id, data)
@@ -300,6 +388,32 @@ async def handle_sync_message(session_id: str, connection_id: str, data: dict):
             relayed_to_devices=True
         )
         await ws_manager.send_to_session(session_id, sync_ack.dict())
+        
+    elif message_type == "start_signal":
+        # スタート信号をデバイスに中継
+        logger.info(f"[START_SIGNAL] WebSocketスタート信号受信: session={session_id}")
+        
+        # スタート信号データを作成
+        start_signal_data = {
+            "type": "start_signal",
+            "session_id": session_id,
+            "timestamp": time.time(),
+            "message": data.get("message", "start"),
+            "source": "websocket"
+        }
+        
+        # デバイスに信号を送信
+        sent_count = await relay_start_signal_to_devices(session_id, start_signal_data)
+        
+        # 送信結果をフロントエンドに返す
+        response = {
+            "type": "start_signal_ack",
+            "session_id": session_id,
+            "success": sent_count > 0,
+            "sent_to_devices": sent_count,
+            "message": f"スタート信号を{sent_count}台のデバイスに送信しました" if sent_count > 0 else "接続されたデバイスがありません"
+        }
+        await ws_manager.send_to_session(session_id, response)
         
     else:
         logger.warning(f"[SYNC] 未知のメッセージタイプ: {message_type}")
@@ -370,8 +484,173 @@ async def get_connections():
         }
     }
 
-# receiver.pyパターンではセッション詳細管理は不要
-# 接続状況の基本確認のみ提供
+# ================================================================================
+# デバッグ用RESTエンドポイント（ラズパイパターン対応）
+# ================================================================================
+
+@router.post("/debug/timeline/{session_id}")
+async def load_timeline_debug(session_id: str, video_id: str = "demo1"):
+    """デバッグ用: タイムラインファイル読み込み・準備"""
+    try:
+        bulk_data = await sync_data_service.send_timeline_data_bulk(session_id, video_id)
+        return {
+            "success": True,
+            "message": f"タイムラインファイル読み込み完了: {video_id}",
+            "timeline_info": {
+                "video_id": bulk_data["video_id"],
+                "total_duration": bulk_data["transmission_metadata"]["total_duration"],
+                "events_count": bulk_data["transmission_metadata"]["events_count"]
+            }
+        }
+    except Exception as e:
+        logger.error(f"[DEBUG] タイムライン読み込みエラー: {e}")
+        raise HTTPException(status_code=400, detail=f"タイムライン読み込み失敗: {str(e)}")
+
+@router.post("/debug/sync/{session_id}/start")
+async def start_debug_sync(session_id: str, interval: float = 0.5):
+    """デバッグ用: 連続同期開始"""
+    try:
+        # タイムライン状態確認
+        timeline_state = sync_data_service.get_timeline_state(session_id)
+        if not timeline_state:
+            raise HTTPException(
+                status_code=400, 
+                detail="タイムラインが読み込まれていません。先に /debug/timeline/{session_id} を呼び出してください"
+            )
+        
+        # デバッグ用簡易コールバック
+        async def debug_callback(time_data: dict):
+            logger.info(f"[DEBUG_SYNC] currentTime: {time_data.get('currentTime', 0):.2f}s")
+        
+        await continuous_sync_service.start_continuous_sync(session_id, debug_callback, interval)
+        
+        return {
+            "success": True,
+            "message": "連続同期開始",
+            "session_id": session_id,
+            "interval": interval,
+            "timeline_info": sync_data_service.get_timeline_info(session_id)
+        }
+    except Exception as e:
+        logger.error(f"[DEBUG] 連続同期開始エラー: {e}")
+        raise HTTPException(status_code=500, detail=f"連続同期開始失敗: {str(e)}")
+
+@router.post("/debug/sync/{session_id}/stop")
+async def stop_debug_sync(session_id: str):
+    """デバッグ用: 連続同期停止"""
+    try:
+        await continuous_sync_service.stop_sync(session_id)
+        return {
+            "success": True,
+            "message": "連続同期停止",
+            "session_id": session_id
+        }
+    except Exception as e:
+        logger.error(f"[DEBUG] 連続同期停止エラー: {e}")
+        raise HTTPException(status_code=500, detail=f"連続同期停止失敗: {str(e)}")
+
+@router.post("/debug/sync/{session_id}/control")
+async def control_debug_sync(session_id: str, action: str, time: float = None):
+    """
+    デバッグ用: 同期制御
+    
+    Args:
+        action: "pause", "resume", "seek"
+        time: シーク時刻（seekの場合のみ）
+    """
+    try:
+        if action == "pause":
+            continuous_sync_service.pause_sync(session_id)
+            message = "同期一時停止"
+        elif action == "resume":
+            continuous_sync_service.resume_sync(session_id)
+            message = "同期再開"
+        elif action == "seek":
+            if time is None:
+                raise HTTPException(status_code=400, detail="シーク時刻が必要です")
+            continuous_sync_service.seek_sync(session_id, time)
+            message = f"シーク完了: {time}s"
+        else:
+            raise HTTPException(status_code=400, detail="無効なアクション")
+        
+        status = continuous_sync_service.get_sync_status(session_id)
+        return {
+            "success": True,
+            "message": message,
+            "action": action,
+            "status": status
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"[DEBUG] 同期制御エラー: {e}")
+        raise HTTPException(status_code=500, detail=f"同期制御失敗: {str(e)}")
+
+@router.get("/debug/sync/{session_id}/status")
+async def get_debug_sync_status(session_id: str):
+    """デバッグ用: 同期状態取得"""
+    return {
+        "session_id": session_id,
+        "sync_status": continuous_sync_service.get_sync_status(session_id),
+        "timeline_info": sync_data_service.get_timeline_info(session_id)
+    }
+
+@router.post("/start/{session_id}")
+async def send_start_signal(session_id: str):
+    """
+    スタート信号をデバイスに送信
+    
+    シンプルなスタート信号をそのままラズパイデバイスに転送する
+    
+    Args:
+        session_id: セッションID
+        
+    Returns:
+        スタート信号送信結果
+    """
+    try:
+        logger.info(f"[START_SIGNAL] スタート信号送信要求: session={session_id}")
+        
+        # スタート信号データを作成
+        start_signal_data = {
+            "type": "start_signal",
+            "session_id": session_id,
+            "timestamp": time.time(),
+            "message": "start"
+        }
+        
+        # デバイスに信号を送信
+        sent_count = await relay_start_signal_to_devices(session_id, start_signal_data)
+        
+        if sent_count == 0:
+            logger.warning(f"[START_SIGNAL] デバイス未接続: session={session_id}")
+            return {
+                "success": False,
+                "message": "接続されたデバイスがありません",
+                "session_id": session_id,
+                "sent_to_devices": 0
+            }
+        
+        logger.info(f"[START_SIGNAL] スタート信号送信完了: session={session_id}, devices={sent_count}")
+        return {
+            "success": True,
+            "message": f"スタート信号を{sent_count}台のデバイスに送信しました",
+            "session_id": session_id,
+            "sent_to_devices": sent_count,
+            "signal_data": start_signal_data
+        }
+        
+    except Exception as e:
+        logger.error(f"[START_SIGNAL] スタート信号送信エラー: {e}")
+        raise HTTPException(status_code=500, detail=f"スタート信号送信失敗: {str(e)}")
+
+@router.get("/debug/sync/all")
+async def get_all_debug_syncs():
+    """デバッグ用: 全セッションの同期状態"""
+    return {
+        "active_syncs": continuous_sync_service.get_all_active_syncs(),
+        "total_sessions": len(continuous_sync_service.get_all_active_syncs())
+    }
 
 # ================================================================================
 # デバイス中継機能
@@ -444,6 +723,65 @@ async def relay_sync_to_devices(session_id: str, sync_data: dict):
                 task.cancel()
     except Exception as e:
         logger.error(f"[RELAY] 並列中継でエラー: {e}")
+
+async def relay_start_signal_to_devices(session_id: str, start_signal_data: dict) -> int:
+    """
+    スタート信号をデバイス（ラズベリーパイ）に並列送信
+    
+    Args:
+        session_id: セッションID
+        start_signal_data: 送信するスタート信号データ
+        
+    Returns:
+        int: 送信に成功したデバイス数
+    """
+    logger.info(f"[START_SIGNAL_RELAY] セッション {session_id} のデバイスにスタート信号並列送信")
+    
+    # セッション内のデバイス接続を探す
+    if session_id not in ws_manager.session_connections:
+        logger.warning(f"[START_SIGNAL_RELAY] セッション {session_id} が存在しません")
+        return 0
+    
+    device_tasks = []
+    device_count = 0
+    
+    for connection_id in ws_manager.session_connections[session_id]:
+        if connection_id.startswith("device_"):
+            websocket = ws_manager.active_connections.get(connection_id)
+            if websocket:
+                # 並列送信タスク作成
+                task = asyncio.create_task(
+                    safe_send_to_device(websocket, start_signal_data, connection_id)
+                )
+                device_tasks.append(task)
+                device_count += 1
+    
+    if not device_tasks:
+        logger.warning(f"[START_SIGNAL_RELAY] セッション {session_id} にアクティブなデバイス接続がありません")
+        return 0
+    
+    # 並列実行（2秒タイムアウト）
+    try:
+        results = await asyncio.wait_for(
+            asyncio.gather(*device_tasks, return_exceptions=True),
+            timeout=2.0
+        )
+        
+        # 成功数カウント
+        success_count = sum(1 for result in results if result is True)
+        logger.info(f"[START_SIGNAL_RELAY] {success_count}/{device_count} デバイスにスタート信号送信完了")
+        return success_count
+        
+    except asyncio.TimeoutError:
+        logger.warning(f"[START_SIGNAL_RELAY] スタート信号送信がタイムアウト ({device_count}台)")
+        # タスクをキャンセル
+        for task in device_tasks:
+            if not task.done():
+                task.cancel()
+        return 0
+    except Exception as e:
+        logger.error(f"[START_SIGNAL_RELAY] 並列送信でエラー: {e}")
+        return 0
 
 async def get_device_connections(session_id: str) -> list:
     """セッション内のデバイス接続一覧を取得"""
