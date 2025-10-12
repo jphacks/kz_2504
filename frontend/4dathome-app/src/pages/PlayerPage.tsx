@@ -380,7 +380,7 @@ export default function PlayerPage() {
             playsInline
             muted
             autoPlay
-            preload="metadata"
+            preload="auto"               // ← 読み込み優先度上げたい場合
             onClick={togglePlay}
             onLoadedMetadata={(e) => setDuration((e.target as HTMLVideoElement).duration || 0)}
             onTimeUpdate={(e) => { if (!seeking) setCurrent((e.target as HTMLVideoElement).currentTime || 0); }}
