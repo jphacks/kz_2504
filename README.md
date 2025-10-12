@@ -63,6 +63,8 @@ WebSocketを用いたリアルタイム通信により、動画再生と物理�
 * **AI動画解析の効率化**: GPT-4o-mini Visionのバッチ処理（15枚同時解析）により、API呼び出しを1/15に削減し、コストと処理時間を大幅に短縮
 * **インテリジェント効果判定**: 爆発・衝突・咆哮などの瞬間を正確に検出し、最小継続時間制御によりチラつきを防止
 * **リアルタイム同期精度**: WebSocketによる双方向通信、ThreadPoolExecutorを用いた並列処理、継続的なタイムスタンプ送信により、動画とデバイスの同期ズレを最小化
+* **物理設計のこだわり**: 3Dプリンターでクッション用偏心モーターケースを完全カスタム設計、ケースごとクッション内に組み込み、自然な触覚体験を実現
+* **ハードウェア統合**: 木工による手作り固定台でデバイス群を安定配置、美観と機能性を両立した物理システム構築
 * **ユーザビリティ**: React Router DOMによるSPA設計、レスポンシブUI（モバイル・デスクトップ両対応）、セッションコードによる簡単ペアリングで、技術に詳しくないユーザーでも迷わず使える体験を実現
 
 ## 📋 技術仕様書
@@ -86,19 +88,22 @@ WebSocketを用いたリアルタイム通信により、動画再生と物理�
 - ![OpenCV](https://img.shields.io/badge/OpenCV-4.8.0-red) ![Python](https://img.shields.io/badge/Python-3.9+-blue) **AI・動画処理**: OpenCV (opencv-python), requests (OpenAI API通信)
 - ![FastAPI](https://img.shields.io/badge/FastAPI-0.104.1-green) ![Uvicorn](https://img.shields.io/badge/Uvicorn-0.24.0-blue) **バックエンド**: FastAPI 0.104.1, Uvicorn 0.24.0, websockets 11.0.3, Pydantic 2.5.0, aiofiles 25.1.0
 - ![React](https://img.shields.io/badge/React-18.3.1-blue) ![TypeScript](https://img.shields.io/badge/TypeScript-5.9.3-blue) ![Vite](https://img.shields.io/badge/Vite-7.1.9-yellow) **フロントエンド**: React 18.3.1, TypeScript 5.9.3, Vite 7.1.9, React Router DOM 6.30.1, Tailwind CSS 4.1.14
-- ![Raspberry Pi](https://img.shields.io/badge/Raspberry%20Pi-4-red) ![Arduino](https://img.shields.io/badge/Arduino-Uno%20R3-teal) **デバイス**: Python 3.9+ (Raspberry Pi), pyserial 3.5, paho-mqtt-client, RPi.GPIO 0.7.1, Arduino (C++)
+- ![Raspberry Pi](https://img.shields.io/badge/Raspberry%20Pi-4-red) ![Arduino](https://img.shields.io/badge/Arduino-Uno%20R3-teal) ![ESP32](https://img.shields.io/badge/ESP32-振動制御-blue) **デバイス**: Python 3.9+ (Raspberry Pi), pyserial 3.5, paho-mqtt-client, RPi.GPIO 0.7.1, Arduino (C++), ESP32 (C++)
 
 #### デバイス
-- ![Raspberry Pi](https://img.shields.io/badge/Raspberry%20Pi-4%20Model%20B-red) **Raspberry Pi 4 Model B (4GB RAM)** - デバイスハブとして、TCP/WebSocket通信、タイムライン管理、Arduino制御を担当
-- ![Arduino](https://img.shields.io/badge/Arduino-Uno%20R3%20×3--4台-teal) **Arduino Uno R3 (3-4台)** - シリアル通信/MQTT経由で各アクチュエーターを個別制御
-- ![振動](https://img.shields.io/badge/振動モーター-MQTT制御-purple) **振動モーター** - MQTT経由制御、映像に合わせた触覚フィードバック（3モード: 弱い振動、強い衝撃、ドキドキ）
+- ![Raspberry Pi](https://img.shields.io/badge/Raspberry%20Pi-4%20Model%20B-red) **Raspberry Pi 4 Model B (4GB RAM)** - デバイスハブとして、TCP/WebSocket通信、タイムライン管理、Arduino/ESP32制御を担当
+- ![Arduino](https://img.shields.io/badge/Arduino-Uno%20R3%20×3--4台-teal) **Arduino Uno R3 (3-4台)** - シリアル通信経由で光・風・水効果を個別制御
+- ![ESP32](https://img.shields.io/badge/ESP32-振動クッション制御-blue) **ESP32** - Wi-Fi/MQTT経由で振動クッション制御、3Dプリントケース内偏心モーター駆動
+- ![振動](https://img.shields.io/badge/振動モーター-ESP32%20MQTT制御-purple) **振動モーター** - ESP32経由MQTT制御、映像に合わせた触覚フィードバック（3モード: 弱い振動、強い衝撃、ドキドキ）
+- ![3Dプリント](https://img.shields.io/badge/3Dプリント-偏心モーターケース-orange) **3Dプリント振動ケース** - ESP32+偏心モーター用カスタムケース、クッション内組み込み型設計
 - ![LED](https://img.shields.io/badge/RGB%20LED-PWM制御-rainbow) **RGB LED + 高輝度LED** - PWM制御による光の演出（3モード: ストロボ、閃光、照明）+ 色表現（RGB 256段階）
 - ![ファン](https://img.shields.io/badge/DCファン-風生成-lightblue) **DCファン** - 風生成装置（2モード: 瞬間風、持続風）
 - ![ポンプ](https://img.shields.io/badge/小型ポンプ-水噴射-blue) **小型ポンプ** - 水噴射装置（瞬間噴射、安全制限付き）
+- ![木工](https://img.shields.io/badge/木工-デバイス固定台-brown) **木工製固定台** - デバイス群を安定固定する木製土台、配線整理機能付き
 - ![香り](https://img.shields.io/badge/香り拡散器-予定-pink) **香り拡散器 (予定)** - ペルチェ素子加熱式、シーンに応じた香りの演出
 
 #### 対応効果
-- ![振動](https://img.shields.io/badge/振動-3モード-purple) **振動（vibration）**: 弱い振動（long）、強い衝撃（strong）、ドキドキ（heartbeat） - MQTT制御
+- ![振動](https://img.shields.io/badge/振動-3モード-purple) **振動（vibration）**: 弱い振動（long）、強い衝撃（strong）、ドキドキ（heartbeat） - ESP32 MQTT制御
 - ![光](https://img.shields.io/badge/光-3モード-yellow) **光（flash）**: ストロボ（strobe）、閃光（burst）、照明（steady） - シリアル制御、PWM調光
 - ![風](https://img.shields.io/badge/風-2モード-lightblue) **風（wind）**: 一瞬の風（burst）、長い風（long） - シリアル制御、DCファン可変速
 - ![水](https://img.shields.io/badge/水-瞬間噴射-blue) **水（water）**: 水しぶき（burst）※shot型一度きり発動 - シリアル制御、安全制限付き
@@ -111,4 +116,39 @@ WebSocketを用いたリアルタイム通信により、動画再生と物理�
 * **セッションコード方式ペアリング**: FastAPI + Pydanticによる6桁コード管理、自動デバイス登録システム
 * **高精度リアルタイム同期**: WebSocket双方向通信 + ThreadPoolExecutor並列処理による±50ms以内同期
 * **ハイブリッド通信アーキテクチャ**: WebSocket（同期制御）+ シリアル通信（Arduino制御）+ MQTT（振動制御）の統合システム
+* **カスタムハードウェア設計**: 3Dプリンターによる偏心モーター専用ケース設計、クッション内蔵型振動システム
+* **物理デバイス統合**: 木工製固定台によるデバイス群の安定配置、配線管理とメンテナンス性を両立
 * **タイムライン管理システム**: 継続効果・瞬間効果を区別し、最適なタイミングでアクチュエーター制御を実行
+
+## 📝 事前開発について
+
+### 事前準備の範囲
+本プロジェクトでは、ハッカソン開発期間を最大限に活用するため、以下の要素について事前開発を実施しました：
+
+#### 🧠 企画・設計フェーズ
+- **アイデア出し**: 4DX@HOMEの基本コンセプトとシステム構想
+- **要件定義**: システム全体のアーキテクチャと技術選定の大枠
+
+#### 🔧 ハードウェア開発
+- ![振動](https://img.shields.io/badge/振動システム-事前開発-purple) **振動デバイス**: ESP32+偏心モーター構成、3Dプリントケース設計・製作
+- ![ポンプ](https://img.shields.io/badge/水噴射システム-事前開発-blue) **ポンプシステム**: 小型ポンプによる水噴射機構の実装
+- ![木工](https://img.shields.io/badge/固定台-事前開発-brown) **木工製固定台**: デバイス群を統合固定する木製土台の設計・製作
+
+#### 🎬 AI解析システム
+- ![AI](https://img.shields.io/badge/AI動画解析-事前開発ベース-green) **AI動画解析エンジン**: GPT-4o-mini Visionによるタイムライン生成システムの基本実装
+
+### 開発期間中の作業
+事前開発により土台を構築した上で、ハッカソン期間中は以下に集中：
+
+- **システム統合**: フロントエンド・バックエンド・ハードウェアの連携実装
+- **リアルタイム同期**: WebSocket通信による高精度同期システム
+- **ユーザーインターフェース**: React + TypeScriptによるWebアプリケーション
+- **デバイス制御**: Raspberry Pi経由のデバイス統合制御
+- **細部調整**: AIプロンプトの最適化、ハードウェア配置の微調整
+
+### 事前開発の効果
+この準備により、限られた開発時間の中で以下を実現：
+- **完成度の高いプロトタイプ**: 物理デバイスとソフトウェアの完全統合
+- **革新的な体験**: AI自動解析と物理フィードバックのシームレスな連携
+
+**⚠️ 注記**: 事前開発は企画・基礎技術検証に留め、システム統合と主要機能実装は開発期間中に実施しています。
