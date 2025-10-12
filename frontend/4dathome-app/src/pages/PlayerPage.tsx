@@ -2,7 +2,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useLocation } from "react-router-dom";
 
-const API_ORIGIN = "https://fourdk-backend-333203798555.asia-northeast1.run.app";
+/** ★ 本番 Cloud Run の WSS 同期エンドポイント */
 const WS_SYNC = (sid: string) =>
   `wss://fourdk-backend-333203798555.asia-northeast1.run.app/api/playback/ws/sync/${encodeURIComponent(sid)}`;
 
@@ -28,21 +28,40 @@ type InMsg =
 
 type OutMsg = {
   type: "sync";
-  state: SyncState;  // ← 状態（play/pause/seeking/seeked）
-  time: number;      // ← シークバー位置（秒）
-  duration: number;
-  ts: number;        // ms
+  state: SyncState; // 再生状態
+  time: number;     // 現在位置(秒)
+  duration: number; // 総時間(秒)
+  ts: number;       // 送信時刻(ms)
 };
 
 export default function PlayerPage() {
   const { search } = useLocation();
   const q = useMemo(() => new URLSearchParams(search), [search]);
 
+  // ?content=foo → /media/foo.mp4、無ければ /media/sample.mp4
   const contentId = q.get("content");
-  const src = useMemo(() => (contentId ? `/media/${contentId}.mp4` : "/media/sample.mp4"), [contentId]);
+  const src = useMemo(
+    () => (contentId ? `/media/${contentId}.mp4` : "/media/sample.mp4"),
+    [contentId]
+  );
 
-  // URLの ?session= または sessionStorage("sessionId")
-  const sessionId = q.get("session") || sessionStorage.getItem("sessionId") || "";
+  /**
+   * Cloud Run の /ws/sync/{session_id} は {session_id} が必須なので、
+   * URL(?session=) または sessionStorage("sessionId") を優先し、
+   * 無ければ一時IDを生成して sessionStorage に保存します（ページ再読込まで安定）。
+   */
+  const sessionId = useMemo(() => {
+    const urlSid = q.get("session");
+    if (urlSid) {
+      sessionStorage.setItem("sessionId", urlSid);
+      return urlSid;
+    }
+    const stored = sessionStorage.getItem("sessionId");
+    if (stored) return stored;
+    const temp = `webtest_${Math.random().toString(36).slice(2, 8)}_${Date.now()}`;
+    sessionStorage.setItem("sessionId", temp);
+    return temp;
+  }, [q]);
 
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const progressRef = useRef<HTMLDivElement | null>(null);
@@ -67,12 +86,12 @@ export default function PlayerPage() {
   const [wsError, setWsError] = useState<string | null>(null);
   const [connInfo, setConnInfo] = useState<string | null>(null);
 
-  // ===== 自動再生（初回はミュートで開始）
+  /* ====== 自動再生（初回はミュートで開始） ====== */
   const tryAutoplay = async () => {
     const v = videoRef.current;
     if (!v) return;
     try {
-      v.muted = true;
+      v.muted = true; // モバイル自動再生条件
       await v.play();
       setIsPlaying(true);
       setOverlay(null);
@@ -89,9 +108,8 @@ export default function PlayerPage() {
     if (v.volume === 0) v.volume = 1;
   };
 
-  // ===== WebSocket接続（/api/playback/ws/sync/{session_id}）
+  /* ====== WebSocket（Cloud Run 本番 /api/playback/ws/sync/{session_id}） ====== */
   const connectWS = () => {
-    if (!sessionId) { setWsError("No sessionId"); return; }
     try {
       const ws = new WebSocket(WS_SYNC(sessionId));
       wsRef.current = ws;
@@ -100,18 +118,22 @@ export default function PlayerPage() {
         setConnected(true);
         setWsError(null);
         reconnectAttemptsRef.current = 0;
-        startSyncLoop(); // ← ここで 0.5秒周期送信を開始
+        startSyncLoop(); // 0.5秒周期で送信開始
       };
 
       ws.onmessage = (ev) => {
-        let msg: InMsg;
-        try { msg = JSON.parse(ev.data); } catch { return; }
-        if (msg.type === "connection_established") {
-          setConnInfo(`${msg.connection_id}`);
-          console.log("WS connected:", msg);
-        } else if (msg.type === "sync_ack") {
-          // ACKは必要に応じて利用
-          // console.log("sync_ack", msg.received_state, msg.received_time);
+        try {
+          const msg: InMsg = JSON.parse(ev.data);
+          if (msg.type === "connection_established") {
+            setConnInfo(msg.connection_id);
+            console.log("WS connected:", msg);
+          } else if (msg.type === "sync_ack") {
+            // 受信確認（必要なら可視化）
+            // console.log("sync_ack", msg.received_state, msg.received_time);
+          }
+        } catch {
+          // テキストならそのままログ
+          console.log("WS <-", ev.data);
         }
       };
 
@@ -130,7 +152,7 @@ export default function PlayerPage() {
     }
   };
 
-  // ★★★ ここを 500ms に変更（0.5秒周期で状態 + シーク位置を送信）
+  // ★ 0.5秒周期送信（状態＋現在位置）
   const startSyncLoop = () => {
     stopSyncLoop();
     syncTimerRef.current = window.setInterval(() => {
@@ -155,10 +177,9 @@ export default function PlayerPage() {
     if (s && s.readyState === WebSocket.OPEN) s.send(JSON.stringify(obj));
   };
 
-  // 0.5秒ごとに「状態」と「シークバー位置（time）」を送信
   const sendSync = () => {
     const v = videoRef.current;
-    const t = seeking ? seekValue : v?.currentTime ?? 0;     // シークバーの見かけの位置
+    const t = seeking ? seekValue : v?.currentTime ?? 0;
     const d = duration || v?.duration || 0;
     const state = computeState();
 
@@ -171,7 +192,7 @@ export default function PlayerPage() {
     };
     send(payload);
 
-    // デバッグ表示: "秒数,再生中true/false"
+    // デバッグ: "秒数,再生中true/false"
     console.log(`${t.toFixed(2)},${state === "play"}`);
   };
 
@@ -181,10 +202,11 @@ export default function PlayerPage() {
       stopSyncLoop();
       try { wsRef.current?.close(); } catch {}
     };
+    // sessionId は useMemo で固定化される想定
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [sessionId]);
 
-  // ===== videoイベント
+  /* ====== video イベント ====== */
   useEffect(() => {
     const v = videoRef.current; if (!v) return;
 
@@ -214,7 +236,7 @@ export default function PlayerPage() {
     };
   }, [seeking]);
 
-  // ===== 進捗（シーク）
+  /* ====== 進捗（シーク） ====== */
   const pct = duration > 0 ? (seeking ? seekValue / duration : current / duration) : 0;
 
   const posToTime = (clientX: number) => {
@@ -229,8 +251,6 @@ export default function PlayerPage() {
     setSeeking(true);
     const t = posToTime(e.clientX);
     setSeekValue(t);
-
-    // ドラッグ開始で即送信（state=seeking）
     send({ type: "sync", state: "seeking", time: t, duration, ts: Date.now() });
     console.log(`${t.toFixed(2)},false`);
     lastDragSyncRef.current = performance.now();
@@ -240,8 +260,6 @@ export default function PlayerPage() {
     if (!seeking) return;
     const t = posToTime(e.clientX);
     setSeekValue(t);
-
-    // ドラッグ中は100ms間引きで即送信（※周期500msとは別レーン）
     const now = performance.now();
     if (now - lastDragSyncRef.current >= 100) {
       send({ type: "sync", state: "seeking", time: t, duration, ts: Date.now() });
@@ -258,11 +276,8 @@ export default function PlayerPage() {
     v.currentTime = Math.max(0, Math.min(t, v.duration || t));
     setCurrent(v.currentTime);
     unmuteIfPossible();
-
-    // シーク確定で1発だけ "seeked"
     send({ type: "sync", state: "seeked", time: v.currentTime, duration: v.duration || duration || 0, ts: Date.now() });
     console.log(`${v.currentTime.toFixed(2)},${!v.paused}`);
-    // 以降は 0.5秒ループが play/pause を送る
   };
 
   const onProgressPointerCancel = (e: React.PointerEvent) => {
@@ -273,7 +288,7 @@ export default function PlayerPage() {
     console.log(`${t.toFixed(2)},false`);
   };
 
-  // ===== キー & ボタン
+  /* ====== キーボード/ボタン ====== */
   useEffect(() => {
     const h = (e: KeyboardEvent) => {
       const v = videoRef.current; if (!v) return;
@@ -302,14 +317,12 @@ export default function PlayerPage() {
     unmuteIfPossible();
     if (v.paused) v.play().catch(()=>setOverlay("タップして再生"));
     else v.pause();
-    // sendSync(); // 反応をさらに早めたい場合は有効化
   };
 
   const skip = (sec: number) => {
     const v = videoRef.current; if (!v) return;
     unmuteIfPossible();
     v.currentTime = Math.max(0, Math.min((v.currentTime ?? 0) + sec, v.duration || Infinity));
-    // スキップ直後は "seeked" を1発送る
     send({ type: "sync", state: "seeked", time: v.currentTime, duration: v.duration || duration || 0, ts: Date.now() });
     console.log(`${v.currentTime.toFixed(2)},${!v.paused}`);
   };
@@ -429,7 +442,7 @@ export default function PlayerPage() {
               {connected ? "WS: connected" : "WS: connecting..."}
               {wsError ? ` / ${wsError}` : ""}
               {connInfo ? ` / id:${connInfo}` : ""}
-              {sessionId ? ` / session:${sessionId}` : " / session: (none)"}
+              {sessionId ? ` / session:${sessionId}` : ""}
             </div>
             <div className="vp-chip">{fmt(current)} / {fmt(duration)}</div>
           </div>
