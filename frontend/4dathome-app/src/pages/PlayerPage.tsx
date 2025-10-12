@@ -2,12 +2,11 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useLocation } from "react-router-dom";
 
-const FIXED_SESSION_ID = "demo_session";
+const FIXED_SESSION_ID = "demo-session";
 const WS_SYNC = () =>
   `wss://fourdk-backend-333203798555.asia-northeast1.run.app/api/playback/ws/sync/${encodeURIComponent(FIXED_SESSION_ID)}`;
 
 type SyncState = "play" | "pause" | "seeking" | "seeked";
-
 type InMsg =
   | {
       type: "connection_established";
