@@ -78,7 +78,7 @@ WebSocketによる**ミリ秒精度のリアルタイム通信**で動画と物�
 * **物理設計のこだわり**: 3Dプリンターでクッション用偏心モーターケースを完全カスタム設計、ケースごとクッション内に組み込み、自然な触覚体験を実現
 * **ハードウェア統合**: 木工による手作り固定台でデバイス群を安定配置、美観と機能性を両立した物理システム構築
 * **UIのデザイン**: React Router DOMによるSPA設計、レスポンシブUI（モバイル・デスクトップ両対応）、セッションコードによる簡単ペアリングで、技術に詳しくないユーザーでも迷わず使える体験を実現
-* **リアルタイム同期処理のための通信**: WebSocketによる双方向通信、Raspberry Pi側ThreadPoolExecutorを用いた並列処理、継続的なタイムスタンプ送信により、動画とデバイスの同期ズレを最小化
+* **リアルタイム同期処理のための通信**: WebSocketによる双方向通信、継続的なタイムスタンプ送信により、動画とデバイスの同期ズレを最小化
 
 ## 技術仕様書
 
@@ -130,16 +130,16 @@ WebSocketによる**ミリ秒精度のリアルタイム通信**で動画と物�
   → [`tools/sync-generator/analyze_video.py`](./tools/sync-generator/analyze_video.py)
 * **セッションコード方式ペアリング**: FastAPI + Pydanticによるセッションコード管理、自動デバイス登録システム  
   → [`backend/app/api/device_registration.py`](./backend/app/api/device_registration.py), [`backend/app/models/device.py`](./backend/app/models/device.py)
-* **高精度リアルタイム同期**: WebSocket双方向通信 + ThreadPoolExecutor並列処理による±50ms以内同期  
-  → [`backend/app/services/continuous_sync_service.py`](./backend/app/services/continuous_sync_service.py), [`hardware/device-hub/src/websocket_client.py`](./hardware/device-hub/src/websocket_client.py)
+* **高精度リアルタイム同期**: WebSocket双方向通信による±50ms以内同期  
+  → [`backend/app/services/continuous_sync_service.py`](./backend/app/services/continuous_sync_service.py)
 * **ハイブリッド通信アーキテクチャ**: WebSocket（同期制御）+ シリアル通信（Arduino制御）+ MQTT（振動制御）の統合システム  
-  → [`hardware/device-hub/src/hub.py`](./hardware/device-hub/src/hub.py), [`hardware/device-hub/src/serial_controller.py`](./hardware/device-hub/src/serial_controller.py), [`hardware/vibration.ino`](./hardware/vibration.ino)
+  → [`hardware/raspberry_pi_client.py`](./hardware/raspberry_pi_client.py), [`hardware/hardware_server.py`](./hardware/hardware_server.py), [`hardware/vibration.ino`](./hardware/vibration.ino)
 * **カスタムハードウェア設計**: 3Dプリンターによる偏心モーター専用ケース設計、クッション内蔵型振動システム ※事前開発  
   → [`assets/images/Cushion_Motor_Case_3D_Model.png`](./assets/images/Cushion_Motor_Case_3D_Model.png), [`hardware/vibration.ino`](./hardware/vibration.ino)
 * **物理デバイス統合**: 木工製固定台によるデバイス群の安定配置、配線管理とメンテナンス性を両立 ※木工部分は事前開発  
-  → [`hardware/lights.ino`](./hardware/lights.ino), [`hardware/water.ino`](./hardware/water.ino), [`hardware/device-hub/src/serial_controller.py`](./hardware/device-hub/src/serial_controller.py)
-* **タイムライン管理システム**: 継続効果・瞬間効果を区別し、最適なタイミングでアクチュエーター制御を実行  
-  → [`backend/app/services/sync_data_service.py`](./backend/app/services/sync_data_service.py), [`hardware/device-hub/src/hub.py`](./hardware/device-hub/src/hub.py)
+  → [`hardware/lights.ino`](./hardware/lights.ino), [`hardware/water.ino`](./hardware/water.ino), [`assets/images/Woodworking_Workbench.jpg`](./assets/images/Woodworking_Workbench.jpg)
+* **タイムライン管理システム**: 最適なタイミングでアクチュエーター制御を実行  
+  → [`backend/app/services/sync_data_service.py`](./backend/app/services/sync_data_service.py), [`hardware/hardware_server.py`](./hardware/hardware_server.py)
 
 ## 事前開発について
 
