@@ -1,8 +1,22 @@
-# FastAPI Dependencies
-# TODO: Add production dependencies
-
+# 4DX@HOME Backend Dependencies
+# FastAPI Core
 fastapi==0.104.1
-uvicorn==0.24.0
+uvicorn[standard]==0.24.0
 websockets==11.0.3
+
+# Data Models & Validation  
 pydantic==2.5.0
+pydantic-settings==2.1.0
+
+# HTTP & WebSocket
 python-multipart==0.0.6
+httpx==0.25.2
+aiohttp==3.9.1
+
+# File Handling
+aiofiles==25.1.0
+python-json-logger==2.0.7
+
+# Development & Testing
+pytest==7.4.3
+pytest-asyncio==0.21.1

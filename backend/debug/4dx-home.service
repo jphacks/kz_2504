@@ -1,0 +1,45 @@
+[Unit]
+Description=4DX@HOME Raspberry Pi Communication Service
+Documentation=https://github.com/4dx-home/raspberry-pi
+After=network-online.target
+Wants=network-online.target
+StartLimitIntervalSec=60
+StartLimitBurst=3
+
+[Service]
+Type=simple
+User=pi
+Group=pi
+WorkingDirectory=/home/pi/4dx-home
+ExecStart=/usr/bin/python3 /home/pi/4dx-home/raspberry-pi-main.py session_default
+ExecReload=/bin/kill -HUP $MAINPID
+Restart=on-failure
+RestartSec=10
+StandardOutput=syslog
+StandardError=syslog
+SyslogIdentifier=4dx-home
+
+# 環境変数
+Environment=PYTHONPATH=/home/pi/4dx-home
+Environment=LOG_LEVEL=INFO
+
+# セキュリティ設定
+NoNewPrivileges=yes
+PrivateTmp=yes
+ProtectSystem=strict
+ReadWritePaths=/var/log/4dx-home /tmp/4dx_sync_data
+ProtectHome=read-only
+
+# リソース制限
+MemoryMax=512M
+CPUQuota=80%
+
+# プロセス管理
+KillMode=mixed
+KillSignal=SIGTERM
+TimeoutStartSec=30
+TimeoutStopSec=15
+
+[Install]
+WantedBy=multi-user.target
+Alias=4dx-home.service

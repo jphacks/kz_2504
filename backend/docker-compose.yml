@@ -1,0 +1,72 @@
+# 🐳 4DX@HOME Docker Compose 設定
+# 開発・テスト・本番前検証用
+
+version: '3.8'
+
+services:
+  # FastAPI WebSocketサーバー (開発環境)
+  fourdk-backend:
+    build: 
+      context: .
+      dockerfile: Dockerfile.dev
+    container_name: fourdk-backend-dev
+    ports:
+      - "8001:8001"  # ローカル8001 → コンテナ8001
+    environment:
+      - ENVIRONMENT=development
+      - DEBUG=true
+      - LOG_LEVEL=DEBUG
+      - HOST=0.0.0.0
+      - PORT=8001
+      - CORS_ORIGINS=http://localhost:3000,http://127.0.0.1:3000,http://localhost:8001
+      - ASSETS_PATH=/app/assets
+      - DATA_PATH=/app/data/sync-patterns
+      - VIDEO_PATH=/app/assets/videos
+    volumes:
+      # ホットリロード用ボリュームマウント
+      - ./app:/app/app:rw
+      - ./data:/app/data:rw
+      - ./assets:/app/assets:rw
+      - ./.env:/app/.env:ro
+    networks:
+      - fourdk-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8001/api/health"]
+      interval: 20s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
+
+  # 将来の拡張用（Redis, PostgreSQL等）
+  # redis:
+  #   image: redis:7-alpine
+  #   container_name: fourdk-redis
+  #   ports:
+  #     - "6379:6379"
+  #   networks:
+  #     - fourdk-network
+  #   restart: unless-stopped
+
+  # データベース（将来的に追加）
+  # postgres:
+  #   image: postgres:15-alpine
+  #   container_name: fourdk-postgres
+  #   environment:
+  #     POSTGRES_DB: fourdk_home
+  #     POSTGRES_USER: fourdk_user
+  #     POSTGRES_PASSWORD: ${DB_PASSWORD:-fourdk_pass}
+  #   ports:
+  #     - "5432:5432"
+  #   volumes:
+  #     - postgres_data:/var/lib/postgresql/data
+  #   networks:
+  #     - fourdk-network
+  #   restart: unless-stopped
+
+networks:
+  fourdk-network:
+    driver: bridge
+
+# volumes:
+#   postgres_data:
