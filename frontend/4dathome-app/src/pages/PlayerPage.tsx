@@ -38,11 +38,12 @@ export default function PlayerPage() {
   const q = useMemo(() => new URLSearchParams(search), [search]);
 
   const contentId = q.get("content");
-  const src = useMemo(
+  const srcPath = useMemo(
     () => (contentId ? `/media/${contentId}.mp4` : "/media/sample.mp4"),
     [contentId]
   );
 
+  // —— セッションID（UI表示用。WSの実際の接続は固定ID）——
   const sessionId = useMemo(() => {
     const urlSid = q.get("session");
     if (urlSid) {
@@ -79,30 +80,107 @@ export default function PlayerPage() {
   const [wsError, setWsError] = useState<string | null>(null);
   const [connInfo, setConnInfo] = useState<string | null>(null);
 
-  // ★ 最初の start を「確実に1回だけ」送ったか
+  // —— 再生開始を1度だけ送る／保留制御 ——
   const startSentRef = useRef(false);
-  // ★ 再生は始まっているが、まだ送れていない（WS未OPEN/詰まり）の保留フラグ
   const wantStartRef = useRef(false);
-  const firstCanPlayDoneRef = useRef(false);
 
-  /* ====== 再生開始（canplayまで待つ） ====== */
-  const tryStartPlayback = async () => {
+  // —— 「完全DL完了」→「videoが再生可能」→「再生＆同期開始」を厳密に順序付け ——
+  const [downloadPct, setDownloadPct] = useState<number | null>(0);
+  const [downloadDone, setDownloadDone] = useState(false);
+  const [objectUrl, setObjectUrl] = useState<string | null>(null);
+  const canPlayThroughRef = useRef(false);
+
+  // ========== 先にMP4を丸ごとダウンロード ==========
+  useEffect(() => {
+    let ac = new AbortController();
+    let revokeUrl: string | null = null;
+
+    // リセット
+    setOverlay("読み込み中…");
+    setBuffering(true);
+    setDownloadPct(0);
+    setDownloadDone(false);
+    canPlayThroughRef.current = false;
+    setObjectUrl(null);
+    startSentRef.current = false;
+    wantStartRef.current = false;
+
+    (async () => {
+      try {
+        const res = await fetch(srcPath, { signal: ac.signal, cache: "force-cache" });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const total = Number(res.headers.get("Content-Length") || 0);
+        const reader = res.body?.getReader();
+        if (!reader) {
+          // body がストリーミング不可な環境 → そのまま blob 取得
+          const blob = await res.clone().blob();
+          const url = URL.createObjectURL(blob);
+          revokeUrl = url;
+          setObjectUrl(url);
+          setDownloadPct(100);
+          setDownloadDone(true);
+          return;
+        }
+        const chunks: Uint8Array[] = [];
+        let received = 0;
+        for (;;) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          if (value) {
+            chunks.push(value);
+            received += value.length;
+            if (total) {
+              setDownloadPct(Math.max(1, Math.min(100, Math.round((received / total) * 100))));
+            } else {
+              // total 不明なときはインジケータだけ回す想定（%は不明）
+              setDownloadPct(null);
+            }
+          }
+        }
+        const blob = new Blob(chunks, { type: "video/mp4" });
+        const url = URL.createObjectURL(blob);
+        revokeUrl = url;
+        setObjectUrl(url);
+        setDownloadPct(100);
+        setDownloadDone(true);
+      } catch (e) {
+        if ((e as any)?.name === "AbortError") return;
+        console.error(e);
+        setOverlay("動画の読み込みに失敗しました");
+        setBuffering(false);
+      }
+    })();
+
+    return () => {
+      ac.abort();
+      if (revokeUrl) URL.revokeObjectURL(revokeUrl);
+    };
+  }, [srcPath]);
+
+  // ========== すべて準備できたら“だけ”自動再生 & start_continuous_sync 送信 ==========
+  const maybeStartPlayback = async () => {
     const v = videoRef.current;
     if (!v) return;
+    if (!downloadDone) return;                 // ファイル未DL完了 → 待機
+    if (!canPlayThroughRef.current) return;    // デコード準備不足 → 待機
     try {
       v.muted = true;
       setMuted(true);
       await v.play();
       setIsPlaying(true);
       setOverlay(null);
+      setBuffering(false);
+      // WS 送信を厳密に1回だけ
+      if (!startSentRef.current) {
+        void sendStartOnce();
+      }
     } catch {
+      // 自動再生ブロック
       setOverlay("タップして再生");
     }
   };
 
-  /* ====== 送信を“確実化”するユーティリティ ====== */
-
-  // WSがOPEN & バッファが空くまで待機（最大 maxWaitMs）
+  // ====== 送信確実化ユーティリティ ======
   const awaitReady = (maxWaitMs = 3000, drainBytes = 64 * 1024): Promise<boolean> => {
     return new Promise((resolve) => {
       const start = performance.now();
@@ -117,7 +195,6 @@ export default function PlayerPage() {
           if (elapsed >= maxWaitMs) return resolve(false);
           return setTimeout(check, 30);
         }
-        // backpressure: バッファがある程度捌けるのを待つ
         if (ws.bufferedAmount > drainBytes) {
           if (elapsed >= maxWaitMs) return resolve(false);
           return setTimeout(check, 30);
@@ -128,42 +205,34 @@ export default function PlayerPage() {
     });
   };
 
-  // start_continuous_sync を1回だけ確実送信（必要なら数回リトライ）
   const sendStartOnce = async () => {
     if (startSentRef.current) return;
     const v = videoRef.current;
     if (!v || v.paused) return;
 
-    // 送信準備ができるまで待つ（最大3秒）
     const ready = await awaitReady(3000);
     if (!ready) {
-      // まだダメ → 少し遅延して再試行（最大3回）
       for (let i = 0; i < 3 && !startSentRef.current; i++) {
         await new Promise((r) => setTimeout(r, 80 * (i + 1)));
         const again = await awaitReady(1000);
         if (again && wsRef.current) {
           try {
             wsRef.current.send(JSON.stringify({ type: "start_continuous_sync" }));
-            console.log("WS -> start_continuous_sync (retry#", i + 1, ")");
             startSentRef.current = true;
             wantStartRef.current = false;
             return;
-          } catch (_) {}
+          } catch {}
         }
       }
-      // ここまでで送れなければ保留（onopen等で再挑戦）
       wantStartRef.current = true;
       return;
     }
 
-    // 準備OK → 送信
     try {
       wsRef.current?.send(JSON.stringify({ type: "start_continuous_sync" }));
-      console.log("WS -> start_continuous_sync");
       startSentRef.current = true;
       wantStartRef.current = false;
     } catch {
-      // ごく稀な競合に備え、保留して onopen で再挑戦
       wantStartRef.current = true;
     }
   };
@@ -174,7 +243,7 @@ export default function PlayerPage() {
     if (v.volume === 0) v.volume = 1;
   };
 
-  /* ====== WebSocket 接続 ====== */
+  // ====== WebSocket 接続 ======
   const connectWS = () => {
     try {
       const ws = new WebSocket(WS_SYNC());
@@ -184,14 +253,7 @@ export default function PlayerPage() {
         setConnected(true);
         setWsError(null);
         reconnectAttemptsRef.current = 0;
-
-        // （要件により定期syncは送らない）
-
-        // OPENになったら、保留があればここで一度だけ送る
-        if (wantStartRef.current) {
-          // microtaskにずらしてメインスレッドのイベント処理と衝突しにくくする
-          Promise.resolve().then(() => { void sendStartOnce(); });
-        }
+        if (wantStartRef.current) Promise.resolve().then(() => { void sendStartOnce(); });
       };
 
       ws.onmessage = (ev) => {
@@ -199,20 +261,16 @@ export default function PlayerPage() {
           const msg: InMsg = JSON.parse(ev.data);
           if (msg.type === "connection_established") {
             setConnInfo(msg.connection_id);
-            console.log("WS connected:", msg);
-          } else if (msg.type === "sync_ack") {
-            // console.log("sync_ack", msg.received_state, msg.received_time);
           }
         } catch {
-          console.log("WS <-", ev.data);
+          // noop
         }
       };
 
       ws.onerror = () => setWsError("WebSocket error");
-
       ws.onclose = () => {
         setConnected(false);
-        stopSyncLoop(); // 安全
+        stopSyncLoop();
         if (reconnectAttemptsRef.current < maxReconnectAttempts) {
           reconnectAttemptsRef.current += 1;
           setTimeout(connectWS, 1000 * reconnectAttemptsRef.current);
@@ -223,11 +281,10 @@ export default function PlayerPage() {
     }
   };
 
-  // （未使用）0.5秒周期 sync ループ（コメントアウト維持）
   const startSyncLoop = () => {
     stopSyncLoop();
     syncTimerRef.current = window.setInterval(() => {
-      // sendSync();
+      // 定期syncは送らない設計のまま
     }, 500);
   };
   const stopSyncLoop = () => {
@@ -251,23 +308,6 @@ export default function PlayerPage() {
     if (s && s.readyState === WebSocket.OPEN) s.send(JSON.stringify(obj));
   };
 
-  const sendSync = () => {
-    const v = videoRef.current;
-    const t = seeking ? seekValue : v?.currentTime ?? 0;
-    const d = duration || v?.duration || 0;
-    const state = computeState();
-
-    const payload: OutMsg = {
-      type: "sync",
-      state,
-      time: t,
-      duration: d,
-      ts: Date.now(),
-    };
-    // 定期syncは送らない
-    // send(payload);
-  };
-
   useEffect(() => {
     connectWS();
     return () => {
@@ -277,28 +317,26 @@ export default function PlayerPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [sessionId]);
 
-  /* ====== video イベント ====== */
+  // ====== video イベント ======
   useEffect(() => {
     const v = videoRef.current; if (!v) return;
 
     const onLoaded = () => {
       setDuration(v.duration || 0);
-      setBuffering(v.readyState < 4);
+      // 丸読み完了までは still buffering 扱い
     };
 
-    const onCanPlay = () => {
-      setBuffering(false);
-      if (!firstCanPlayDoneRef.current) {
-        firstCanPlayDoneRef.current = true;
-        void tryStartPlayback();
-      }
+    const onCanPlayThrough = () => {
+      // デコード準備OK
+      canPlayThroughRef.current = true;
+      // すべて満たしていればここでだけ再生開始
+      void maybeStartPlayback();
     };
 
     const onWaiting = () => setBuffering(true);
 
     const onPlay = () => {
-      // 再生要求が出た瞬間（実再生前）に予約
-      // 少し遅延させてUI/他イベントと競合しにくくする
+      // 手動タップ等で再生された場合でも、WS送信は完全DL＆準備OKの後だけ
       setTimeout(() => { void sendStartOnce(); }, 10);
     };
 
@@ -306,7 +344,6 @@ export default function PlayerPage() {
       setIsPlaying(true);
       setOverlay(null);
       setBuffering(false);
-      // 実際に再生が始まったタイミングでも保険で実行（内部で一度きりに抑制）
       setTimeout(() => { void sendStartOnce(); }, 0);
     };
 
@@ -315,17 +352,17 @@ export default function PlayerPage() {
     const onEnded  = () => { setIsPlaying(false); };
 
     v.addEventListener("loadedmetadata", onLoaded);
-    v.addEventListener("canplay", onCanPlay);
+    v.addEventListener("canplaythrough", onCanPlayThrough);
     v.addEventListener("waiting", onWaiting);
-    v.addEventListener("play", onPlay);       // ★ 追加
-    v.addEventListener("playing", onPlaying); // ★ 維持
+    v.addEventListener("play", onPlay);
+    v.addEventListener("playing", onPlaying);
     v.addEventListener("timeupdate", onTime);
     v.addEventListener("pause", onPause);
     v.addEventListener("ended", onEnded);
 
     return () => {
       v.removeEventListener("loadedmetadata", onLoaded);
-      v.removeEventListener("canplay", onCanPlay);
+      v.removeEventListener("canplaythrough", onCanPlayThrough);
       v.removeEventListener("waiting", onWaiting);
       v.removeEventListener("play", onPlay);
       v.removeEventListener("playing", onPlaying);
@@ -333,9 +370,10 @@ export default function PlayerPage() {
       v.removeEventListener("pause", onPause);
       v.removeEventListener("ended", onEnded);
     };
-  }, [seeking]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [downloadDone]);
 
-  /* ====== 進捗（シーク） ====== */
+  // 進捗バー
   const pct = duration > 0 ? (seeking ? seekValue / duration : current / duration) : 0;
 
   const posToTime = (clientX: number) => {
@@ -350,7 +388,6 @@ export default function PlayerPage() {
     setSeeking(true);
     const t = posToTime(e.clientX);
     setSeekValue(t);
-    // 送信はすべて無効化のまま
     lastDragSyncRef.current = performance.now();
   };
 
@@ -379,7 +416,7 @@ export default function PlayerPage() {
     setSeeking(false);
   };
 
-  /* ====== キーボード/ボタン ====== */
+  // キー操作
   useEffect(() => {
     const h = (e: KeyboardEvent) => {
       const v = videoRef.current; if (!v) return;
@@ -405,6 +442,11 @@ export default function PlayerPage() {
 
   const togglePlay = () => {
     const v = videoRef.current; if (!v) return;
+    // 完全DLとcanplaythroughが揃うまでは再生を許可しない
+    if (!downloadDone || !canPlayThroughRef.current) {
+      setOverlay("読み込み中…");
+      return;
+    }
     unmuteIfPossible();
     if (v.paused) v.play().catch(()=>setOverlay("タップして再生"));
     else v.pause();
@@ -465,7 +507,7 @@ export default function PlayerPage() {
           <video
             ref={videoRef}
             className="vp-video"
-            src={src}
+            src={objectUrl ?? ""}            // ← 丸読み後の Blob URL を使う
             playsInline
             preload="auto"
             muted
@@ -474,23 +516,27 @@ export default function PlayerPage() {
             onTimeUpdate={(e) => { if (!seeking) setCurrent((e.target as HTMLVideoElement).currentTime || 0); }}
             onWaiting={() => setBuffering(true)}
             onPlaying={() => setBuffering(false)}
-            onCanPlay={() => setBuffering(false)}
+            onCanPlay={() => {/* canplay は無視。canplaythrough を採用 */}}
             onError={() => setOverlay("動画の読み込みに失敗しました")}
           />
 
           {(buffering || overlay) && (
             <div className="vp-loader" aria-hidden="true">
-              {overlay ? (
-                <div style={{textAlign:"center", lineHeight:1.6}}>
-                  <div className="vp-spinner" style={{margin:"0 auto 14px"}} />
-                  <div>{overlay}</div>
-                  {overlay === "タップして再生" && (
-                    <div className="vp-note">ブラウザの自動再生制限によりタップが必要です</div>
+              <div style={{textAlign:"center", lineHeight:1.6}}>
+                <div className="vp-spinner" style={{margin:"0 auto 14px"}} />
+                <div>
+                  {overlay ?? "読み込み中…"}
+                  {downloadPct !== null && overlay === "読み込み中…" && (
+                    <div className="vp-note">{downloadPct}%</div>
+                  )}
+                  {downloadPct === null && overlay === "読み込み中…" && (
+                    <div className="vp-note">サイズ不明（進捗％は表示できません）</div>
                   )}
                 </div>
-              ) : (
-                <div className="vp-spinner" />
-              )}
+                {overlay === "タップして再生" && (
+                  <div className="vp-note">ブラウザの自動再生制限によりタップが必要です</div>
+                )}
+              </div>
             </div>
           )}
 
@@ -529,7 +575,8 @@ export default function PlayerPage() {
           {overlay && (
             <div className="vp-overlay" onClick={() => {
               unmuteIfPossible();
-              void tryStartPlayback();
+              // タップ時も条件を満たすまで開始しない
+              void maybeStartPlayback();
             }}>
               <div>
                 <div style={{textAlign:"center"}}>{overlay}</div>
@@ -546,6 +593,9 @@ export default function PlayerPage() {
               {wsError ? ` / ${wsError}` : ""}
               {connInfo ? ` / id:${connInfo}` : ""}
               {sessionId ? ` / session:${sessionId}` : ""}
+            </div>
+            <div className="vp-chip">
+              {downloadDone ? "DL: done" : downloadPct === null ? "DL: ... (size unknown)" : `DL: ${downloadPct}%`}
             </div>
             <div className="vp-chip">{fmt(current)} / {fmt(duration)}</div>
           </div>
