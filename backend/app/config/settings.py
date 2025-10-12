@@ -70,6 +70,12 @@ class Settings(BaseSettings):
     max_connections: int = Field(default=100, description="最大同時接続数")
     ping_interval: int = Field(default=30, description="Pingインターバル（秒）")
     
+    # WebSocket URL設定（マイコン統合用）
+    device_websocket_base_url: str = Field(
+        default="wss://fourdk-backend-333203798555.asia-northeast1.run.app",
+        description="マイコンWebSocket接続ベースURL"
+    )
+    
     # ファイルパス設定
     data_path: str = Field(default="./data", description="データファイルパス")
     assets_path: str = Field(default="../../assets", description="アセットパス")
@@ -143,6 +149,10 @@ class Settings(BaseSettings):
     def get_device_data_path(self) -> Path:
         """デバイスデータファイルパスを取得"""
         return Path("./data/devices.json")
+    
+    def get_device_websocket_url(self, session_id: str) -> str:
+        """マイコンWebSocket URL生成"""
+        return f"{self.device_websocket_base_url}/api/preparation/ws/{session_id}"
 
 # グローバル設定インスタンス
 settings = Settings()
