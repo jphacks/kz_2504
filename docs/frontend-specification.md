@@ -18,23 +18,6 @@
 
 ## 2. スクリーンショット & UI（各ページ）
 
-**配置規則**
-
-* ベースパス: `docs/images/`
-* 命名: `<page>[-variant][-device].<ext>` 例: `home.png`, `player-mobile.png`, `session-error.png`
-
-**最小セット（必須）**
-
-* `docs/images/home.png`
-* `docs/images/session.png`
-* `docs/images/select.png`
-* `docs/images/player.png`
-
-**任意の追加（推奨）**
-
-* `*-mobile.png` / `*-desktop.png`（レスポンシブ差分）
-* `session-success.png` / `session-error.png`（接続状態差分）
-* `player-fullscreen.png`（フルスクリーン時）
 
 | ページ                          | 説明                     | 画像例                               |
 | ---------------------------- | ---------------------- | ---------------------------------- |
