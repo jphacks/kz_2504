@@ -2,11 +2,9 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useLocation } from "react-router-dom";
 
-/** ★ 本番 Cloud Run の WSS 同期エンドポイント */
-const WS_SYNC = (sid: string) =>
-  `wss://fourdk-backend-333203798555.asia-northeast1.run.app/api/playback/ws/sync/${encodeURIComponent(
-    sid
-  )}`;
+const FIXED_SESSION_ID = "demo_session";
+const WS_SYNC = () =>
+  `wss://fourdk-backend-333203798555.asia-northeast1.run.app/api/playback/ws/sync/${encodeURIComponent(FIXED_SESSION_ID)}`;
 
 type SyncState = "play" | "pause" | "seeking" | "seeked";
 
@@ -30,28 +28,22 @@ type InMsg =
 
 type OutMsg = {
   type: "sync";
-  state: SyncState; // 再生状態
-  time: number;     // 現在位置(秒)
-  duration: number; // 総時間(秒)
-  ts: number;       // 送信時刻(ms)
+  state: SyncState;
+  time: number;
+  duration: number;
+  ts: number;
 };
 
 export default function PlayerPage() {
   const { search } = useLocation();
   const q = useMemo(() => new URLSearchParams(search), [search]);
 
-  // ?content=foo → /media/foo.mp4、無ければ /media/sample.mp4
   const contentId = q.get("content");
   const src = useMemo(
     () => (contentId ? `/media/${contentId}.mp4` : "/media/sample.mp4"),
     [contentId]
   );
 
-  /**
-   * Cloud Run の /ws/sync/{session_id} は {session_id} が必須なので、
-   * URL(?session=) または sessionStorage("sessionId") を優先し、
-   * 無ければ一時IDを生成して sessionStorage に保存します（ページ再読込まで安定）。
-   */
   const sessionId = useMemo(() => {
     const urlSid = q.get("session");
     if (urlSid) {
@@ -88,49 +80,91 @@ export default function PlayerPage() {
   const [wsError, setWsError] = useState<string | null>(null);
   const [connInfo, setConnInfo] = useState<string | null>(null);
 
-  // ☆ 最初の start_continuous_sync を送ったか（送れたか）フラグ
-  const startSentRef = useRef(false); // 実際に送信成功したら true（以降は絶対に送らない）
-  const wantStartRef = useRef(false); // 再生は始まったがWS未OPENで保留
-  const firstCanPlayDoneRef = useRef(false); // canplay 初回済み（多重防止）
+  // ★ 最初の start を「確実に1回だけ」送ったか
+  const startSentRef = useRef(false);
+  // ★ 再生は始まっているが、まだ送れていない（WS未OPEN/詰まり）の保留フラグ
+  const wantStartRef = useRef(false);
+  const firstCanPlayDoneRef = useRef(false);
 
-  /* ====== 再生開始ヘルパ（canplayまで待ってから実行） ====== */
+  /* ====== 再生開始（canplayまで待つ） ====== */
   const tryStartPlayback = async () => {
     const v = videoRef.current;
     if (!v) return;
     try {
-      // 自動再生制限を避けるため初回はミュートで開始
       v.muted = true;
       setMuted(true);
       await v.play();
       setIsPlaying(true);
-      setOverlay(null);     // オーバーレイ消す
-    } catch (e) {
-      // それでもブロックされた場合はタップを促す
+      setOverlay(null);
+    } catch {
       setOverlay("タップして再生");
     }
   };
 
-  // 再生中で、まだ start を送っていなければ送る（WS未OPENなら保留）
-  const sendControl = (type: "start_continuous_sync") => {
-    const s = wsRef.current;
-    if (s && s.readyState === WebSocket.OPEN) {
-      s.send(JSON.stringify({ type }));
-      console.log("WS ->", type);
-      return true;
-    }
-    return false;
+  /* ====== 送信を“確実化”するユーティリティ ====== */
+
+  // WSがOPEN & バッファが空くまで待機（最大 maxWaitMs）
+  const awaitReady = (maxWaitMs = 3000, drainBytes = 64 * 1024): Promise<boolean> => {
+    return new Promise((resolve) => {
+      const start = performance.now();
+      const check = () => {
+        const ws = wsRef.current;
+        const elapsed = performance.now() - start;
+        if (!ws) {
+          if (elapsed >= maxWaitMs) return resolve(false);
+          return setTimeout(check, 30);
+        }
+        if (ws.readyState !== WebSocket.OPEN) {
+          if (elapsed >= maxWaitMs) return resolve(false);
+          return setTimeout(check, 30);
+        }
+        // backpressure: バッファがある程度捌けるのを待つ
+        if (ws.bufferedAmount > drainBytes) {
+          if (elapsed >= maxWaitMs) return resolve(false);
+          return setTimeout(check, 30);
+        }
+        resolve(true);
+      };
+      check();
+    });
   };
 
-  const trySendStart = () => {
-    if (startSentRef.current) return;        // 既に送っていれば終了
+  // start_continuous_sync を1回だけ確実送信（必要なら数回リトライ）
+  const sendStartOnce = async () => {
+    if (startSentRef.current) return;
     const v = videoRef.current;
-    if (!v || v.paused) return;              // 再生状態でなければ送らない
-    const ok = sendControl("start_continuous_sync");
-    if (ok) {
-      startSentRef.current = true;           // 送れたので以後は送らない
+    if (!v || v.paused) return;
+
+    // 送信準備ができるまで待つ（最大3秒）
+    const ready = await awaitReady(3000);
+    if (!ready) {
+      // まだダメ → 少し遅延して再試行（最大3回）
+      for (let i = 0; i < 3 && !startSentRef.current; i++) {
+        await new Promise((r) => setTimeout(r, 80 * (i + 1)));
+        const again = await awaitReady(1000);
+        if (again && wsRef.current) {
+          try {
+            wsRef.current.send(JSON.stringify({ type: "start_continuous_sync" }));
+            console.log("WS -> start_continuous_sync (retry#", i + 1, ")");
+            startSentRef.current = true;
+            wantStartRef.current = false;
+            return;
+          } catch (_) {}
+        }
+      }
+      // ここまでで送れなければ保留（onopen等で再挑戦）
+      wantStartRef.current = true;
+      return;
+    }
+
+    // 準備OK → 送信
+    try {
+      wsRef.current?.send(JSON.stringify({ type: "start_continuous_sync" }));
+      console.log("WS -> start_continuous_sync");
+      startSentRef.current = true;
       wantStartRef.current = false;
-    } else {
-      // WS未OPEN等 → OPEN待ち
+    } catch {
+      // ごく稀な競合に備え、保留して onopen で再挑戦
       wantStartRef.current = true;
     }
   };
@@ -151,11 +185,13 @@ export default function PlayerPage() {
         setConnected(true);
         setWsError(null);
         reconnectAttemptsRef.current = 0;
-        startSyncLoop(); // 0.5秒ごとに sync を送る
 
-        // OPENになった時点で、保留があれば1回だけ start を送る
+        // （要件により定期syncは送らない）
+
+        // OPENになったら、保留があればここで一度だけ送る
         if (wantStartRef.current) {
-          trySendStart();
+          // microtaskにずらしてメインスレッドのイベント処理と衝突しにくくする
+          Promise.resolve().then(() => { void sendStartOnce(); });
         }
       };
 
@@ -166,7 +202,6 @@ export default function PlayerPage() {
             setConnInfo(msg.connection_id);
             console.log("WS connected:", msg);
           } else if (msg.type === "sync_ack") {
-            // 必要なら ack を可視化
             // console.log("sync_ack", msg.received_state, msg.received_time);
           }
         } catch {
@@ -178,7 +213,7 @@ export default function PlayerPage() {
 
       ws.onclose = () => {
         setConnected(false);
-        stopSyncLoop();
+        stopSyncLoop(); // 安全
         if (reconnectAttemptsRef.current < maxReconnectAttempts) {
           reconnectAttemptsRef.current += 1;
           setTimeout(connectWS, 1000 * reconnectAttemptsRef.current);
@@ -189,11 +224,11 @@ export default function PlayerPage() {
     }
   };
 
-  // 0.5秒周期で状態シンク
+  // （未使用）0.5秒周期 sync ループ（コメントアウト維持）
   const startSyncLoop = () => {
     stopSyncLoop();
     syncTimerRef.current = window.setInterval(() => {
-      sendSync();
+      // sendSync();
     }, 500);
   };
   const stopSyncLoop = () => {
@@ -230,10 +265,8 @@ export default function PlayerPage() {
       duration: d,
       ts: Date.now(),
     };
-    send(payload);
-
-    // デバッグ
-    console.log(`${t.toFixed(2)},${state === "play"}`);
+    // 定期syncは送らない
+    // send(payload);
   };
 
   useEffect(() => {
@@ -256,32 +289,37 @@ export default function PlayerPage() {
 
     const onCanPlay = () => {
       setBuffering(false);
-      // 初回の canplay でだけ再生を開始（読み込み完了まで待つ仕様）
       if (!firstCanPlayDoneRef.current) {
         firstCanPlayDoneRef.current = true;
-        // 自動再生（ミュートで実行）→ 失敗時はオーバーレイでタップ促す
         void tryStartPlayback();
       }
     };
 
     const onWaiting = () => setBuffering(true);
 
+    const onPlay = () => {
+      // 再生要求が出た瞬間（実再生前）に予約
+      // 少し遅延させてUI/他イベントと競合しにくくする
+      setTimeout(() => { void sendStartOnce(); }, 10);
+    };
+
     const onPlaying = () => {
       setIsPlaying(true);
       setOverlay(null);
       setBuffering(false);
-      // 最初の再生が始まった時点で一度だけ start を送る（WS未OPENなら保留）
-      trySendStart();
+      // 実際に再生が始まったタイミングでも保険で実行（内部で一度きりに抑制）
+      setTimeout(() => { void sendStartOnce(); }, 0);
     };
 
     const onTime   = () => { if (!seeking) setCurrent(v.currentTime || 0); };
-    const onPause  = () => { setIsPlaying(false); /* stop は送らない */ };
-    const onEnded  = () => { setIsPlaying(false); /* stop は送らない */ };
+    const onPause  = () => { setIsPlaying(false); };
+    const onEnded  = () => { setIsPlaying(false); };
 
     v.addEventListener("loadedmetadata", onLoaded);
-    v.addEventListener("canplay", onCanPlay);          // ← 再生開始はここで
+    v.addEventListener("canplay", onCanPlay);
     v.addEventListener("waiting", onWaiting);
-    v.addEventListener("playing", onPlaying);          // ← start 送信はここ/または ws.onopen
+    v.addEventListener("play", onPlay);       // ★ 追加
+    v.addEventListener("playing", onPlaying); // ★ 維持
     v.addEventListener("timeupdate", onTime);
     v.addEventListener("pause", onPause);
     v.addEventListener("ended", onEnded);
@@ -290,6 +328,7 @@ export default function PlayerPage() {
       v.removeEventListener("loadedmetadata", onLoaded);
       v.removeEventListener("canplay", onCanPlay);
       v.removeEventListener("waiting", onWaiting);
+      v.removeEventListener("play", onPlay);
       v.removeEventListener("playing", onPlaying);
       v.removeEventListener("timeupdate", onTime);
       v.removeEventListener("pause", onPause);
@@ -312,8 +351,7 @@ export default function PlayerPage() {
     setSeeking(true);
     const t = posToTime(e.clientX);
     setSeekValue(t);
-    send({ type: "sync", state: "seeking", time: t, duration, ts: Date.now() });
-    console.log(`${t.toFixed(2)},false`);
+    // 送信はすべて無効化のまま
     lastDragSyncRef.current = performance.now();
   };
 
@@ -323,8 +361,6 @@ export default function PlayerPage() {
     setSeekValue(t);
     const now = performance.now();
     if (now - lastDragSyncRef.current >= 100) {
-      send({ type: "sync", state: "seeking", time: t, duration, ts: Date.now() });
-      console.log(`${t.toFixed(2)},false`);
       lastDragSyncRef.current = now;
     }
   };
@@ -337,16 +373,11 @@ export default function PlayerPage() {
     v.currentTime = Math.max(0, Math.min(t, v.duration || t));
     setCurrent(v.currentTime);
     unmuteIfPossible();
-    send({ type: "sync", state: "seeked", time: v.currentTime, duration: v.duration || duration || 0, ts: Date.now() });
-    console.log(`${v.currentTime.toFixed(2)},${!v.paused}`);
   };
 
   const onProgressPointerCancel = (e: React.PointerEvent) => {
     (e.currentTarget as HTMLElement).releasePointerCapture(e.pointerId);
     setSeeking(false);
-    const t = seekValue;
-    send({ type: "sync", state: "seeked", time: t, duration, ts: Date.now() });
-    console.log(`${t.toFixed(2)},false`);
   };
 
   /* ====== キーボード/ボタン ====== */
@@ -375,7 +406,6 @@ export default function PlayerPage() {
 
   const togglePlay = () => {
     const v = videoRef.current; if (!v) return;
-    // 既に canplay 済み。ユーザー操作時はミュート解除OK
     unmuteIfPossible();
     if (v.paused) v.play().catch(()=>setOverlay("タップして再生"));
     else v.pause();
@@ -385,16 +415,12 @@ export default function PlayerPage() {
     const v = videoRef.current; if (!v) return;
     unmuteIfPossible();
     v.currentTime = Math.max(0, Math.min((v.currentTime ?? 0) + sec, v.duration || Infinity));
-    send({ type: "sync", state: "seeked", time: v.currentTime, duration: v.duration || duration || 0, ts: Date.now() });
-    console.log(`${v.currentTime.toFixed(2)},${!v.paused}`);
   };
 
   const fmt = (t: number) => {
     if (!isFinite(t) || t < 0) t = 0;
     const h = Math.floor(t / 3600), m = Math.floor((t % 3600) / 60), s = Math.floor(t % 60);
-    return h > 0
-      ? `${h}:${String(m).padStart(2,"0")}:${String(s).padStart(2,"0")}`
-      : `${m}:${String(s).padStart(2,"0")}`;
+    return h > 0 ? `${h}:${String(m).padStart(2,"0")}:${String(s).padStart(2,"0")}` : `${m}:${String(s).padStart(2,"0")}`;
   };
 
   return (
@@ -442,9 +468,8 @@ export default function PlayerPage() {
             className="vp-video"
             src={src}
             playsInline
-            preload="auto"               // 読み込みを先に進める
-            // autoPlay は付けない：canplay まで待ってから tryStartPlayback()
-            muted                         // 初回はミュート（属性は安全側。実際の制御はJS側）
+            preload="auto"
+            muted
             onClick={togglePlay}
             onLoadedMetadata={(e) => setDuration((e.target as HTMLVideoElement).duration || 0)}
             onTimeUpdate={(e) => { if (!seeking) setCurrent((e.target as HTMLVideoElement).currentTime || 0); }}
@@ -504,7 +529,6 @@ export default function PlayerPage() {
 
           {overlay && (
             <div className="vp-overlay" onClick={() => {
-              // ユーザー操作での再生試行（ミュート解除もOK）
               unmuteIfPossible();
               void tryStartPlayback();
             }}>
