@@ -11,40 +11,33 @@ export default function PairingPage() {
   const wsRef = useRef<WebSocket | null>(null);
   const navigate = useNavigate();
 
-  const API_BASE = "https://fourdk-home-backend-333203798555.asia-northeast1.run.app";
+  const API_BASE = "https://fourdk-backend-333203798555.asia-northeast1.run.app";
 
-  // セッション作成（POST）→ 成功で /selectpage
+  // デバイス情報取得（GET /api/device/info/{product_code}）→ 成功で /selectpage
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     const c = code.trim();
+
     if (!c) { setError("コードを入力してください"); return; }
+    if (c.length > 6) { setError("コードは6文字以内で入力してください"); return; }
 
     setError(null);
     setLoading(true);
 
     try {
-      const postOnce = async (body: Record<string, string>) => {
-        const res = await fetch(`${API_BASE}/api/sessions`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(body),
-        });
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        return res.json().catch(() => ({}));
-      };
-      let data: any;
-      try {
-        data = await postOnce({ session_id: c });
-      } catch {
-        data = await postOnce({ id: c });
-      }
-      const sessionId = String(data?.session_id || c);
-      sessionStorage.setItem("sessionId", sessionId);
-      sessionStorage.setItem("sessionCode", sessionId);
+      const res = await fetch(`${API_BASE}/api/device/info/${encodeURIComponent(c)}`);
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const data = await res.json().catch(() => ({}));
+
+      // 必要情報を保存（後段で利用）
+      sessionStorage.setItem("productCode", c);
+      if (data?.device_id) sessionStorage.setItem("deviceId", String(data.device_id));
+      sessionStorage.setItem("deviceInfo", JSON.stringify(data));
+
       navigate("/selectpage", { replace: true });
     } catch (err) {
       console.error(err);
-      setError("セッションが無効か、サーバーに接続できません");
+      setError("デバイスが見つからないか、サーバーに接続できません");
       setLoading(false);
     }
   };
@@ -57,7 +50,7 @@ export default function PairingPage() {
         :root{
           --xh-h: clamp(52px, 7vw, 64px);
           --pad: clamp(12px, 3vw, 18px);
-          --ico: clamp(22px, 4.8vw, 30px);    /* ← ひと回り大きく */
+          --ico: clamp(22px, 4.8vw, 30px);
           --gap: clamp(14px, 3vw, 22px);
           --logo-h: clamp(32px, 5vw, 44px);
           --logo-w-base: calc(var(--logo-h) * 2);
@@ -71,7 +64,6 @@ export default function PairingPage() {
         .xh-bg{ position:absolute; inset:0; background:url('/PairingPage.jpeg') center/cover no-repeat fixed; }
         .xh-shade{ position:absolute; inset:0; background: radial-gradient(80% 70% at 50% 30%, transparent 0%, rgba(0,0,0,.35) 60%, rgba(0,0,0,.55) 100%); }
 
-        /* TopBar（Selectと同じ中央幅） */
         .xh-top{
           position:fixed; inset:0 0 auto 0; height:var(--xh-h);
           background:#000; border-bottom:1px solid rgba(255,255,255,.1);
@@ -84,29 +76,16 @@ export default function PairingPage() {
           padding:0 var(--pad);
         }
         .xh-left{ min-width:0; display:flex; align-items:center; }
-        .xh-right{
-          display:flex; align-items:center;
-          gap: calc(var(--gap) + 6px);           
-          padding-right: calc(var(--pad) * .6);  
-        }
-        .xh-logoBox{ width:var(--logo-w); height:var(--logo-h); border-radius:8px;
-          overflow:hidden; border:1px solid rgba(255,255,255,.12);
-          display:grid; place-items:center; background:transparent; }
+        .xh-right{ display:flex; align-items:center; gap: calc(var(--gap) + 6px); padding-right: calc(var(--pad) * .6); }
+
+        .xh-logoBox{ width:var(--logo-w); height:var(--logo-h); border-radius:8px; overflow:hidden; border:1px solid rgba(255,255,255,.12); display:grid; place-items:center; background:transparent; }
         .xh-logoImg{ width:100%; height:100%; object-fit:contain; display:block; }
 
-        /* 丸囲みナシ：透明・白塗りPNGをそのまま表示 */
-        .xh-ico{
-          display:flex; align-items:center; justify-content:center;
-          width:auto; height:auto; background:transparent; border:none; border-radius:0; padding:0;
-        }
-        .xh-ico img{
-          width:var(--ico); height:auto; display:block;
-          filter: brightness(0) invert(1); /* 念のため白化（元が黒系でも白で出る） */
-        }
+        .xh-ico{ display:flex; align-items:center; justify-content:center; width:auto; height:auto; background:transparent; border:none; border-radius:0; padding:0; }
+        .xh-ico img{ width:var(--ico); height:auto; display:block; filter: brightness(0) invert(1); }
 
         .xh-content-pad{ padding-top: var(--xh-h); }
 
-        /* 本文 */
         .xh-main{ position:relative; min-height:100vh; display:grid; grid-template-rows:var(--xh-h) 1fr; }
         .xh-center{ display:flex; align-items:center; justify-content:center; padding: clamp(12px,4vw,24px); text-align:center; }
         .xh-title{ margin:0 0 10px; font-weight:800; font-size:clamp(18px,3.6vw,28px); text-shadow:0 1px 2px rgba(0,0,0,.35); }
@@ -116,7 +95,6 @@ export default function PairingPage() {
         .xh-connect{ background:#fff; color:#111; }
         .xh-err{ margin-top:8px; color:#ffe08a; }
 
-        /* ふわっと表示 */
         @keyframes xh-fadeUp {
           0% { opacity:0; transform: translateY(8px) scale(0.995); filter: blur(4px); }
           100%{ opacity:1; transform:none; filter: none; }
@@ -164,9 +142,10 @@ export default function PairingPage() {
                   className="xh-input"
                   value={code}
                   onChange={(e)=>setCode(e.target.value)}
-                  placeholder="デバイスID"
+                  placeholder="デバイスID（6文字以内）"
                   inputMode="text"
                   autoComplete="one-time-code"
+                  maxLength={6}
                 />
               </div>
 

@@ -2,22 +2,37 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useLocation } from "react-router-dom";
 
-const API_BASE = "https://fourdk-backend-333203798555.asia-northeast1.run.app";
-const WS_BASE = API_BASE.replace(/^http/i, (m) => (m === "https" ? "wss" : "ws"));
+const API_ORIGIN = "https://fourdk-backend-333203798555.asia-northeast1.run.app";
+const WS_SYNC = (sid: string) =>
+  `wss://fourdk-backend-333203798555.asia-northeast1.run.app/api/playback/ws/sync/${encodeURIComponent(sid)}`;
 
-type WSMsg =
-  | { type: "start_playback" }
-  | { type: "end_playback" }
-  | { type: "play" }
-  | { type: "pause" }
-  | { type: "seek"; time: number }
-  | { type: "rate"; rate: number }
-  | { type: "sync"; time: number; playing: boolean; seeking?: boolean; buffering?: boolean; progress?: number }
-  | { type: "source"; src: string }
-  | { type: "effect"; action: string }
-  | { type: "ready"; device_ready?: boolean }
-  | { type: "error"; message?: string }
-  | { [k: string]: any };
+type SyncState = "play" | "pause" | "seeking" | "seeked";
+
+type InMsg =
+  | {
+      type: "connection_established";
+      connection_id: string;
+      session_id: string;
+      server_time: string;
+      message: string;
+    }
+  | {
+      type: "sync_ack";
+      session_id: string;
+      received_time: number;
+      received_state: SyncState;
+      server_time: string;
+      relayed_to_devices?: boolean;
+    }
+  | { type: string; [k: string]: any };
+
+type OutMsg = {
+  type: "sync";
+  state: SyncState;  // ← 状態（play/pause/seeking/seeked）
+  time: number;      // ← シークバー位置（秒）
+  duration: number;
+  ts: number;        // ms
+};
 
 export default function PlayerPage() {
   const { search } = useLocation();
@@ -26,16 +41,17 @@ export default function PlayerPage() {
   const contentId = q.get("content");
   const src = useMemo(() => (contentId ? `/media/${contentId}.mp4` : "/media/sample.mp4"), [contentId]);
 
-  const urlSession = q.get("session") || "";
-  const storageSession = sessionStorage.getItem("sessionId") || sessionStorage.getItem("sessionCode") || "";
-  const sessionId = urlSession || storageSession || "";
+  // URLの ?session= または sessionStorage("sessionId")
+  const sessionId = q.get("session") || sessionStorage.getItem("sessionId") || "";
 
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const progressRef = useRef<HTMLDivElement | null>(null);
 
   const wsRef = useRef<WebSocket | null>(null);
   const syncTimerRef = useRef<number | null>(null);
-  const lastDragSyncRef = useRef<number>(0); // ← ドラッグ中の送信間引き
+  const lastDragSyncRef = useRef<number>(0);
+  const reconnectAttemptsRef = useRef(0);
+  const maxReconnectAttempts = 5;
 
   const [overlay, setOverlay] = useState<string | null>(null);
   const [duration, setDuration] = useState(0);
@@ -48,10 +64,10 @@ export default function PlayerPage() {
   const [buffering, setBuffering] = useState(true);
 
   const [connected, setConnected] = useState(false);
-  const [deviceReady, setDeviceReady] = useState<boolean | null>(null);
   const [wsError, setWsError] = useState<string | null>(null);
+  const [connInfo, setConnInfo] = useState<string | null>(null);
 
-  /* ---------- 自動再生（初回はミュートで開始） ---------- */
+  // ===== 自動再生（初回はミュートで開始）
   const tryAutoplay = async () => {
     const v = videoRef.current;
     if (!v) return;
@@ -73,99 +89,112 @@ export default function PlayerPage() {
     if (v.volume === 0) v.volume = 1;
   };
 
-  /* ---------- セッション確認（GET） ---------- */
-  useEffect(() => {
-    let aborted = false;
-    (async () => {
-      if (!sessionId) return;
-      try {
-        const res = await fetch(`${API_BASE}/api/sessions/${encodeURIComponent(sessionId)}`);
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        const data = await res.json().catch(() => ({}));
-        if (!aborted) setDeviceReady(!!data?.device_ready);
-      } catch {}
-    })();
-    return () => { aborted = true; };
-  }, [sessionId]);
-
-  /* ---------- WebSocket 接続 ---------- */
-  useEffect(() => {
-    if (!sessionId) return;
-    const url = `${WS_BASE}/ws/sessions/${encodeURIComponent(sessionId)}`;
+  // ===== WebSocket接続（/api/playback/ws/sync/{session_id}）
+  const connectWS = () => {
+    if (!sessionId) { setWsError("No sessionId"); return; }
     try {
-      const ws = new WebSocket(url);
+      const ws = new WebSocket(WS_SYNC(sessionId));
       wsRef.current = ws;
 
       ws.onopen = () => {
         setConnected(true);
         setWsError(null);
-        sendWS({ type: "join_player", role: "web", session: sessionId });
-        if (deviceReady) sendWS({ type: "start_playback" });
+        reconnectAttemptsRef.current = 0;
+        startSyncLoop(); // ← ここで 0.5秒周期送信を開始
       };
-      ws.onmessage = (ev) => handleServerMessage(JSON.parse(ev.data));
-      ws.onerror   = () => setWsError("WebSocketエラー");
-      ws.onclose   = () => setConnected(false);
 
-      return () => { try { ws.close(); } catch {} };
+      ws.onmessage = (ev) => {
+        let msg: InMsg;
+        try { msg = JSON.parse(ev.data); } catch { return; }
+        if (msg.type === "connection_established") {
+          setConnInfo(`${msg.connection_id}`);
+          console.log("WS connected:", msg);
+        } else if (msg.type === "sync_ack") {
+          // ACKは必要に応じて利用
+          // console.log("sync_ack", msg.received_state, msg.received_time);
+        }
+      };
+
+      ws.onerror = () => setWsError("WebSocket error");
+
+      ws.onclose = () => {
+        setConnected(false);
+        stopSyncLoop();
+        if (reconnectAttemptsRef.current < maxReconnectAttempts) {
+          reconnectAttemptsRef.current += 1;
+          setTimeout(connectWS, 1000 * reconnectAttemptsRef.current);
+        }
+      };
     } catch {
-      setWsError("WebSocket接続に失敗しました");
+      setWsError("WebSocket connection failed");
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [sessionId, deviceReady]);
+  };
 
-  const sendWS = (message: WSMsg) => {
+  // ★★★ ここを 500ms に変更（0.5秒周期で状態 + シーク位置を送信）
+  const startSyncLoop = () => {
+    stopSyncLoop();
+    syncTimerRef.current = window.setInterval(() => {
+      sendSync();
+    }, 500);
+  };
+  const stopSyncLoop = () => {
+    if (syncTimerRef.current) { clearInterval(syncTimerRef.current); syncTimerRef.current = null; }
+  };
+
+  const computeState = (): SyncState => {
+    if (seeking) return "seeking";
+    const v = videoRef.current;
+    if (!v) return "pause";
+    if (v.paused) return "pause";
+    if (buffering) return "seeking";
+    return "play";
+  };
+
+  const send = (obj: OutMsg) => {
     const s = wsRef.current;
-    if (s && s.readyState === WebSocket.OPEN) s.send(JSON.stringify(message));
+    if (s && s.readyState === WebSocket.OPEN) s.send(JSON.stringify(obj));
   };
 
-  const handleServerMessage = (msg: WSMsg) => {
-    const v = videoRef.current; if (!v) return;
-    switch (msg.type) {
-      case "ready": setDeviceReady(true); break;
-      case "play":  unmuteIfPossible(); v.play().catch(() => setOverlay("タップして再生")); break;
-      case "pause": v.pause(); break;
-      case "seek":
-        if (typeof msg.time === "number") {
-          v.currentTime = Math.max(0, Math.min(msg.time, v.duration || msg.time));
-          setCurrent(v.currentTime);
-        }
-        break;
-      case "sync":
-        if (typeof msg.time === "number") {
-          const drift = Math.abs((v.currentTime ?? 0) - msg.time);
-          if (drift > 0.5) { v.currentTime = msg.time; setCurrent(msg.time); }
-        }
-        if (typeof msg.playing === "boolean") {
-          if (msg.playing && v.paused) v.play().catch(() => setOverlay("タップして再生"));
-          if (!msg.playing && !v.paused) v.pause();
-        }
-        break;
-      case "rate":
-        if (typeof msg.rate === "number" && msg.rate > 0) v.playbackRate = msg.rate;
-        break;
-      case "source":
-        if (typeof msg.src === "string" && msg.src) {
-          v.src = msg.src; v.load(); v.play().catch(() => setOverlay("タップして再生"));
-        }
-        break;
-      case "end_playback":
-        v.pause(); v.currentTime = 0; setCurrent(0); setIsPlaying(false); break;
-      case "effect":
-      case "error":
-        break;
-    }
+  // 0.5秒ごとに「状態」と「シークバー位置（time）」を送信
+  const sendSync = () => {
+    const v = videoRef.current;
+    const t = seeking ? seekValue : v?.currentTime ?? 0;     // シークバーの見かけの位置
+    const d = duration || v?.duration || 0;
+    const state = computeState();
+
+    const payload: OutMsg = {
+      type: "sync",
+      state,
+      time: t,
+      duration: d,
+      ts: Date.now(),
+    };
+    send(payload);
+
+    // デバッグ表示: "秒数,再生中true/false"
+    console.log(`${t.toFixed(2)},${state === "play"}`);
   };
 
-  /* ---------- video イベント ---------- */
+  useEffect(() => {
+    connectWS();
+    return () => {
+      stopSyncLoop();
+      try { wsRef.current?.close(); } catch {}
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sessionId]);
+
+  // ===== videoイベント
   useEffect(() => {
     const v = videoRef.current; if (!v) return;
+
     const onLoaded = () => { setDuration(v.duration || 0); setBuffering(v.readyState < 4); };
     const onCanPlay = () => setBuffering(false);
     const onWaiting = () => setBuffering(true);
     const onPlaying = () => { setIsPlaying(true); setOverlay(null); setBuffering(false); };
     const onTime   = () => { if (!seeking) setCurrent(v.currentTime || 0); };
     const onPause  = () => setIsPlaying(false);
-    const onEnded  = () => { setIsPlaying(false); sendWS({ type: "end_playback" }); };
+    const onEnded  = () => setIsPlaying(false);
 
     v.addEventListener("loadedmetadata", onLoaded);
     v.addEventListener("canplay", onCanPlay);
@@ -185,25 +214,7 @@ export default function PlayerPage() {
     };
   }, [seeking]);
 
-  /* ---------- 0.5秒ごとのログ＆送信（通常時） ---------- */
-  useEffect(() => {
-    if (syncTimerRef.current) window.clearInterval(syncTimerRef.current);
-    syncTimerRef.current = window.setInterval(() => {
-      const v = videoRef.current;
-      const displayedTime = seeking ? seekValue : (v?.currentTime ?? 0);
-      const playingActive = !!(v && !v.paused && !seeking && !buffering);
-
-      // 例: 12.34,true
-      console.log(`${displayedTime.toFixed(2)},${playingActive}`);
-
-      const prog = duration > 0 ? Math.max(0, Math.min(1, displayedTime / duration)) : 0;
-      sendWS({ type: "sync", time: displayedTime, playing: playingActive, seeking, buffering, progress: prog });
-    }, 500);
-
-    return () => { if (syncTimerRef.current) window.clearInterval(syncTimerRef.current); syncTimerRef.current = null; };
-  }, [duration, seeking, seekValue, buffering]);
-
-  /* ---------- 進捗（赤バー & シーク） ---------- */
+  // ===== 進捗（シーク）
   const pct = duration > 0 ? (seeking ? seekValue / duration : current / duration) : 0;
 
   const posToTime = (clientX: number) => {
@@ -218,9 +229,10 @@ export default function PlayerPage() {
     setSeeking(true);
     const t = posToTime(e.clientX);
     setSeekValue(t);
-    // 即時ログ＆送信（ドラッグ開始）
+
+    // ドラッグ開始で即送信（state=seeking）
+    send({ type: "sync", state: "seeking", time: t, duration, ts: Date.now() });
     console.log(`${t.toFixed(2)},false`);
-    sendWS({ type: "sync", time: t, playing: false, seeking: true, buffering, progress: duration>0 ? t/duration : 0 });
     lastDragSyncRef.current = performance.now();
   };
 
@@ -229,11 +241,11 @@ export default function PlayerPage() {
     const t = posToTime(e.clientX);
     setSeekValue(t);
 
-    // ★ ドラッグ中は 100ms 間引きで即時ログ＆送信（iOS等のtimerスロットル対策）
+    // ドラッグ中は100ms間引きで即送信（※周期500msとは別レーン）
     const now = performance.now();
     if (now - lastDragSyncRef.current >= 100) {
+      send({ type: "sync", state: "seeking", time: t, duration, ts: Date.now() });
       console.log(`${t.toFixed(2)},false`);
-      sendWS({ type: "sync", time: t, playing: false, seeking: true, buffering, progress: duration>0 ? t/duration : 0 });
       lastDragSyncRef.current = now;
     }
   };
@@ -246,38 +258,60 @@ export default function PlayerPage() {
     v.currentTime = Math.max(0, Math.min(t, v.duration || t));
     setCurrent(v.currentTime);
     unmuteIfPossible();
-    // 確定時もログ（pausedかどうかはブラウザ状態に従う）
-    const playingActive = !!(!v.paused && !buffering);
-    console.log(`${v.currentTime.toFixed(2)},${playingActive}`);
-    sendWS({ type: "seek", time: v.currentTime });
-    sendWS({ type: "sync", time: v.currentTime, playing: playingActive, seeking: false, buffering, progress: duration>0 ? v.currentTime/duration : 0 });
+
+    // シーク確定で1発だけ "seeked"
+    send({ type: "sync", state: "seeked", time: v.currentTime, duration: v.duration || duration || 0, ts: Date.now() });
+    console.log(`${v.currentTime.toFixed(2)},${!v.paused}`);
+    // 以降は 0.5秒ループが play/pause を送る
   };
 
   const onProgressPointerCancel = (e: React.PointerEvent) => {
     (e.currentTarget as HTMLElement).releasePointerCapture(e.pointerId);
     setSeeking(false);
-    // キャンセル時も直近値で一度出しておく
     const t = seekValue;
+    send({ type: "sync", state: "seeked", time: t, duration, ts: Date.now() });
     console.log(`${t.toFixed(2)},false`);
-    sendWS({ type: "sync", time: t, playing: false, seeking: false, buffering, progress: duration>0 ? t/duration : 0 });
   };
 
-  /* ---------- 再生/停止 + 5s移動 ---------- */
+  // ===== キー & ボタン
+  useEffect(() => {
+    const h = (e: KeyboardEvent) => {
+      const v = videoRef.current; if (!v) return;
+      if (["INPUT", "TEXTAREA"].includes((document.activeElement?.tagName ?? ""))) return;
+      switch (e.key) {
+        case " ":
+          e.preventDefault(); togglePlay(); break;
+        case "ArrowRight":
+          skip(5); break;
+        case "ArrowLeft":
+          skip(-5); break;
+        case "m": case "M":
+          v.muted = !v.muted; setMuted(v.muted); break;
+        case "f": case "F":
+          if (document.fullscreenElement) document.exitFullscreen();
+          else v.parentElement?.requestFullscreen();
+          break;
+      }
+    };
+    window.addEventListener("keydown", h);
+    return () => window.removeEventListener("keydown", h);
+  }, []);
+
   const togglePlay = () => {
     const v = videoRef.current; if (!v) return;
     unmuteIfPossible();
-    if (v.paused) { v.play().catch(()=>setOverlay("タップして再生")); sendWS({ type: "start_playback" }); }
-    else { v.pause(); sendWS({ type: "pause" }); }
+    if (v.paused) v.play().catch(()=>setOverlay("タップして再生"));
+    else v.pause();
+    // sendSync(); // 反応をさらに早めたい場合は有効化
   };
+
   const skip = (sec: number) => {
     const v = videoRef.current; if (!v) return;
     unmuteIfPossible();
     v.currentTime = Math.max(0, Math.min((v.currentTime ?? 0) + sec, v.duration || Infinity));
-    // スキップ即時ログ＆送信
-    const playingActive = !!(!v.paused && !buffering);
-    console.log(`${v.currentTime.toFixed(2)},${playingActive}`);
-    sendWS({ type: "seek", time: v.currentTime });
-    sendWS({ type: "sync", time: v.currentTime, playing: playingActive, seeking: false, buffering, progress: duration>0 ? v.currentTime/duration : 0 });
+    // スキップ直後は "seeked" を1発送る
+    send({ type: "sync", state: "seeked", time: v.currentTime, duration: v.duration || duration || 0, ts: Date.now() });
+    console.log(`${v.currentTime.toFixed(2)},${!v.paused}`);
   };
 
   const fmt = (t: number) => {
@@ -294,10 +328,8 @@ export default function PlayerPage() {
           --hud-gap: clamp(10px, 3vw, 18px);
           --hud-size: clamp(44px, 7vw, 64px);
         }
-
         .vp{ position:fixed; inset:0; background:#000; color:#fff; font-family: system-ui,-apple-system,Segoe UI,Roboto,"Noto Sans JP",sans-serif; }
         .vp-outer{ position:relative; width:100%; height:100%; overflow:hidden; }
-
         .vp-video{ position:absolute; inset:0; width:100%; height:100%; object-fit:contain; background:#000; display:block; }
 
         .vp-loader{ position:absolute; inset:0; display:grid; place-items:center; z-index:6; pointer-events:none; }
@@ -310,15 +342,13 @@ export default function PlayerPage() {
         .vp-outer:hover .vp-bar, .vp-outer:hover .vp-fill,
         .vp-progress.dragging .vp-bar, .vp-progress.dragging .vp-fill{ height:6px; bottom:4px; }
 
-        .vp-hud{ position:absolute; inset:0; display:grid; grid-template-columns:1fr auto 1fr; align-items:center;
-          gap:var(--hud-gap); z-index:3; opacity:0; transition:opacity .18s ease; pointer-events:none; }
+        .vp-hud{ position:absolute; inset:0; display:grid; grid-template-columns:1fr auto 1fr; align-items:center; gap:var(--hud-gap); z-index:3; opacity:0; transition:opacity .18s ease; pointer-events:none; }
         .vp-outer:hover .vp-hud, .vp.touch .vp-hud{ opacity:1; }
         .vp-circle{ width:var(--hud-size); height:var(--hud-size); border-radius:999px; background:rgba(0,0,0,.35);
           border:1px solid rgba(255,255,255,.2); display:grid; place-items:center; pointer-events:auto; cursor:pointer;
           transition: transform .1s ease, background .2s ease, border-color .2s ease; margin-inline:auto; }
         .vp-circle:hover{ transform:translateY(-1px); background:rgba(0,0,0,.45); border-color:rgba(255,255,255,.35); }
         .vp-icon{ width:48%; height:48%; fill:#fff; display:block; }
-        .vp-center .vp-circle{ width:calc(var(--hud-size) * 1.1); height:calc(var(--hud-size) * 1.1); }
 
         .vp-overlay{ position:absolute; inset:0; display:grid; place-items:center; z-index:5; background:rgba(0,0,0,.25); font-weight:700; }
         .vp-note{ margin-top:8px; color:#ffd79a; text-align:center; font-weight:500; }
@@ -326,8 +356,6 @@ export default function PlayerPage() {
         .vp-info{ position:absolute; right:10px; bottom:24px; z-index:3; display:flex; flex-direction:column; gap:6px; align-items:flex-end;
           font-feature-settings:"tnum"; font-variant-numeric:tabular-nums; font-size:12px; color:#ddd; opacity:.9; }
         .vp-chip{ background:rgba(0,0,0,.35); padding:4px 6px; border-radius:6px; border:1px solid rgba(255,255,255,.15); }
-
-        @media (hover:none){ .vp{ touch-action: manipulation; } }
       `}</style>
 
       <div className="vp" onTouchStart={(e)=>{ (e.currentTarget as HTMLDivElement).classList.add("touch"); }}>
@@ -400,7 +428,8 @@ export default function PlayerPage() {
             <div className="vp-chip">
               {connected ? "WS: connected" : "WS: connecting..."}
               {wsError ? ` / ${wsError}` : ""}
-              {deviceReady !== null ? ` / device:${deviceReady ? "ready" : "waiting"}` : ""}
+              {connInfo ? ` / id:${connInfo}` : ""}
+              {sessionId ? ` / session:${sessionId}` : " / session: (none)"}
             </div>
             <div className="vp-chip">{fmt(current)} / {fmt(duration)}</div>
           </div>
