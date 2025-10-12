@@ -7,6 +7,10 @@
   <img src="assets/images/4DX＠HOME.png" alt="4DX@HOME" width="800">
 </div>
 
+[![JPHacks 2025](https://img.shields.io/badge/JPHacks%202025-Best%20Hackday%20Award-gold?style=for-the-badge&logo=trophy)](https://github.com/jphacks/kz_2504)
+
+**JPHacks2025 Hack Day (金沢会場)** にて **「Best Hackday Award」** を受賞しました！
+
 ## 製品概要
 ### 背景(製品開発のきっかけ、課題等）
 スマートフォンでの動画視聴が主流になる中、小さい画面では得にくい「没入感」が課題となっています。映画館の4DXのような体感型エンターテインメントは大掛かりな機材が必要で、自宅での視聴体験は画一的なものにとどまっていました。
@@ -72,31 +76,31 @@ WebSocketを用いたリアルタイム通信により、動画再生と物理�
 ## 開発技術
 ### 活用した技術
 #### API・データ
-* **OpenAI GPT-4o-mini (Vision API)** - マルチモーダルAIによる映像解析とシーン理解
-* **WebSocket (WSS)** - リアルタイム双方向通信
-* **JSON形式の同期データ** - 動画タイムスタンプとアクチュエーター制御パラメータのマッピング
+- ![OpenAI](https://img.shields.io/badge/OpenAI-GPT--4o--mini-green) **OpenAI GPT-4o-mini (Vision API)** - マルチモーダルAIによる映像解析とシーン理解
+- ![WebSocket](https://img.shields.io/badge/WebSocket-WSS-blue) **WebSocket (WSS)** - リアルタイム双方向通信
+- ![JSON](https://img.shields.io/badge/JSON-データ形式-orange) **JSON形式の同期データ** - 動画タイムスタンプとアクチュエーター制御パラメータのマッピング
 
 #### フレームワーク・ライブラリ・モジュール
-* **AI・動画処理**: OpenCV (opencv-python), requests (OpenAI API通信)
-* **バックエンド**: FastAPI 0.104.1, Uvicorn 0.24.0, websockets 11.0.3, Pydantic 2.5.0, aiofiles 25.1.0
-* **フロントエンド**: React 18.3.1, TypeScript 5.9.3, Vite 7.1.9, React Router DOM 6.30.1, Tailwind CSS 4.1.14
-* **デバイス**: Python 3.9+ (Raspberry Pi), pyserial 3.5, paho-mqtt-client, RPi.GPIO 0.7.1, Arduino (C++)
+- ![OpenCV](https://img.shields.io/badge/OpenCV-4.8.0-red) ![Python](https://img.shields.io/badge/Python-3.9+-blue) **AI・動画処理**: OpenCV (opencv-python), requests (OpenAI API通信)
+- ![FastAPI](https://img.shields.io/badge/FastAPI-0.104.1-green) ![Uvicorn](https://img.shields.io/badge/Uvicorn-0.24.0-blue) **バックエンド**: FastAPI 0.104.1, Uvicorn 0.24.0, websockets 11.0.3, Pydantic 2.5.0, aiofiles 25.1.0
+- ![React](https://img.shields.io/badge/React-18.3.1-blue) ![TypeScript](https://img.shields.io/badge/TypeScript-5.9.3-blue) ![Vite](https://img.shields.io/badge/Vite-7.1.9-yellow) **フロントエンド**: React 18.3.1, TypeScript 5.9.3, Vite 7.1.9, React Router DOM 6.30.1, Tailwind CSS 4.1.14
+- ![Raspberry Pi](https://img.shields.io/badge/Raspberry%20Pi-4-red) ![Arduino](https://img.shields.io/badge/Arduino-Uno%20R3-teal) **デバイス**: Python 3.9+ (Raspberry Pi), pyserial 3.5, paho-mqtt-client, RPi.GPIO 0.7.1, Arduino (C++)
 
 #### デバイス
-* **Raspberry Pi 4 Model B (4GB RAM)** - デバイスハブとして、TCP/WebSocket通信、タイムライン管理、Arduino制御を担当
-* **Arduino Uno R3 (3-4台)** - シリアル通信/MQTT経由で各アクチュエーターを個別制御
-* **振動モーター** - MQTT経由制御、映像に合わせた触覚フィードバック（3モード: 弱い振動、強い衝撃、ドキドキ）
-* **RGB LED + 高輝度LED** - PWM制御による光の演出（3モード: ストロボ、閃光、照明）+ 色表現（RGB 256段階）
-* **DCファン** - 風生成装置（2モード: 瞬間風、持続風）
-* **小型ポンプ** - 水噴射装置（瞬間噴射、安全制限付き）
-* **香り拡散器 (予定)** - ペルチェ素子加熱式、シーンに応じた香りの演出
+- ![Raspberry Pi](https://img.shields.io/badge/Raspberry%20Pi-4%20Model%20B-red) **Raspberry Pi 4 Model B (4GB RAM)** - デバイスハブとして、TCP/WebSocket通信、タイムライン管理、Arduino制御を担当
+- ![Arduino](https://img.shields.io/badge/Arduino-Uno%20R3%20×3--4台-teal) **Arduino Uno R3 (3-4台)** - シリアル通信/MQTT経由で各アクチュエーターを個別制御
+- ![振動](https://img.shields.io/badge/振動モーター-MQTT制御-purple) **振動モーター** - MQTT経由制御、映像に合わせた触覚フィードバック（3モード: 弱い振動、強い衝撃、ドキドキ）
+- ![LED](https://img.shields.io/badge/RGB%20LED-PWM制御-rainbow) **RGB LED + 高輝度LED** - PWM制御による光の演出（3モード: ストロボ、閃光、照明）+ 色表現（RGB 256段階）
+- ![ファン](https://img.shields.io/badge/DCファン-風生成-lightblue) **DCファン** - 風生成装置（2モード: 瞬間風、持続風）
+- ![ポンプ](https://img.shields.io/badge/小型ポンプ-水噴射-blue) **小型ポンプ** - 水噴射装置（瞬間噴射、安全制限付き）
+- ![香り](https://img.shields.io/badge/香り拡散器-予定-pink) **香り拡散器 (予定)** - ペルチェ素子加熱式、シーンに応じた香りの演出
 
 #### 対応効果
-* **振動（vibration）**: 弱い振動（long）、強い衝撃（strong）、ドキドキ（heartbeat） - MQTT制御
-* **光（flash）**: ストロボ（strobe）、閃光（burst）、照明（steady） - シリアル制御、PWM調光
-* **風（wind）**: 一瞬の風（burst）、長い風（long） - シリアル制御、DCファン可変速
-* **水（water）**: 水しぶき（burst）※shot型一度きり発動 - シリアル制御、安全制限付き
-* **色（color）**: 赤（red）、緑（green）、青（blue） - シリアル制御、RGB各色256段階
+- ![振動](https://img.shields.io/badge/振動-3モード-purple) **振動（vibration）**: 弱い振動（long）、強い衝撃（strong）、ドキドキ（heartbeat） - MQTT制御
+- ![光](https://img.shields.io/badge/光-3モード-yellow) **光（flash）**: ストロボ（strobe）、閃光（burst）、照明（steady） - シリアル制御、PWM調光
+- ![風](https://img.shields.io/badge/風-2モード-lightblue) **風（wind）**: 一瞬の風（burst）、長い風（long） - シリアル制御、DCファン可変速
+- ![水](https://img.shields.io/badge/水-瞬間噴射-blue) **水（water）**: 水しぶき（burst）※shot型一度きり発動 - シリアル制御、安全制限付き
+- ![色](https://img.shields.io/badge/色-RGB-rainbow) **色（color）**: 赤（red）、緑（green）、青（blue） - シリアル制御、RGB各色256段階
 
 ### 独自技術
 #### ハッカソンで開発した独自機能・技術
