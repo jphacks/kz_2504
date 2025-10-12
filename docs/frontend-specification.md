@@ -52,8 +52,8 @@
 | ---------------------------- | ---------------------- | ----------------------------------- |
 | ホーム (`HomePage`)             | キャッチコピー、開始導線           | ![Home](../assets/images/home.png)       |
 | セッション（ペアリング） (`PairingPage`) | セッションコード入力、接続状態        | ![Session](../assets/images/session.png) |
-| 動画選択 (`SelectPage`)          | 一覧/カテゴリ/ランキング          | ![Select](../assets/images/images/select.png)   |
-| 動画視聴（プレイヤー） (`PlayerPage`)   | 再生/一時停止・シーク・音量・フルスクリーン | ![Player](../assets/images//player.png)   |
+| 動画選択 (`SelectPage`)          | 一覧/カテゴリ/ランキング          | ![Select](../assets/images/select.png)   |
+| 動画視聴（プレイヤー） (`PlayerPage`)   | 再生/一時停止・シーク・音量・フルスクリーン | ![Player](../assets/images/player.png)   |
 
 ---
 
