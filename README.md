@@ -70,7 +70,7 @@ WebSocketによる**ミリ秒精度のリアルタイム通信**で動画と物�
 - **リアルタイムAI分析**: 事前解析不要で動画再生中にリアルタイムAI解析を行い、瞬時に4DX効果を生成する完全自動システム
 - **新感覚体験の追加**: 香り拡散（アロマカートリッジ）、温度制御（ペルチェ素子）、触覚拡張（エアバッグ）、音響表現（特定音の左右パン・立体音響制御）による多感覚4DX体験
 - **多様なジャンル対応**: アクション映像の迫力体験だけでなく、恋愛映画・ドキュメンタリー等のしっとりした映像に適した繊細な体験制御（微細振動・環境音・香り・温度変化）
-- **高精度同期の実現**: 専用リアルタイムOS導入による確定的レスポンス、予測制御アルゴリズムによる遅延完全補償
+- **カスタマイズ可能な体験制御**: 再生前に振動・光・風・水・色の各効果のON/OFF設定、強度調整機能により、ユーザーの好みや状況に応じた個別最適化
 
 ### 注力したこと（こだわり等）
 * **AI動画解析の効率化**: GPT-4o-mini Visionのバッチ処理（15枚同時解析）により、API呼び出しを1/15に削減し、コストと処理時間を大幅に短縮
@@ -134,9 +134,9 @@ WebSocketによる**ミリ秒精度のリアルタイム通信**で動画と物�
   → [`backend/app/services/continuous_sync_service.py`](./backend/app/services/continuous_sync_service.py), [`hardware/device-hub/src/websocket_client.py`](./hardware/device-hub/src/websocket_client.py)
 * **ハイブリッド通信アーキテクチャ**: WebSocket（同期制御）+ シリアル通信（Arduino制御）+ MQTT（振動制御）の統合システム  
   → [`hardware/device-hub/src/hub.py`](./hardware/device-hub/src/hub.py), [`hardware/device-hub/src/serial_controller.py`](./hardware/device-hub/src/serial_controller.py), [`hardware/vibration.ino`](./hardware/vibration.ino)
-* **カスタムハードウェア設計**: 3Dプリンターによる偏心モーター専用ケース設計、クッション内蔵型振動システム  
+* **カスタムハードウェア設計**: 3Dプリンターによる偏心モーター専用ケース設計、クッション内蔵型振動システム ※事前開発  
   → [`assets/images/Cushion_Motor_Case_3D_Model.png`](./assets/images/Cushion_Motor_Case_3D_Model.png), [`hardware/vibration.ino`](./hardware/vibration.ino)
-* **物理デバイス統合**: 木工製固定台によるデバイス群の安定配置、配線管理とメンテナンス性を両立  
+* **物理デバイス統合**: 木工製固定台によるデバイス群の安定配置、配線管理とメンテナンス性を両立 ※木工部分は事前開発  
   → [`hardware/lights.ino`](./hardware/lights.ino), [`hardware/water.ino`](./hardware/water.ino), [`hardware/device-hub/src/serial_controller.py`](./hardware/device-hub/src/serial_controller.py)
 * **タイムライン管理システム**: 継続効果・瞬間効果を区別し、最適なタイミングでアクチュエーター制御を実行  
   → [`backend/app/services/sync_data_service.py`](./backend/app/services/sync_data_service.py), [`hardware/device-hub/src/hub.py`](./hardware/device-hub/src/hub.py)
@@ -156,7 +156,7 @@ WebSocketによる**ミリ秒精度のリアルタイム通信**で動画と物�
 - ![木工](https://img.shields.io/badge/固定台-事前開発-brown) **木工製固定台**: デバイス群を統合固定する木製土台の設計・製作
 
 #### AI解析システム
-- ![AI](https://img.shields.io/badge/AI動画解析-事前開発ベース-green) **AI動画解析エンジン**: GPT-4o-mini Visionによるタイムライン生成システムの基本実装
+- ![AI](https://img.shields.io/badge/AI動画解析-事前開発ベース-green) **AI動画解析エンジン**: GPT-4o-mini Visionによる基本動作確認のみ事前実装。効果的なタイムライン生成のためのプロンプトエンジニアリングとユーザー体験最適化はハッカソン期間中に実施
 
 ### 開発期間中の作業
 事前開発により土台を構築した上で、ハッカソン期間中は以下に集中：
