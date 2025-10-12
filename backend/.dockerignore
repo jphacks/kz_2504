@@ -1,0 +1,70 @@
+# 🚫 Docker build context から除外するファイル・ディレクトリ
+
+# Python関連
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+pip-log.txt
+pip-delete-this-directory.txt
+.pytest_cache/
+
+# 仮想環境
+venv/
+env/
+ENV/
+.venv/
+
+# IDE設定
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS生成ファイル
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Git関連
+.git/
+.gitignore
+.gitattributes
+
+# ドキュメント（一部のみ除外）
+README.md
+.coverage
+htmlcov/
+.pytest_cache/
+
+# ローカル開発ファイル
+*.log
+.env
+.env.local
+.env.*.local
+
+# 開発用HTML（コメントアウト - 含める）
+# websocket_test.html
+
+# 一時ファイル
+*.tmp
+*.temp
+temp/
+tmp/
+
+# Node.js（フロントエンド関連を除外）
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# キャッシュディレクトリ
+.cache/
+.npm/
+.yarn/
