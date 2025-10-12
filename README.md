@@ -1,7 +1,8 @@
 # 4DX@HOME - あなたのおうちで「最高の映像」が「最強の体験」へ。
 
 <div align="center">
-  <img src="assets/images/4DX＠HOME.png" alt="4DX@HOME" width="800">
+  <img src="assets/images/4DX@HOME2.png" alt="4DX@HOME" width="400" style="margin-right: 10px;">
+  <img src="assets/images/Woodworking_Workbench.png" alt="木工製固定台" width="400">
 
   [![JPHacks 2025](https://img.shields.io/badge/JPHacks%202025-Best%20Hackday%20Award-gold?style=for-the-badge&logo=trophy)](https://github.com/jphacks/kz_2504)
 
@@ -137,7 +138,7 @@ WebSocketによる**ミリ秒精度のリアルタイム通信**で動画と物�
 * **カスタムハードウェア設計**: 3Dプリンターによる偏心モーター専用ケース設計、クッション内蔵型振動システム ※事前開発  
   → [`assets/images/Cushion_Motor_Case_3D_Model.png`](./assets/images/Cushion_Motor_Case_3D_Model.png), [`hardware/vibration.ino`](./hardware/vibration.ino)
 * **物理デバイス統合**: 木工製固定台によるデバイス群の安定配置、配線管理とメンテナンス性を両立 ※木工部分は事前開発  
-  → [`hardware/lights.ino`](./hardware/lights.ino), [`hardware/water.ino`](./hardware/water.ino), [`assets/images/Woodworking_Workbench.jpg`](./assets/images/Woodworking_Workbench.jpg)
+  → [`hardware/lights.ino`](./hardware/lights.ino), [`hardware/water.ino`](./hardware/water.ino), [`assets/images/Woodworking_Workbench.png`](./assets/images/Woodworking_Workbench.png)
 * **タイムライン管理システム**: 最適なタイミングでアクチュエーター制御を実行  
   → [`backend/app/services/sync_data_service.py`](./backend/app/services/sync_data_service.py), [`hardware/hardware_server.py`](./hardware/hardware_server.py)
 
