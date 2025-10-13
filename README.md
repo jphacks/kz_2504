@@ -14,7 +14,7 @@
 **Webアプリ**: https://kz-2504.onrender.com/ (現在はフロントのみ稼働)<br>
 **Yotube動画**: https://youtu.be/le1PPYY8JKY<br>
 
-動画で使用しているPDFはこちら: assets/images/4DX@HOME_HackDay用動画用パワポ.pdf
+動画で使用しているPDFはこちら: [PDF](https://github.com/jphacks/kz_2504/blob/main/assets/images/4DX%40HOME_HackDay%E7%94%A8%E5%8B%95%E7%94%BB%E7%94%A8%E3%83%91%E3%83%AF%E3%83%9D.pdf)
 
 ## 製品概要
 
