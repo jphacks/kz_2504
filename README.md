@@ -12,6 +12,7 @@
 
 ## 🌐 Live Demo
 **Webアプリ**: https://kz-2504.onrender.com/ (現在はフロントのみ稼働)
+**Yotube動画**: https://youtu.be/le1PPYY8JKY
 
 ## 製品概要
 
