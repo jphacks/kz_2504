@@ -12,7 +12,9 @@
 
 ## 🌐 Live Demo
 **Webアプリ**: https://kz-2504.onrender.com/ (現在はフロントのみ稼働)<br>
-**Yotube動画**: https://youtu.be/le1PPYY8JKY
+**Yotube動画**: https://youtu.be/le1PPYY8JKY<br>
+
+動画で使用しているPDFはこちら: assets/images/4DX@HOME_HackDay用動画用パワポ.pdf
 
 ## 製品概要
 
