@@ -67,11 +67,12 @@ python raspberry-pi-pc-debug.py test_session_pc
 
 ### **📡 CloudRun APIテスト**
 ```bash
+# 注意: 実際のURLは .env ファイルから取得してください
 # タイムライン読み込みテスト
-curl -X POST "https://fourdk-backend-333203798555.asia-northeast1.run.app/api/playback/debug/timeline/test_session?video_id=demo1"
+curl -X POST "${BACKEND_API_URL}/api/playback/debug/timeline/test_session?video_id=demo1"
 
 # 連続同期開始テスト
-curl -X POST "https://fourdk-backend-333203798555.asia-northeast1.run.app/api/playback/debug/sync/test_session/start?interval=0.5"
+curl -X POST "${BACKEND_API_URL}/api/playback/debug/sync/test_session/start?interval=0.5"
 ```
 
 ### **🔧 既存システム**

@@ -63,6 +63,9 @@ api_keys.txt
 *.p12
 *.pfx
 
+# デプロイ情報・機密URL情報（backend-report全体を除外）
+docs/backend-report/
+
 # Database and data files
 *.db
 *.sqlite
