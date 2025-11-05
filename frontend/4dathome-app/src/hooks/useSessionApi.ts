@@ -1,7 +1,9 @@
 // src/hooks/useSessionApi.ts
+import { BACKEND_API_URL } from "../config/backend";
+
 export async function fetchSessionStatus(id: string) {
   try {
-    const res = await fetch(`https://your-server-domain/api/sessions/${id}`);
+    const res = await fetch(`${BACKEND_API_URL}/api/sessions/${id}`);
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     const data = await res.json();
     return data; // { device_ready: true } を想定
@@ -10,3 +12,4 @@ export async function fetchSessionStatus(id: string) {
     return null;
   }
 }
+// ✅ updated for 4DX@HOME spec

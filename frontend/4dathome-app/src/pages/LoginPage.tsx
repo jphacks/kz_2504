@@ -1,49 +1,34 @@
-// src/pages/PairingPage.tsx
-import { useEffect, useRef, useState } from "react";
+// src/pages/LoginPage.tsx
+import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { BACKEND_API_URL } from "../config/backend";
 
-/** Pairing：背景フル / ヘッダーは左=長方形ロゴ・右=白塗りPNGアイコン2つ（丸囲み無し / Selectと同じ幅感） */
-export default function PairingPage() {
-  const [code, setCode] = useState("");
+/** テスト用ログイン画面：ダミーログインで動画選択画面へ遷移 */
+export default function LoginPage() {
+  const [username, setUsername] = useState("");
+  const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
-  const [deviceReady] = useState(false); // 今回WS使わない
-  const wsRef = useRef<WebSocket | null>(null);
   const navigate = useNavigate();
 
-  // const API_BASE = "https://fourdk-backend-333203798555.asia-northeast1.run.app";
-
-  // デバイス情報取得（GET /api/device/info/{product_code}）→ 成功で /selectpage
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleLogin = (e: React.FormEvent) => {
     e.preventDefault();
-    const c = code.trim();
+    const u = username.trim();
+    const p = password.trim();
 
-    if (!c) { setError("コードを入力してください"); return; }
-    if (c.length > 6) { setError("コードは6文字以内で入力してください"); return; }
+    if (!u || !p) {
+      setError("ユーザー名とパスワードを入力してください");
+      return;
+    }
 
     setError(null);
     setLoading(true);
 
-    try {
-  const res = await fetch(`${BACKEND_API_URL}/api/device/info/${encodeURIComponent(c)}`);
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      const data = await res.json().catch(() => ({}));
-
-      // 必要情報を保存（後段で利用）
-      sessionStorage.setItem("productCode", c);
-      if (data?.device_id) sessionStorage.setItem("deviceId", String(data.device_id));
-      sessionStorage.setItem("deviceInfo", JSON.stringify(data));
-
+    // ダミーログイン：成功扱いで動画選択画面へ遷移
+    setTimeout(() => {
+      sessionStorage.setItem("loggedIn", "true");
       navigate("/selectpage", { replace: true });
-    } catch (err) {
-      console.error(err);
-      setError("デバイスが見つからないか、サーバーに接続できません");
-      setLoading(false);
-    }
+    }, 300);
   };
-
-  useEffect(() => () => wsRef.current?.close(), []);
 
   return (
     <>
@@ -90,10 +75,10 @@ export default function PairingPage() {
         .xh-main{ position:relative; min-height:100vh; display:grid; grid-template-rows:var(--xh-h) 1fr; }
         .xh-center{ display:flex; align-items:center; justify-content:center; padding: clamp(12px,4vw,24px); text-align:center; }
         .xh-title{ margin:0 0 10px; font-weight:800; font-size:clamp(18px,3.6vw,28px); text-shadow:0 1px 2px rgba(0,0,0,.35); }
-        .xh-field{ width:min(80vw,420px); display:inline-block; }
+        .xh-field{ width:min(80vw,420px); display:inline-block; margin-bottom: 12px; }
         .xh-input{ width:100%; height:clamp(40px,6.6vw,48px); background:#fff; color:#111; border-radius:6px; border:2px solid #111; padding:0 12px; font-size:clamp(14px,3.2vw,18px); box-shadow:0 2px 0 rgba(0,0,0,.35); }
         .xh-btn{ margin-top:14px; min-width:160px; height:clamp(42px,7vw,48px); border:none; border-radius:8px; font-weight:700; cursor:pointer; }
-        .xh-connect{ background:#fff; color:#111; }
+        .xh-login{ background:#fff; color:#111; }
         .xh-debug{ background:#4a90e2; color:#fff; font-size:clamp(13px,2.8vw,15px); }
         .xh-err{ margin-top:8px; color:#ffe08a; }
 
@@ -107,6 +92,7 @@ export default function PairingPage() {
         .xh-d2{ animation-delay: .16s; }
         .xh-d3{ animation-delay: .23s; }
         .xh-d4{ animation-delay: .30s; }
+        .xh-d5{ animation-delay: .37s; }
         @media (prefers-reduced-motion: reduce) { .xh-fade{ animation:none !important; opacity:1 !important; transform:none !important; filter:none !important; } }
       `}</style>
 
@@ -137,31 +123,41 @@ export default function PairingPage() {
         <main className="xh-main xh-content-pad">
           <div />
           <div className="xh-center">
-            <form onSubmit={handleSubmit} aria-labelledby="pairingTitle">
-              <h1 id="pairingTitle" className="xh-title xh-fade xh-d0">デバイスのIDを入力してください</h1>
+            <form onSubmit={handleLogin} aria-labelledby="loginTitle">
+              <h1 id="loginTitle" className="xh-title xh-fade xh-d0">ログイン</h1>
 
               <div className="xh-field xh-fade xh-d1">
                 <input
                   className="xh-input"
-                  value={code}
-                  onChange={(e)=>setCode(e.target.value)}
-                  placeholder="デバイスID（6文字以内）"
-                  inputMode="text"
-                  autoComplete="one-time-code"
-                  maxLength={6}
+                  value={username}
+                  onChange={(e)=>setUsername(e.target.value)}
+                  placeholder="ユーザー名またはメール"
+                  type="text"
+                  autoComplete="username"
                 />
               </div>
 
-              {error && <div className="xh-err xh-fade xh-d2">⚠ {error}</div>}
+              <div className="xh-field xh-fade xh-d2">
+                <input
+                  className="xh-input"
+                  value={password}
+                  onChange={(e)=>setPassword(e.target.value)}
+                  placeholder="パスワード"
+                  type="password"
+                  autoComplete="current-password"
+                />
+              </div>
 
-              <div className="xh-fade xh-d3">
-                <button type="submit" className="xh-btn xh-connect" disabled={loading}>
-                  {loading ? "接続中..." : "接続"}
+              {error && <div className="xh-err xh-fade xh-d3">⚠ {error}</div>}
+
+              <div className="xh-fade xh-d4">
+                <button type="submit" className="xh-btn xh-login" disabled={loading}>
+                  {loading ? "ログイン中..." : "ログイン"}
                 </button>
               </div>
 
               {/* デバッグ用：動画に直接飛ぶボタン */}
-              <div className="xh-fade xh-d4" style={{marginTop:"12px"}}>
+              <div className="xh-fade xh-d5" style={{marginTop:"12px"}}>
                 <button 
                   type="button" 
                   className="xh-btn xh-debug" 

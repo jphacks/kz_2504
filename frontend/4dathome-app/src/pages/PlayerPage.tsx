@@ -1,10 +1,11 @@
 // src/pages/PlayerPage.tsx
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useLocation } from "react-router-dom";
+import { BACKEND_API_URL, BACKEND_WS_URL } from "../config/backend";
 
 const FIXED_SESSION_ID = "demo_session";
 const WS_SYNC = () =>
-  `wss://fourdk-backend-333203798555.asia-northeast1.run.app/api/playback/ws/sync/${encodeURIComponent(FIXED_SESSION_ID)}`;
+  `${BACKEND_WS_URL}/api/playback/ws/sync/${encodeURIComponent(FIXED_SESSION_ID)}`;
 
 type SyncState = "play" | "pause" | "seeking" | "seeked";
 
@@ -79,6 +80,20 @@ export default function PlayerPage() {
   const [connected, setConnected] = useState(false);
   const [wsError, setWsError] = useState<string | null>(null);
   const [connInfo, setConnInfo] = useState<string | null>(null);
+
+  // 動画準備状態
+  const [isVideoReady, setIsVideoReady] = useState(false);
+
+  // デバイスハブ接続管理
+  const [deviceHubId, setDeviceHubId] = useState("");
+  const [isDeviceConnected, setIsDeviceConnected] = useState(false);
+  const [isTimelineSent, setIsTimelineSent] = useState(false);
+  const [isDevicesTested, setIsDevicesTested] = useState(false);
+  const [showPrepareScreen, setShowPrepareScreen] = useState(true);
+  const [prepareError, setPrepareError] = useState<string | null>(null);
+
+  // 全準備完了判定
+  const allReady = isDeviceConnected && isVideoReady && isTimelineSent && isDevicesTested;
 
   // ★ 最初の start を「確実に1回だけ」送ったか
   const startSentRef = useRef(false);
@@ -173,6 +188,78 @@ export default function PlayerPage() {
     const v = videoRef.current; if (!v) return;
     if (v.muted) { v.muted = false; setMuted(false); }
     if (v.volume === 0) v.volume = 1;
+  };
+
+  /* ====== デバイスハブ接続処理 ====== */
+  const handleDeviceConnect = async () => {
+    const hubId = deviceHubId.trim();
+    if (!hubId) {
+      setPrepareError("デバイスハブIDを入力してください");
+      return;
+    }
+    setPrepareError(null);
+
+    try {
+      const res = await fetch(`${BACKEND_API_URL}/api/v1/session`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ deviceHubId: hubId, videoId: contentId || "sample" }),
+      });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      setIsDeviceConnected(true);
+    } catch (err) {
+      console.error(err);
+      setPrepareError("デバイスハブへの接続に失敗しました");
+    }
+  };
+
+  /* ====== タイムライン送信処理 ====== */
+  const handleTimelineSend = async () => {
+    if (!isDeviceConnected) {
+      setPrepareError("先にデバイスハブを接続してください");
+      return;
+    }
+    setPrepareError(null);
+
+    // ダミータイムラインJSON（実際は動画に応じたタイムライン）
+    const timeline = [
+      { time: 0, action: "wind", intensity: 0.5 },
+      { time: 10, action: "vibration", intensity: 0.8 },
+    ];
+
+    try {
+      const res = await fetch(`${BACKEND_API_URL}/api/v1/timeline`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ deviceHubId: deviceHubId.trim(), videoId: contentId || "sample", timeline }),
+      });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      setIsTimelineSent(true);
+    } catch (err) {
+      console.error(err);
+      setPrepareError("タイムライン送信に失敗しました");
+    }
+  };
+
+  /* ====== デバイステスト処理 ====== */
+  const handleDeviceTest = async () => {
+    if (!isTimelineSent) {
+      setPrepareError("先にタイムラインを送信してください");
+      return;
+    }
+    setPrepareError(null);
+
+    // デバイステスト（実際はAPIコール）
+    setTimeout(() => {
+      setIsDevicesTested(true);
+    }, 500);
+  };
+
+  /* ====== スタートボタン ====== */
+  const handleStartClick = () => {
+    if (!allReady) return;
+    setShowPrepareScreen(false);
+    void tryStartPlayback();
   };
 
   /* ====== WebSocket 接続 ====== */
@@ -278,6 +365,34 @@ export default function PlayerPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [sessionId]);
 
+  /* ====== 再生時間情報の定期送信（バックエンド連携） ====== */
+  useEffect(() => {
+    if (!isPlaying || showPrepareScreen) return;
+    
+    const interval = setInterval(async () => {
+      const v = videoRef.current;
+      if (!v || v.paused) return;
+      
+      const currentTime = v.currentTime;
+      try {
+        await fetch(`${BACKEND_API_URL}/api/v1/playback/time`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            sessionId,
+            deviceHubId: deviceHubId.trim(),
+            currentTime,
+            timestamp: Date.now(),
+          }),
+        });
+      } catch (err) {
+        // エラーは無視（送信のみ）
+      }
+    }, 500);
+
+    return () => clearInterval(interval);
+  }, [isPlaying, showPrepareScreen, sessionId, deviceHubId]);
+
   /* ====== video イベント ====== */
   useEffect(() => {
     const v = videoRef.current; if (!v) return;
@@ -295,11 +410,13 @@ export default function PlayerPage() {
       }
     };
 
+    const onCanPlayThrough = () => {
+      setIsVideoReady(true);
+    };
+
     const onWaiting = () => setBuffering(true);
 
     const onPlay = () => {
-      // 再生要求が出た瞬間（実再生前）に予約
-      // 少し遅延させてUI/他イベントと競合しにくくする
       setTimeout(() => { void sendStartOnce(); }, 10);
     };
 
@@ -307,7 +424,6 @@ export default function PlayerPage() {
       setIsPlaying(true);
       setOverlay(null);
       setBuffering(false);
-      // 実際に再生が始まったタイミングでも保険で実行（内部で一度きりに抑制）
       setTimeout(() => { void sendStartOnce(); }, 0);
     };
 
@@ -317,9 +433,10 @@ export default function PlayerPage() {
 
     v.addEventListener("loadedmetadata", onLoaded);
     v.addEventListener("canplay", onCanPlay);
+    v.addEventListener("canplaythrough", onCanPlayThrough);
     v.addEventListener("waiting", onWaiting);
-    v.addEventListener("play", onPlay);       // ★ 追加
-    v.addEventListener("playing", onPlaying); // ★ 維持
+    v.addEventListener("play", onPlay);
+    v.addEventListener("playing", onPlaying);
     v.addEventListener("timeupdate", onTime);
     v.addEventListener("pause", onPause);
     v.addEventListener("ended", onEnded);
@@ -327,6 +444,7 @@ export default function PlayerPage() {
     return () => {
       v.removeEventListener("loadedmetadata", onLoaded);
       v.removeEventListener("canplay", onCanPlay);
+      v.removeEventListener("canplaythrough", onCanPlayThrough);
       v.removeEventListener("waiting", onWaiting);
       v.removeEventListener("play", onPlay);
       v.removeEventListener("playing", onPlaying);
@@ -423,6 +541,103 @@ export default function PlayerPage() {
     return h > 0 ? `${h}:${String(m).padStart(2,"0")}:${String(s).padStart(2,"0")}` : `${m}:${String(s).padStart(2,"0")}`;
   };
 
+  // 動画準備画面の表示
+  if (showPrepareScreen) {
+    return (
+      <>
+        <style>{`
+          .prep-root{ position:fixed; inset:0; background:#0e1324; color:#fff; font-family: system-ui,-apple-system,Segoe UI,Roboto,"Noto Sans JP",sans-serif; display:flex; align-items:center; justify-content:center; }
+          .prep-box{ max-width:500px; width:90%; background:rgba(255,255,255,.05); border:1px solid rgba(255,255,255,.1); border-radius:12px; padding:clamp(20px,4vw,32px); }
+          .prep-title{ font-size:clamp(18px,3.6vw,24px); font-weight:700; margin-bottom:20px; }
+          .prep-section{ margin-bottom:18px; padding-bottom:18px; border-bottom:1px solid rgba(255,255,255,.08); }
+          .prep-section:last-of-type{ border-bottom:none; }
+          .prep-label{ font-size:14px; margin-bottom:6px; opacity:.85; }
+          .prep-input{ width:100%; padding:10px; border-radius:6px; border:1px solid rgba(255,255,255,.2); background:rgba(0,0,0,.3); color:#fff; font-size:14px; }
+          .prep-btn{ padding:10px 20px; border-radius:6px; border:none; font-weight:600; cursor:pointer; margin-right:10px; }
+          .prep-btn-primary{ background:#4a90e2; color:#fff; }
+          .prep-btn-primary:disabled{ opacity:.5; cursor:not-allowed; }
+          .prep-status{ margin-top:8px; font-size:13px; }
+          .prep-status.ok{ color:#5dff5d; }
+          .prep-status.err{ color:#ff8a8a; }
+          .prep-start{ width:100%; padding:14px; font-size:16px; font-weight:700; border-radius:8px; border:none; cursor:pointer; background:#5dff5d; color:#111; margin-top:12px; }
+          .prep-start:disabled{ opacity:.4; cursor:not-allowed; }
+          .prep-debug{ width:100%; padding:12px; font-size:14px; font-weight:600; border-radius:8px; border:1px solid rgba(74,144,226,.5); cursor:pointer; background:rgba(74,144,226,.2); color:#4a90e2; margin-top:10px; }
+          .prep-debug:hover{ background:rgba(74,144,226,.3); }
+        `}</style>
+
+        <div className="prep-root">
+          <div className="prep-box">
+            <h1 className="prep-title">動画準備画面</h1>
+
+            {/* デバイスハブ接続 */}
+            <div className="prep-section">
+              <div className="prep-label">デバイスハブID</div>
+              <input
+                className="prep-input"
+                value={deviceHubId}
+                onChange={(e) => setDeviceHubId(e.target.value)}
+                placeholder="例: DHX001"
+              />
+              <button className="prep-btn prep-btn-primary" onClick={handleDeviceConnect} disabled={isDeviceConnected}>
+                接続
+              </button>
+              {isDeviceConnected && <div className="prep-status ok">✅ 接続済み</div>}
+            </div>
+
+            {/* 動画ロード状態 */}
+            <div className="prep-section">
+              <div className="prep-label">動画読み込み状態</div>
+              {isVideoReady ? (
+                <div className="prep-status ok">✅ 読み込み完了</div>
+              ) : (
+                <div className="prep-status">⏳ 読み込み中...</div>
+              )}
+            </div>
+
+            {/* タイムライン送信 */}
+            <div className="prep-section">
+              <div className="prep-label">タイムラインJSON送信</div>
+              <button className="prep-btn prep-btn-primary" onClick={handleTimelineSend} disabled={isTimelineSent || !isDeviceConnected}>
+                送信
+              </button>
+              {isTimelineSent && <div className="prep-status ok">✅ 送信完了</div>}
+            </div>
+
+            {/* デバイス動作確認 */}
+            <div className="prep-section">
+              <div className="prep-label">デバイス動作確認</div>
+              <button className="prep-btn prep-btn-primary" onClick={handleDeviceTest} disabled={isDevicesTested || !isTimelineSent}>
+                テスト実行
+              </button>
+              {isDevicesTested && <div className="prep-status ok">✅ 確認完了</div>}
+            </div>
+
+            {prepareError && <div className="prep-status err">⚠ {prepareError}</div>}
+
+            {/* スタートボタン */}
+            <button className="prep-start" onClick={handleStartClick} disabled={!allReady}>
+              {allReady ? "再生スタート" : "準備中..."}
+            </button>
+
+            {/* デバッグ用：準備をスキップして再生開始 */}
+            <button 
+              className="prep-debug" 
+              onClick={() => {
+                setShowPrepareScreen(false);
+                void tryStartPlayback();
+              }}
+            >
+              🔧 デバッグ：準備をスキップして再生
+            </button>
+          </div>
+
+          {/* 裏で動画を読み込む（非表示） */}
+          <video ref={videoRef} src={src} preload="auto" muted style={{display:"none"}} />
+        </div>
+      </>
+    );
+  }
+
   return (
     <>
       <style>{`
@@ -514,11 +729,12 @@ export default function PlayerPage() {
               </button>
             </div>
             <div className="vp-center" style={{display:"grid", justifyItems:"center"}}>
-              <button className="vp-circle" onClick={togglePlay} aria-label={isPlaying ? "一時停止" : "再生"} title={isPlaying ? "一時停止" : "再生"}>
+              <button className="vp-circle" onClick={togglePlay} aria-label={isPlaying ? "一時停止" : "再生"} title={isPlaying ? "一時停止" : "再生"} disabled={!isVideoReady}>
                 {isPlaying
                   ? <svg className="vp-icon" viewBox="0 0 24 24"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/></svg>
                   : <svg className="vp-icon" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>}
               </button>
+// ✅ updated for 4DX@HOME spec
             </div>
             <div style={{display:"grid", justifyItems:"end", paddingRight:"min(4vw,24px)"}}>
               <button className="vp-circle" onClick={() => skip(5)} aria-label="5秒進める" title="5s進める">
@@ -555,3 +771,5 @@ export default function PlayerPage() {
     </>
   );
 }
+
+// ✅ updated for 4DX@HOME spec
