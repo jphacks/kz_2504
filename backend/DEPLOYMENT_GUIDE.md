@@ -14,9 +14,9 @@ cp .env.example .env
 デプロイ後に生成されるCloud RunのURLを `.env` ファイルに設定します:
 
 ```bash
-# 本番環境のURL（デプロイ後に設定）
-BACKEND_API_URL="https://4dx-home-backend-api-XXXXXXXXXX.asia-northeast1.run.app"
-BACKEND_WS_URL="wss://4dx-home-backend-api-XXXXXXXXXX.asia-northeast1.run.app"
+# 本番環境のURL(デプロイ後に設定)
+BACKEND_API_URL="https://fdx-home-backend-api-XXXXXXXXXX.asia-northeast1.run.app"
+BACKEND_WS_URL="wss://fdx-home-backend-api-XXXXXXXXXX.asia-northeast1.run.app"
 ```
 
 ### 3. 機密情報の管理
@@ -31,11 +31,11 @@ BACKEND_WS_URL="wss://4dx-home-backend-api-XXXXXXXXXX.asia-northeast1.run.app"
 
 ### サービス名
 
-Cloud Runサービス名: **4dx-home-backend-api**
+Cloud Runサービス名: **fdx-home-backend-api**
 
 これにより、デプロイ後のURLは以下の形式になります:
 ```
-https://4dx-home-backend-api-[PROJECT_NUMBER].asia-northeast1.run.app
+https://fdx-home-backend-api-[PROJECT_NUMBER].asia-northeast1.run.app
 ```
 
 ### デプロイスクリプトの実行
@@ -49,10 +49,10 @@ https://4dx-home-backend-api-[PROJECT_NUMBER].asia-northeast1.run.app
 
 ```bash
 # サービス情報の確認
-gcloud run services describe 4dx-home-backend-api --region=asia-northeast1
+gcloud run services describe fdx-home-backend-api --region=asia-northeast1
 
 # URLの取得
-gcloud run services describe 4dx-home-backend-api --region=asia-northeast1 --format="value(status.url)"
+gcloud run services describe fdx-home-backend-api --region=asia-northeast1 --format="value(status.url)"
 ```
 
 ## セキュリティ考慮事項
@@ -89,7 +89,7 @@ gcloud run services list --platform=managed --region=asia-northeast1
 Cloud Runで環境変数を設定する場合:
 
 ```bash
-gcloud run services update 4dx-home-backend-api \
+gcloud run services update fdx-home-backend-api \
   --region=asia-northeast1 \
   --set-env-vars="ENVIRONMENT=production,DEBUG=false"
 ```
