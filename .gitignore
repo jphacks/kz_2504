@@ -66,6 +66,16 @@ api_keys.txt
 # デプロイ情報・機密URL情報（backend-report全体を除外）
 docs/backend-report/
 
+# Debug and test files (debug folder)
+backend/debug/
+debug/
+test_received_jsons/
+
+# Debug frontend (API test tool - local use only)
+debug_frontend/
+
+debug_hardware/
+
 # Database and data files
 *.db
 *.sqlite

@@ -570,3 +570,169 @@ async def continuous_sync_loop(session_id: str, callback):
 - ✅ **将来性**: Redis/Pub/Sub移行を前提とした設計
 
 このガイドラインに従うことで、保守性が高く、スケーラブルで、セキュアなコードを生成できます。
+
+---
+
+## Google Cloud Runデプロイ手順
+
+### 前提条件
+
+- Google Cloud SDK (`gcloud`) がインストール済み
+- Docker がインストール済み
+- GCPプロジェクト `fourdk-home-2024` へのアクセス権限
+- Artifact Registry リポジトリ `my-fastapi-repo` が存在すること
+
+### デプロイ手順
+
+#### 1. プロジェクト設定の確認
+
+```bash
+# 現在のプロジェクトIDを確認
+gcloud config get-value project
+# 出力: fourdk-home-2024
+```
+
+#### 2. Dockerイメージのビルド
+
+```bash
+# backendディレクトリに移動
+cd backend
+
+# Cloud Run用のDockerfileでイメージをビルド
+docker build -f Dockerfile.cloudrun \
+  -t asia-northeast1-docker.pkg.dev/fourdk-home-2024/my-fastapi-repo/fdx-home-backend-api:latest \
+  .
+```
+
+**重要な設定**:
+- イメージ名: `fdx-home-backend-api` (数字で始まる名前は使用不可のため)
+- リポジトリ: `my-fastapi-repo` (既存のArtifact Registryリポジトリを使用)
+- リージョン: `asia-northeast1`
+- タグ: `latest`
+
+#### 3. Artifact Registryへのプッシュ
+
+```bash
+# イメージをArtifact Registryにプッシュ
+docker push asia-northeast1-docker.pkg.dev/fourdk-home-2024/my-fastapi-repo/fdx-home-backend-api:latest
+```
+
+#### 4. Cloud Runへのデプロイ
+
+```bash
+# Cloud Runサービスをデプロイ
+gcloud run deploy fdx-home-backend-api \
+  --image=asia-northeast1-docker.pkg.dev/fourdk-home-2024/my-fastapi-repo/fdx-home-backend-api:latest \
+  --region=asia-northeast1 \
+  --port=8080 \
+  --memory=512Mi \
+  --cpu=1 \
+  --timeout=300s \
+  --concurrency=80 \
+  --max-instances=20 \
+  --allow-unauthenticated
+```
+
+**デプロイ設定の詳細**:
+- **サービス名**: `fdx-home-backend-api`
+- **リージョン**: `asia-northeast1` (東京リージョン)
+- **ポート**: `8080` (FastAPIのデフォルトポート)
+- **メモリ**: `512Mi` (WebSocket接続を考慮)
+- **CPU**: `1` (1vCPU)
+- **タイムアウト**: `300s` (5分、WebSocket長時間接続対応)
+- **並列度**: `80` (1インスタンスあたりの最大同時リクエスト数)
+- **最大インスタンス数**: `20` (スケール制限)
+- **認証**: `--allow-unauthenticated` (パブリックアクセス許可)
+
+#### 5. デプロイ結果の確認
+
+デプロイが成功すると、以下のURLでサービスが公開されます:
+
+```
+Service URL: https://fdx-home-backend-api-47te6uxkwa-an.a.run.app
+```
+
+**動作確認**:
+
+```bash
+# ヘルスチェック
+curl https://fdx-home-backend-api-47te6uxkwa-an.a.run.app/health
+
+# バージョン情報
+curl https://fdx-home-backend-api-47te6uxkwa-an.a.run.app/api/version
+```
+
+### デプロイ後の設定更新
+
+#### 環境変数ファイル (.env) の更新
+
+デプロイ後、`backend/.env`ファイルのCloud Run URLを更新:
+
+```properties
+# === Cloud Run / GCP設定 ===
+CLOUD_PROJECT_ID="fourdk-home-2024"
+CLOUD_REGION="asia-northeast1"
+BACKEND_API_URL="https://fdx-home-backend-api-47te6uxkwa-an.a.run.app"
+BACKEND_WS_URL="wss://fdx-home-backend-api-47te6uxkwa-an.a.run.app"
+```
+
+### トラブルシューティング
+
+#### リポジトリが存在しない場合
+
+```bash
+# Artifact Registryリポジトリを作成
+gcloud artifacts repositories create my-fastapi-repo \
+  --repository-format=docker \
+  --location=asia-northeast1 \
+  --description="FastAPI Backend Repository"
+```
+
+#### サービス設定の確認
+
+```bash
+# 現在のサービス設定を確認
+gcloud run services describe fdx-home-backend-api \
+  --region=asia-northeast1 \
+  --format=json
+```
+
+#### ログの確認
+
+```bash
+# Cloud Runのログを確認
+gcloud run services logs read fdx-home-backend-api \
+  --region=asia-northeast1 \
+  --limit=50
+```
+
+### 継続的デプロイメント
+
+新しいバージョンをデプロイする場合は、手順2-4を繰り返します:
+
+```bash
+# 1. ビルド
+docker build -f Dockerfile.cloudrun \
+  -t asia-northeast1-docker.pkg.dev/fourdk-home-2024/my-fastapi-repo/fdx-home-backend-api:latest .
+
+# 2. プッシュ
+docker push asia-northeast1-docker.pkg.dev/fourdk-home-2024/my-fastapi-repo/fdx-home-backend-api:latest
+
+# 3. デプロイ（設定は既存のものが保持される）
+gcloud run deploy fdx-home-backend-api \
+  --image=asia-northeast1-docker.pkg.dev/fourdk-home-2024/my-fastapi-repo/fdx-home-backend-api:latest \
+  --region=asia-northeast1
+```
+
+### デプロイ履歴
+
+- **2025年11月6日**: 初回デプロイ完了
+  - サービス名: `fdx-home-backend-api`
+  - イメージ: `asia-northeast1-docker.pkg.dev/fourdk-home-2024/my-fastapi-repo/fdx-home-backend-api:latest`
+  - リビジョン: `fdx-home-backend-api-00006-4dw`
+  - URL: `https://fdx-home-backend-api-47te6uxkwa-an.a.run.app`
+
+- **2025年11月6日**: CORS設定更新（本番フロントエンド追加）
+  - リビジョン: `fdx-home-backend-api-00008-8wc`
+  - 追加オリジン: `https://kz-2504.onrender.com` (本番フロントエンド)
+  - 設定ファイル: `backend/debug/.env.cloudrun`

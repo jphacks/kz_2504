@@ -442,6 +442,15 @@ async def handle_device_message(session_id: str, connection_id: str, data: dict)
             "device_id": device_status.device_id,
             "server_time": datetime.now().isoformat()
         })
+        
+    elif message_type == "device_test_result":
+        # デバイステスト結果を処理
+        logger.info(f"[DEVICE] デバイステスト結果受信: session_id={session_id}")
+        
+        # device_registration.pyのhandle_device_test_result関数を呼び出す
+        from app.api.device_registration import handle_device_test_result
+        await handle_device_test_result(session_id, data)
+        
     else:
         # その他のメッセージ
         await ws_manager.send_to_session(session_id, {
