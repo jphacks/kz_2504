@@ -36,7 +36,7 @@ export async function sendTimelineToBackend(
   sessionId: string,
   videoId: string,
   timelineJson: { events: TimelineEvent[] }
-): Promise<TimelineUploadResponse> {
+): Promise<TimelineUploadResponse | null> {
   if (!timelineJson?.events || timelineJson.events.length === 0) {
     throw new Error("No events in timelineJson");
   }
@@ -45,8 +45,9 @@ export async function sendTimelineToBackend(
   if (events.length === 0) {
     throw new Error("No valid events after normalization");
   }
-  // 開発時は Vite の dev proxy を使うため相対パスを使用する
-  const base = import.meta.env.DEV ? "" : BACKEND_API_URL;
+  // ベースURLの末尾スラッシュを除去
+  const backendBaseUrl = (import.meta.env.VITE_BACKEND_API_URL ?? "").replace(/\/$/, "");
+  const base = import.meta.env.DEV ? "" : backendBaseUrl;
   const url = `${base}/api/preparation/upload-timeline/${encodeURIComponent(sessionId)}`;
   const started = performance.now();
 
@@ -60,17 +61,27 @@ export async function sendTimelineToBackend(
     }),
   });
 
-  const text = await res.text();
-  let json: any;
-  try { json = JSON.parse(text); } catch {
-    throw new Error(`Invalid JSON response (${res.status})`);
-  }
   if (!res.ok) {
-    const msg = json?.message || json?.error || `HTTP ${res.status}`;
+    let msg = `HTTP ${res.status}`;
+    try {
+      const contentType = res.headers.get("content-type") ?? "";
+      if (contentType.includes("application/json")) {
+        const json = await res.json();
+        msg = json?.message || json?.error || msg;
+      }
+    } catch {}
     console.error("[timeline] POST error", { status: res.status, msg });
     throw new Error(String(msg));
   }
 
+  // 成功時: JSONならパース、そうでなければnull返却
+  const contentType = res.headers.get("content-type") ?? "";
+  let json: any = null;
+  if (contentType.includes("application/json")) {
+    try {
+      json = await res.json();
+    } catch {}
+  }
   const elapsed = Math.round(performance.now() - started);
   // 性能ログ
   console.log("[timeline] uploaded", {
@@ -80,7 +91,7 @@ export async function sendTimelineToBackend(
     devices_notified: json?.devices_notified,
   });
 
-  return json as TimelineUploadResponse;
+  return json;
 }
 
 export async function loadAndSendTimeline(
@@ -95,6 +106,7 @@ export async function loadAndSendTimeline(
   const count = Array.isArray(timelineJson?.events) ? timelineJson.events.length : 0;
   console.log("[timeline] local events(raw)", count);
   const result = await sendTimelineToBackend(sessionId, videoId, timelineJson);
+  if (!result) throw new Error("Timeline upload: No response body");
   console.log("[timeline] transmission_time_ms:", result.transmission_time_ms);
   return result;
 }
@@ -108,7 +120,9 @@ export async function sendTimelineWithRetry(
   let lastErr: unknown = null;
   for (let i = 0; i < maxRetries; i++) {
     try {
-      return await sendTimelineToBackend(sessionId, videoId, timelineJson);
+      const res = await sendTimelineToBackend(sessionId, videoId, timelineJson);
+      if (!res) throw new Error("Timeline upload: No response body");
+      return res;
     } catch (e) {
       lastErr = e;
       console.error(`[timeline] upload failed (try ${i + 1}/${maxRetries})`, e);
