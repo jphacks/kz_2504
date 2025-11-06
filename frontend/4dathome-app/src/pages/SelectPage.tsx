@@ -178,8 +178,8 @@ export default function SelectPage() {
 
         <div className="xh-content-pad">
           <section className="xh-bleed" aria-label="Featured">
-            {/* 画像クリックで sample.mp4 再生 */}
-            <div className="xh-hero" onClick={()=>goPlayer("sample")} role="button" tabIndex={0}>
+            {/* 画像クリックで demo1.mp4 再生 */}
+            <div className="xh-hero" onClick={()=>goPlayer("demo1")} role="button" tabIndex={0}>
               <img src="/hero/main.gif" alt="Featured"
                    onError={(e)=>{ (e.currentTarget as HTMLImageElement).style.display='none'; }} />
               <div className="xh-grad" aria-hidden="true"></div>
@@ -192,7 +192,7 @@ export default function SelectPage() {
 
               <div className="xh-play">
                 {/* △のみ（丸なし） */}
-                <button type="button" aria-label="再生" onClick={(e)=>{ e.stopPropagation(); goPlayer("sample"); }}>
+                <button type="button" aria-label="再生" onClick={(e)=>{ e.stopPropagation(); goPlayer("demo1"); }}>
                   <svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
                 </button>
               </div>

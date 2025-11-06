@@ -2,6 +2,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useLocation } from "react-router-dom";
 import { BACKEND_API_URL, BACKEND_WS_URL } from "../config/backend";
+import TimelineUploadButton from "../components/TimelineUploadButton";
 
 const FIXED_SESSION_ID = "demo_session";
 const WS_SYNC = () =>
@@ -41,7 +42,7 @@ export default function PlayerPage() {
 
   const contentId = q.get("content");
   const src = useMemo(
-    () => (contentId ? `/media/${contentId}.mp4` : "/media/sample.mp4"),
+    () => (contentId ? `/video/${contentId}.mp4` : "/video/demo1.mp4"),
     [contentId]
   );
 
@@ -199,47 +200,16 @@ export default function PlayerPage() {
     }
     setPrepareError(null);
 
-    try {
-      const res = await fetch(`${BACKEND_API_URL}/api/v1/session`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ deviceHubId: hubId, videoId: contentId || "sample" }),
-      });
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      setIsDeviceConnected(true);
-    } catch (err) {
-      console.error(err);
-      setPrepareError("デバイスハブへの接続に失敗しました");
-    }
+    // 現行バックエンドには明示的な接続確立APIが存在しないため
+    // 入力検証のみ行い、準備完了状態に遷移する。
+    // 疎通確認は WebSocket とタイムライン送信で検証する想定。
+    console.info("[prepare] deviceHubId set:", hubId);
+    setIsDeviceConnected(true);
   };
 
-  /* ====== タイムライン送信処理 ====== */
-  const handleTimelineSend = async () => {
-    if (!isDeviceConnected) {
-      setPrepareError("先にデバイスハブを接続してください");
-      return;
-    }
-    setPrepareError(null);
-
-    // ダミータイムラインJSON（実際は動画に応じたタイムライン）
-    const timeline = [
-      { time: 0, action: "wind", intensity: 0.5 },
-      { time: 10, action: "vibration", intensity: 0.8 },
-    ];
-
-    try {
-      const res = await fetch(`${BACKEND_API_URL}/api/v1/timeline`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ deviceHubId: deviceHubId.trim(), videoId: contentId || "sample", timeline }),
-      });
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      setIsTimelineSent(true);
-    } catch (err) {
-      console.error(err);
-      setPrepareError("タイムライン送信に失敗しました");
-    }
-  };
+  /* ====== タイムライン送信（仕様準拠：/api/preparation/upload-timeline/{session_id}） ====== */
+  const onTimelineComplete = () => { setIsTimelineSent(true); };
+  const onTimelineError = (e: Error) => { console.error(e); setPrepareError("タイムライン送信に失敗しました"); };
 
   /* ====== デバイステスト処理 ====== */
   const handleDeviceTest = async () => {
@@ -597,10 +567,16 @@ export default function PlayerPage() {
             {/* タイムライン送信 */}
             <div className="prep-section">
               <div className="prep-label">タイムラインJSON送信</div>
-              <button className="prep-btn prep-btn-primary" onClick={handleTimelineSend} disabled={isTimelineSent || !isDeviceConnected}>
-                送信
-              </button>
+              <TimelineUploadButton
+                sessionId={sessionId}
+                videoId={contentId || "demo1"}
+                onComplete={onTimelineComplete}
+                onError={onTimelineError}
+              />
               {isTimelineSent && <div className="prep-status ok">✅ 送信完了</div>}
+              {!isDeviceConnected && (
+                <div className="prep-status">⚠ 先にデバイスハブを接続してください</div>
+              )}
             </div>
 
             {/* デバイス動作確認 */}
