@@ -1,13 +1,15 @@
 import React from "react";
 
+// 超シンプル版 ErrorBoundary
+// ・UIライブラリ/複雑なスタイル不使用
+// ・フォールバックも最低限のDOMのみ
+// ・自動再試行なし（無限ループ/二次崩壊防止）
+
 type Props = { children: React.ReactNode };
-type State = { hasError: boolean; error?: unknown; autoTried: boolean };
+type State = { hasError: boolean; error?: unknown };
 
 export default class ErrorBoundary extends React.Component<Props, State> {
-  constructor(props: Props) {
-    super(props);
-  this.state = { hasError: false, autoTried: false };
-  }
+  state: State = { hasError: false };
 
   static getDerivedStateFromError(error: unknown): Partial<State> {
     return { hasError: true, error };
@@ -15,28 +17,23 @@ export default class ErrorBoundary extends React.Component<Props, State> {
 
   componentDidCatch(error: unknown, errorInfo: unknown) {
     // eslint-disable-next-line no-console
-    console.error("ErrorBoundary caught:", error, errorInfo);
-    // 1回だけ自動再試行（短いバックオフ）
-    if (!this.state.autoTried) {
-      setTimeout(() => {
-        this.setState({ hasError: false, error: undefined, autoTried: true });
-      }, 60);
-    }
+    console.error("[ErrorBoundary] caught", error, errorInfo);
   }
 
   handleRetry = () => {
-    this.setState({ hasError: false, error: undefined, autoTried: false });
+    this.setState({ hasError: false, error: undefined });
   };
 
   render() {
     if (this.state.hasError) {
       return (
-        <div style={{position:"fixed", inset:0, display:"grid", placeItems:"center", background:"#0e1324", color:"#fff", fontFamily:"system-ui,-apple-system,Segoe UI,Roboto,\"Noto Sans JP\",sans-serif"}}>
-          <div style={{maxWidth:520, width:"92%", textAlign:"center"}}>
-            <div style={{fontWeight:800, fontSize:"18px", marginBottom:10}}>表示に失敗しました</div>
-            <div style={{opacity:.9, marginBottom:14}}>一時的な不整合が発生しました。再試行してください。</div>
-            <button onClick={this.handleRetry} style={{padding:"10px 16px", borderRadius:8, border:"none", fontWeight:700, cursor:"pointer"}}>再試行</button>
-          </div>
+        <div style={{ padding: 16, fontFamily: 'monospace', color: '#fff', background: '#222', minHeight: '100vh' }}>
+          <h1 style={{ fontSize: 16, margin: '0 0 12px', fontWeight: 700 }}>表示エラー</h1>
+          <p style={{ margin: '4px 0 12px' }}>UI の描画中に例外が発生しました。最小フォールバックです。</p>
+          <pre style={{ whiteSpace: 'pre-wrap', fontSize: 12, lineHeight: 1.4, background: '#111', padding: 8, borderRadius: 4, maxHeight: 240, overflow: 'auto' }}>
+            {String(this.state.error instanceof Error ? this.state.error.stack || this.state.error.message : this.state.error)}
+          </pre>
+          <button onClick={this.handleRetry} style={{ marginTop: 12, padding: '6px 12px', cursor: 'pointer' }}>再試行</button>
         </div>
       );
     }

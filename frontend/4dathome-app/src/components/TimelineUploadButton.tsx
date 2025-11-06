@@ -15,7 +15,7 @@ export default function TimelineUploadButton({ sessionId, videoId, onComplete, o
   const [uploading, setUploading] = useState(false);
   const [progress, setProgress] = useState<string>("");
 
-  const onClick = async () => {
+  const onClick = async () => { 
     if (uploading) return;
     setUploading(true);
   setProgress("タイムライン読み込み中...");

@@ -36,7 +36,7 @@ export async function sendTimelineToBackend(
   sessionId: string,
   videoId: string,
   timelineJson: { events: TimelineEvent[] }
-): Promise<TimelineUploadResponse | null> {
+): Promise<TimelineUploadResponse> {
   if (!timelineJson?.events || timelineJson.events.length === 0) {
     throw new Error("No events in timelineJson");
   }
@@ -66,47 +66,86 @@ export async function sendTimelineToBackend(
     try {
       const contentType = res.headers.get("content-type") ?? "";
       if (contentType.includes("application/json")) {
-        const json = await res.json();
-        msg = json?.message || json?.error || msg;
+        const j = await res.json();
+        msg = j?.message || j?.error || msg;
       }
     } catch {}
     console.error("[timeline] POST error", { status: res.status, msg });
     throw new Error(String(msg));
   }
 
-  // 成功時: JSONならパース、そうでなければnull返却
+  // 成功時はJSON想定（仕様準拠）。JSONでなければエラーにする。
   const contentType = res.headers.get("content-type") ?? "";
-  let json: any = null;
-  if (contentType.includes("application/json")) {
-    try {
-      json = await res.json();
-    } catch {}
+  if (!contentType.includes("application/json")) {
+    console.error("[timeline] POST failed: non-JSON success response");
+    throw new Error(`Invalid JSON response (${res.status})`);
   }
+  const json: any = await res.json();
   const elapsed = Math.round(performance.now() - started);
   // 性能ログ
-  console.log("[timeline] uploaded", {
-    elapsed_ms: elapsed,
-    size_kb: json?.size_kb,
-    events_count: json?.events_count,
-    devices_notified: json?.devices_notified,
-  });
+  console.log(`✅ JSON送信完了: ${elapsed}ms, ${json?.size_kb}KB, ${json?.events_count}イベント`);
+  if (typeof json?.devices_notified === "number") {
+    console.log(`   デバイス通知: ${json.devices_notified}台`);
+  }
 
-  return json;
+  return json as TimelineUploadResponse;
 }
 
 export async function loadAndSendTimeline(
   sessionId: string,
   videoId: string
 ): Promise<TimelineUploadResponse> {
-  const url = `/json/${encodeURIComponent(videoId)}.json`;
-  console.log("[timeline] fetch local", { url });
-  const r = await fetch(url);
-  if (!r.ok) throw new Error(`Timeline not found: ${videoId}`);
-  const timelineJson = await r.json();
-  const count = Array.isArray(timelineJson?.events) ? timelineJson.events.length : 0;
-  console.log("[timeline] local events(raw)", count);
+  // 複数候補パスを試行: /sync-data/{id}.json → /json/{id}.json → /json/demo1.json (フォールバック)
+  const candidates = [
+    `/sync-data/${encodeURIComponent(videoId)}.json`,
+    `/json/${encodeURIComponent(videoId)}.json`,
+    videoId !== "demo1" ? "/json/demo1.json" : null,
+  ].filter(Boolean) as string[];
+
+  let lastError: Error | null = null;
+  let timelineJson: any = null;
+  for (const url of candidates) {
+    const started = performance.now();
+    try {
+      console.log("[timeline] fetch local try", { url });
+      const r = await fetch(url, { cache: "no-cache" });
+      const ct = r.headers.get("content-type") || "";
+      const text = await r.text();
+      const elapsed = Math.round(performance.now() - started);
+      console.log("[timeline] fetch local result", { url, status: r.status, ct, elapsed, snippet: text.slice(0, 60).replace(/\n/g, " ") });
+      if (!r.ok) {
+        lastError = new Error(`HTTP ${r.status}`);
+        continue;
+      }
+      // index.html などHTMLを誤って受け取ったケースを弾く
+      if (/<!DOCTYPE html>/i.test(text) || /<html[\s>]/i.test(text)) {
+        lastError = new Error("Received HTML instead of JSON (possible missing file or dev server fallback)");
+        continue;
+      }
+      try {
+        timelineJson = JSON.parse(text);
+      } catch (e: any) {
+        lastError = new Error(`JSON parse error: ${e?.message || String(e)}`);
+        continue;
+      }
+      if (!timelineJson || !Array.isArray(timelineJson.events)) {
+        lastError = new Error("Invalid timeline format: missing events array");
+        continue;
+      }
+      // 成功
+      const count = timelineJson.events.length;
+      console.log("[timeline] local events(raw)", count, { from: url });
+      break;
+    } catch (e: any) {
+      lastError = new Error(e?.message || String(e));
+    }
+  }
+
+  if (!timelineJson) {
+    throw new Error(`Timeline load failed for ${videoId}: ${lastError?.message}`);
+  }
+
   const result = await sendTimelineToBackend(sessionId, videoId, timelineJson);
-  if (!result) throw new Error("Timeline upload: No response body");
   console.log("[timeline] transmission_time_ms:", result.transmission_time_ms);
   return result;
 }
@@ -121,7 +160,6 @@ export async function sendTimelineWithRetry(
   for (let i = 0; i < maxRetries; i++) {
     try {
       const res = await sendTimelineToBackend(sessionId, videoId, timelineJson);
-      if (!res) throw new Error("Timeline upload: No response body");
       return res;
     } catch (e) {
       lastErr = e;
