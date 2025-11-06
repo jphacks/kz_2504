@@ -21,5 +21,4 @@ export default function App() {
     </Routes>
   );
 }
-
-// ✅ updated for 4DX@HOME spec
+ 

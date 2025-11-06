@@ -211,7 +211,13 @@ export default function SelectPage() {
                         className="xh-thumb"
                         src={it.thumb}
                         alt={it.title}
-                        onError={(e)=>{ (e.currentTarget as HTMLImageElement).replaceWith(Object.assign(document.createElement('div'),{className:'xh-ph',textContent:'No Image'})); }}
+                        onError={(e)=>{
+                          const img = e.currentTarget as HTMLImageElement;
+                          img.onerror = null; // ループ防止
+                          img.src = "data:image/gif;base64,R0lGODlhAQABAIAAAP///wAAACH5BAEAAAAALAAAAAABAAEAAAICRAEAOw=="; // 1x1透明
+                          img.style.background = "#151515"; // プレースホルダー色
+                          img.alt = "No Image";
+                        }}
                       />
                       <div className="xh-grad" aria-hidden="true"></div>
                     </button>

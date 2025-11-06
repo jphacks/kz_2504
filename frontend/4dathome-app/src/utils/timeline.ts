@@ -50,6 +50,7 @@ export async function sendTimelineToBackend(
   const url = `${base}/api/preparation/upload-timeline/${encodeURIComponent(sessionId)}`;
   const started = performance.now();
 
+  console.log("[timeline] POST start", { url, events: events.length, videoId, sessionId });
   const res = await fetch(url, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -66,12 +67,13 @@ export async function sendTimelineToBackend(
   }
   if (!res.ok) {
     const msg = json?.message || json?.error || `HTTP ${res.status}`;
+    console.error("[timeline] POST error", { status: res.status, msg });
     throw new Error(String(msg));
   }
 
   const elapsed = Math.round(performance.now() - started);
   // 性能ログ
-  console.log("[timeline] uploaded:", {
+  console.log("[timeline] uploaded", {
     elapsed_ms: elapsed,
     size_kb: json?.size_kb,
     events_count: json?.events_count,
@@ -86,11 +88,12 @@ export async function loadAndSendTimeline(
   videoId: string
 ): Promise<TimelineUploadResponse> {
   const url = `/json/${encodeURIComponent(videoId)}.json`;
+  console.log("[timeline] fetch local", { url });
   const r = await fetch(url);
   if (!r.ok) throw new Error(`Timeline not found: ${videoId}`);
   const timelineJson = await r.json();
   const count = Array.isArray(timelineJson?.events) ? timelineJson.events.length : 0;
-  console.log("[timeline] local events(raw):", count);
+  console.log("[timeline] local events(raw)", count);
   const result = await sendTimelineToBackend(sessionId, videoId, timelineJson);
   console.log("[timeline] transmission_time_ms:", result.transmission_time_ms);
   return result;

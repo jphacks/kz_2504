@@ -161,7 +161,7 @@ export default function LoginPage() {
                 <button 
                   type="button" 
                   className="xh-btn xh-debug" 
-                  onClick={() => navigate("/player?content=sample")}
+                  onClick={() => navigate("/player?content=demo1")}
                 >
                   🔧 デバッグ：動画へ直接移動
                 </button>
@@ -174,4 +174,4 @@ export default function LoginPage() {
   );
 }
 
-// ✅ updated for 4DX@HOME spec
+ 

@@ -68,7 +68,8 @@ export default function PlayerPage() {
   const reconnectAttemptsRef = useRef(0);
   const maxReconnectAttempts = 5;
 
-  const [overlay, setOverlay] = useState<string | null>("読み込み中…");
+  // 中央テロップは使わない方針に変更（スピナーのみ）
+  // const [overlay, setOverlay] = useState<string | null>(null);
   const [duration, setDuration] = useState(0);
   const [current, setCurrent] = useState(0);
   const [isPlaying, setIsPlaying] = useState(false);
@@ -89,6 +90,8 @@ export default function PlayerPage() {
   const [deviceHubId, setDeviceHubId] = useState("");
   const [isDeviceConnected, setIsDeviceConnected] = useState(false);
   const [isTimelineSent, setIsTimelineSent] = useState(false);
+  const [timelineUploading, setTimelineUploading] = useState(false); // 再導入: スピナー用
+  const [devicesTesting, setDevicesTesting] = useState(false); // デバイステスト待機スピナー
   const [isDevicesTested, setIsDevicesTested] = useState(false);
   const [showPrepareScreen, setShowPrepareScreen] = useState(true);
   const [prepareError, setPrepareError] = useState<string | null>(null);
@@ -104,6 +107,8 @@ export default function PlayerPage() {
 
   /* ====== 再生開始（canplayまで待つ） ====== */
   const tryStartPlayback = async () => {
+    // 準備オーバーレイ表示中は再生しない
+    if (showPrepareScreen) return;
     const v = videoRef.current;
     if (!v) return;
     try {
@@ -111,9 +116,8 @@ export default function PlayerPage() {
       setMuted(true);
       await v.play();
       setIsPlaying(true);
-      setOverlay(null);
     } catch {
-      setOverlay("タップして再生");
+      // 自動再生がブロックされても中央テロップは出さない
     }
   };
 
@@ -146,44 +150,7 @@ export default function PlayerPage() {
   };
 
   // start_continuous_sync を1回だけ確実送信（必要なら数回リトライ）
-  const sendStartOnce = async () => {
-    if (startSentRef.current) return;
-    const v = videoRef.current;
-    if (!v || v.paused) return;
-
-    // 送信準備ができるまで待つ（最大3秒）
-    const ready = await awaitReady(3000);
-    if (!ready) {
-      // まだダメ → 少し遅延して再試行（最大3回）
-      for (let i = 0; i < 3 && !startSentRef.current; i++) {
-        await new Promise((r) => setTimeout(r, 80 * (i + 1)));
-        const again = await awaitReady(1000);
-        if (again && wsRef.current) {
-          try {
-            wsRef.current.send(JSON.stringify({ type: "start_continuous_sync" }));
-            console.log("WS -> start_continuous_sync (retry#", i + 1, ")");
-            startSentRef.current = true;
-            wantStartRef.current = false;
-            return;
-          } catch (_) {}
-        }
-      }
-      // ここまでで送れなければ保留（onopen等で再挑戦）
-      wantStartRef.current = true;
-      return;
-    }
-
-    // 準備OK → 送信
-    try {
-      wsRef.current?.send(JSON.stringify({ type: "start_continuous_sync" }));
-      console.log("WS -> start_continuous_sync");
-      startSentRef.current = true;
-      wantStartRef.current = false;
-    } catch {
-      // ごく稀な競合に備え、保留して onopen で再挑戦
-      wantStartRef.current = true;
-    }
-  };
+  // （sendStartOnce 本体は後方に詳細ログ付きで定義）
 
   const unmuteIfPossible = () => {
     const v = videoRef.current; if (!v) return;
@@ -204,14 +171,20 @@ export default function PlayerPage() {
     // 入力検証のみ行い、準備完了状態に遷移する。
     // 疎通確認は WebSocket とタイムライン送信で検証する想定。
     console.info("[prepare] deviceHubId set:", hubId);
+    sessionStorage.setItem("deviceHubId", hubId);
     setIsDeviceConnected(true);
   };
 
-  /* ====== タイムライン送信（仕様準拠：/api/preparation/upload-timeline/{session_id}） ====== */
-  const onTimelineComplete = () => { setIsTimelineSent(true); };
-  const onTimelineError = (e: Error) => { console.error(e); setPrepareError("タイムライン送信に失敗しました"); };
+  /* ====== タイムライン送信（手動） ====== */
+  const onTimelineComplete = () => {
+    setIsTimelineSent(true);
+  };
+  const onTimelineError = (e: Error) => {
+    console.error(e);
+    setPrepareError("タイムライン送信に失敗しました");
+  };
 
-  /* ====== デバイステスト処理 ====== */
+  /* ====== デバイステスト処理（手動） ====== */
   const handleDeviceTest = async () => {
     if (!isTimelineSent) {
       setPrepareError("先にタイムラインを送信してください");
@@ -232,22 +205,30 @@ export default function PlayerPage() {
     void tryStartPlayback();
   };
 
+  /* ====== 準備フロー補助 ====== */
+  // デバイスIDは自動補完のみ（接続はボタンで）
+  useEffect(() => {
+    if (!showPrepareScreen) return;
+    if (deviceHubId) return;
+    const hub = q.get("hub") || sessionStorage.getItem("deviceHubId") || "";
+    if (hub) setDeviceHubId(hub);
+  }, [showPrepareScreen, deviceHubId, q]);
+
+
   /* ====== WebSocket 接続 ====== */
   const connectWS = () => {
     try {
-      const ws = new WebSocket(WS_SYNC());
+      const url = WS_SYNC();
+      console.log("[player-ws] connecting", { url });
+      const ws = new WebSocket(url);
       wsRef.current = ws;
 
       ws.onopen = () => {
+        console.log("[player-ws] open", { readyState: ws.readyState });
         setConnected(true);
         setWsError(null);
         reconnectAttemptsRef.current = 0;
-
-        // （要件により定期syncは送らない）
-
-        // OPENになったら、保留があればここで一度だけ送る
         if (wantStartRef.current) {
-          // microtaskにずらしてメインスレッドのイベント処理と衝突しにくくする
           Promise.resolve().then(() => { void sendStartOnce(); });
         }
       };
@@ -255,28 +236,31 @@ export default function PlayerPage() {
       ws.onmessage = (ev) => {
         try {
           const msg: InMsg = JSON.parse(ev.data);
+          console.log("[player-ws] message", msg);
           if (msg.type === "connection_established") {
             setConnInfo(msg.connection_id);
-            console.log("WS connected:", msg);
-          } else if (msg.type === "sync_ack") {
-            // console.log("sync_ack", msg.received_state, msg.received_time);
           }
         } catch {
-          console.log("WS <-", ev.data);
+          console.log("[player-ws] message(raw)", ev.data);
         }
       };
 
-      ws.onerror = () => setWsError("WebSocket error");
+      ws.onerror = (e) => {
+        console.error("[player-ws] error", e);
+        setWsError("WebSocket error");
+      };
 
-      ws.onclose = () => {
+      ws.onclose = (ev) => {
+        console.log("[player-ws] close", { code: ev.code, reason: ev.reason, wasClean: ev.wasClean });
         setConnected(false);
-        stopSyncLoop(); // 安全
+        stopSyncLoop();
         if (reconnectAttemptsRef.current < maxReconnectAttempts) {
           reconnectAttemptsRef.current += 1;
           setTimeout(connectWS, 1000 * reconnectAttemptsRef.current);
         }
       };
-    } catch {
+    } catch (e) {
+      console.error("[player-ws] connect failed", e);
       setWsError("WebSocket connection failed");
     }
   };
@@ -309,40 +293,44 @@ export default function PlayerPage() {
     if (s && s.readyState === WebSocket.OPEN) s.send(JSON.stringify(obj));
   };
 
-  const sendSync = () => {
-    const v = videoRef.current;
-    const t = seeking ? seekValue : v?.currentTime ?? 0;
-    const d = duration || v?.duration || 0;
-    const state = computeState();
-
-    const payload: OutMsg = {
-      type: "sync",
-      state,
-      time: t,
-      duration: d,
-      ts: Date.now(),
-    };
-    // 定期syncは送らない
-    // send(payload);
+  const sendStartOnce = async () => {
+    if (startSentRef.current) return;
+    const v = videoRef.current; if (!v || v.paused) return;
+    console.log("[player-ws] start_continuous_sync waiting ready");
+    const ready = await awaitReady(3000);
+    if (!ready) {
+      for (let i = 0; i < 3 && !startSentRef.current; i++) {
+        await new Promise(r => setTimeout(r, 80 * (i + 1)));
+        const again = await awaitReady(1000);
+        if (again && wsRef.current) {
+          try {
+            wsRef.current.send(JSON.stringify({ type: "start_continuous_sync" }));
+            console.log(`[player-ws] start_continuous_sync retry#${i+1}`);
+            startSentRef.current = true;
+            wantStartRef.current = false;
+            return;
+          } catch {}
+        }
+      }
+      console.warn("[player-ws] deferred start_continuous_sync (ws not ready)");
+      wantStartRef.current = true;
+      return;
+    }
+    try {
+      wsRef.current?.send(JSON.stringify({ type: "start_continuous_sync" }));
+      console.log("[player-ws] start_continuous_sync sent");
+      startSentRef.current = true;
+      wantStartRef.current = false;
+    } catch {
+      console.warn("[player-ws] start_continuous_sync send failed; will retry on open");
+      wantStartRef.current = true;
+    }
   };
-
-  useEffect(() => {
-    connectWS();
-    return () => {
-      stopSyncLoop();
-      try { wsRef.current?.close(); } catch {}
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [sessionId]);
-
-  /* ====== 再生時間情報の定期送信（バックエンド連携） ====== */
+  // 再生時間送信ループ（修復 + ログ追加）
   useEffect(() => {
     if (!isPlaying || showPrepareScreen) return;
-    
     const interval = setInterval(async () => {
-      const v = videoRef.current;
-      if (!v || v.paused) return;
-      
+      const v = videoRef.current; if (!v || v.paused) return;
       const currentTime = v.currentTime;
       try {
         await fetch(`${BACKEND_API_URL}/api/v1/playback/time`, {
@@ -355,11 +343,11 @@ export default function PlayerPage() {
             timestamp: Date.now(),
           }),
         });
+        console.log("[playback] time sent", { currentTime });
       } catch (err) {
-        // エラーは無視（送信のみ）
+        console.warn("[playback] time send failed", err);
       }
     }, 500);
-
     return () => clearInterval(interval);
   }, [isPlaying, showPrepareScreen, sessionId, deviceHubId]);
 
@@ -370,6 +358,7 @@ export default function PlayerPage() {
     const onLoaded = () => {
       setDuration(v.duration || 0);
       setBuffering(v.readyState < 4);
+      console.log("[video] loadedmetadata", { duration: v.duration });
     };
 
     const onCanPlay = () => {
@@ -378,23 +367,26 @@ export default function PlayerPage() {
         firstCanPlayDoneRef.current = true;
         void tryStartPlayback();
       }
+      console.log("[video] canplay");
     };
 
     const onCanPlayThrough = () => {
       setIsVideoReady(true);
+      console.log("[video] canplaythrough ready");
     };
 
     const onWaiting = () => setBuffering(true);
 
     const onPlay = () => {
       setTimeout(() => { void sendStartOnce(); }, 10);
+      console.log("[video] play");
     };
 
     const onPlaying = () => {
       setIsPlaying(true);
-      setOverlay(null);
       setBuffering(false);
       setTimeout(() => { void sendStartOnce(); }, 0);
+      console.log("[video] playing");
     };
 
     const onTime   = () => { if (!seeking) setCurrent(v.currentTime || 0); };
@@ -423,6 +415,16 @@ export default function PlayerPage() {
       v.removeEventListener("ended", onEnded);
     };
   }, [seeking]);
+
+  // 準備オーバーレイが出ている間は常に動画を停止しておく
+  useEffect(() => {
+    if (showPrepareScreen) {
+      try { videoRef.current?.pause(); } catch {}
+      setIsPlaying(false);
+    }
+  }, [showPrepareScreen]);
+
+  // focus 制御は行わない（従来挙動に戻す）
 
   /* ====== 進捗（シーク） ====== */
   const pct = duration > 0 ? (seeking ? seekValue / duration : current / duration) : 0;
@@ -495,7 +497,7 @@ export default function PlayerPage() {
   const togglePlay = () => {
     const v = videoRef.current; if (!v) return;
     unmuteIfPossible();
-    if (v.paused) v.play().catch(()=>setOverlay("タップして再生"));
+    if (v.paused) v.play().catch(()=>{});
     else v.pause();
   };
 
@@ -511,108 +513,7 @@ export default function PlayerPage() {
     return h > 0 ? `${h}:${String(m).padStart(2,"0")}:${String(s).padStart(2,"0")}` : `${m}:${String(s).padStart(2,"0")}`;
   };
 
-  // 動画準備画面の表示
-  if (showPrepareScreen) {
-    return (
-      <>
-        <style>{`
-          .prep-root{ position:fixed; inset:0; background:#0e1324; color:#fff; font-family: system-ui,-apple-system,Segoe UI,Roboto,"Noto Sans JP",sans-serif; display:flex; align-items:center; justify-content:center; }
-          .prep-box{ max-width:500px; width:90%; background:rgba(255,255,255,.05); border:1px solid rgba(255,255,255,.1); border-radius:12px; padding:clamp(20px,4vw,32px); }
-          .prep-title{ font-size:clamp(18px,3.6vw,24px); font-weight:700; margin-bottom:20px; }
-          .prep-section{ margin-bottom:18px; padding-bottom:18px; border-bottom:1px solid rgba(255,255,255,.08); }
-          .prep-section:last-of-type{ border-bottom:none; }
-          .prep-label{ font-size:14px; margin-bottom:6px; opacity:.85; }
-          .prep-input{ width:100%; padding:10px; border-radius:6px; border:1px solid rgba(255,255,255,.2); background:rgba(0,0,0,.3); color:#fff; font-size:14px; }
-          .prep-btn{ padding:10px 20px; border-radius:6px; border:none; font-weight:600; cursor:pointer; margin-right:10px; }
-          .prep-btn-primary{ background:#4a90e2; color:#fff; }
-          .prep-btn-primary:disabled{ opacity:.5; cursor:not-allowed; }
-          .prep-status{ margin-top:8px; font-size:13px; }
-          .prep-status.ok{ color:#5dff5d; }
-          .prep-status.err{ color:#ff8a8a; }
-          .prep-start{ width:100%; padding:14px; font-size:16px; font-weight:700; border-radius:8px; border:none; cursor:pointer; background:#5dff5d; color:#111; margin-top:12px; }
-          .prep-start:disabled{ opacity:.4; cursor:not-allowed; }
-          .prep-debug{ width:100%; padding:12px; font-size:14px; font-weight:600; border-radius:8px; border:1px solid rgba(74,144,226,.5); cursor:pointer; background:rgba(74,144,226,.2); color:#4a90e2; margin-top:10px; }
-          .prep-debug:hover{ background:rgba(74,144,226,.3); }
-        `}</style>
-
-        <div className="prep-root">
-          <div className="prep-box">
-            <h1 className="prep-title">動画準備画面</h1>
-
-            {/* デバイスハブ接続 */}
-            <div className="prep-section">
-              <div className="prep-label">デバイスハブID</div>
-              <input
-                className="prep-input"
-                value={deviceHubId}
-                onChange={(e) => setDeviceHubId(e.target.value)}
-                placeholder="例: DHX001"
-              />
-              <button className="prep-btn prep-btn-primary" onClick={handleDeviceConnect} disabled={isDeviceConnected}>
-                接続
-              </button>
-              {isDeviceConnected && <div className="prep-status ok">✅ 接続済み</div>}
-            </div>
-
-            {/* 動画ロード状態 */}
-            <div className="prep-section">
-              <div className="prep-label">動画読み込み状態</div>
-              {isVideoReady ? (
-                <div className="prep-status ok">✅ 読み込み完了</div>
-              ) : (
-                <div className="prep-status">⏳ 読み込み中...</div>
-              )}
-            </div>
-
-            {/* タイムライン送信 */}
-            <div className="prep-section">
-              <div className="prep-label">タイムラインJSON送信</div>
-              <TimelineUploadButton
-                sessionId={sessionId}
-                videoId={contentId || "demo1"}
-                onComplete={onTimelineComplete}
-                onError={onTimelineError}
-              />
-              {isTimelineSent && <div className="prep-status ok">✅ 送信完了</div>}
-              {!isDeviceConnected && (
-                <div className="prep-status">⚠ 先にデバイスハブを接続してください</div>
-              )}
-            </div>
-
-            {/* デバイス動作確認 */}
-            <div className="prep-section">
-              <div className="prep-label">デバイス動作確認</div>
-              <button className="prep-btn prep-btn-primary" onClick={handleDeviceTest} disabled={isDevicesTested || !isTimelineSent}>
-                テスト実行
-              </button>
-              {isDevicesTested && <div className="prep-status ok">✅ 確認完了</div>}
-            </div>
-
-            {prepareError && <div className="prep-status err">⚠ {prepareError}</div>}
-
-            {/* スタートボタン */}
-            <button className="prep-start" onClick={handleStartClick} disabled={!allReady}>
-              {allReady ? "再生スタート" : "準備中..."}
-            </button>
-
-            {/* デバッグ用：準備をスキップして再生開始 */}
-            <button 
-              className="prep-debug" 
-              onClick={() => {
-                setShowPrepareScreen(false);
-                void tryStartPlayback();
-              }}
-            >
-              🔧 デバッグ：準備をスキップして再生
-            </button>
-          </div>
-
-          {/* 裏で動画を読み込む（非表示） */}
-          <video ref={videoRef} src={src} preload="auto" muted style={{display:"none"}} />
-        </div>
-      </>
-    );
-  }
+  // 準備オーバーレイは動画の上に重ねる（Loginページ風スタイルに合わせる）
 
   return (
     <>
@@ -626,7 +527,8 @@ export default function PlayerPage() {
         .vp-outer{ position:relative; width:100%; height:100%; overflow:hidden; }
         .vp-video{ position:absolute; inset:0; width:100%; height:100%; object-fit:contain; background:#000; display:block; }
 
-        .vp-loader{ position:absolute; inset:0; display:grid; place-items:center; z-index:6; pointer-events:none; }
+        .vp-loader{ position:absolute; inset:0; display:grid; place-items:center; z-index:6; pointer-events:none; transition: opacity .18s ease; }
+        .is-hidden{ opacity:0 !important; pointer-events:none !important; visibility:hidden !important; }
         .vp-spinner{ width:42px; height:42px; border:3px solid rgba(255,255,255,.28); border-top-color:#fff; border-radius:999px; animation:vp-spin .8s linear infinite; }
         @keyframes vp-spin { to { transform: rotate(360deg); } }
 
@@ -644,12 +546,42 @@ export default function PlayerPage() {
         .vp-circle:hover{ transform:translateY(-1px); background:rgba(0,0,0,.45); border-color:rgba(255,255,255,.35); }
         .vp-icon{ width:48%; height:48%; fill:#fff; display:block; }
 
-        .vp-overlay{ position:absolute; inset:0; display:grid; place-items:center; z-index:5; background:rgba(0,0,0,.25); font-weight:700; }
-        .vp-note{ margin-top:8px; color:#ffd79a; text-align:center; font-weight:500; }
+  /* 中央テロップは廃止 */
 
         .vp-info{ position:absolute; right:10px; bottom:24px; z-index:3; display:flex; flex-direction:column; gap:6px; align-items:flex-end;
           font-feature-settings:"tnum"; font-variant-numeric:tabular-nums; font-size:12px; color:#ddd; opacity:.9; }
         .vp-chip{ background:rgba(0,0,0,.35); padding:4px 6px; border-radius:6px; border:1px solid rgba(255,255,255,.15); }
+
+    /* 準備オーバーレイ */
+    .prep-ovr{ position:absolute; inset:0; z-index:7; display:flex; align-items:center; justify-content:center; background:rgba(0,0,0,.35); transition: opacity .18s ease; }
+        .prep-card{ width:min(560px, 92%); background:rgba(16,20,32,.9); border:1px solid rgba(255,255,255,.12); border-radius:14px; padding:clamp(18px,3.5vw,28px); color:#fff; box-shadow:0 8px 24px rgba(0,0,0,.35); }
+        .prep-h1{ font-weight:800; font-size:clamp(18px,3.6vw,22px); margin:0 0 14px; }
+        .prep-sec{ padding:12px 0 14px; border-bottom:1px solid rgba(255,255,255,.08); }
+        .prep-sec:last-of-type{ border-bottom:none; }
+        .prep-label{ font-size:13px; opacity:.9; margin-bottom:6px; }
+        /* Loginページに合わせた入力 */
+        .xh-input{ width:100%; height:clamp(40px,6.6vw,48px); background:#fff; color:#111; border-radius:6px; border:2px solid #111; padding:0 12px; font-size:clamp(14px,3.2vw,18px); box-shadow:0 2px 0 rgba(0,0,0,.35); }
+        .prep-status{ margin-top:8px; font-size:12px; opacity:.95; }
+        .prep-status.ok{ color:#79ff7a; }
+        .prep-status.err{ color:#ff9f9f; }
+
+        /* Loginページのボタンスタイルに合わせる */
+        .xh-btn{ margin-top:14px; min-width:160px; height:clamp(42px,7vw,48px); border:none; border-radius:8px; font-weight:700; cursor:pointer; }
+        .xh-btn:disabled{ opacity:.5; cursor:not-allowed; }
+        .xh-wide{ width:100%; }
+        .xh-login{ background:#fff; color:#111; }
+        .xh-debug{ background:#4a90e2; color:#fff; font-size:clamp(13px,2.8vw,15px); }
+  /* デバイスハブ 入力＋ボタン行専用調整 */
+  .prep-grid{ display:grid; grid-template-columns:1fr auto; gap:10px; align-items:center; }
+  .prep-grid .xh-btn{ margin-top:0; }
+
+  /* 汎用: ステータス行スピナー＋チェック */
+  .prep-load{ display:flex; align-items:center; gap:12px; }
+  .prep-loader{ position:relative; width:30px; height:30px; flex:0 0 30px; }
+  .prep-spin{ position:absolute; inset:0; border:3px solid rgba(255,255,255,.25); border-top-color:#fff; border-radius:999px; animation:vp-spin .75s linear infinite; }
+  .prep-loader.done .prep-spin{ border:3px solid #79ff7a; animation:none; }
+  .prep-check{ position:absolute; inset:0; display:grid; place-items:center; font-size:18px; font-weight:700; color:#79ff7a; text-shadow:0 0 6px rgba(0,0,0,.55); }
+  .prep-statusRow{ display:flex; align-items:center; gap:12px; min-height:38px; }
       `}</style>
 
       <div className="vp" onTouchStart={(e)=>{ (e.currentTarget as HTMLDivElement).classList.add("touch"); }}>
@@ -667,24 +599,96 @@ export default function PlayerPage() {
             onWaiting={() => setBuffering(true)}
             onPlaying={() => setBuffering(false)}
             onCanPlay={() => setBuffering(false)}
-            onError={() => setOverlay("動画の読み込みに失敗しました")}
+            onError={() => { /* 中央テロップは出さない */ }}
           />
 
-          {(buffering || overlay) && (
-            <div className="vp-loader" aria-hidden="true">
-              {overlay ? (
-                <div style={{textAlign:"center", lineHeight:1.6}}>
-                  <div className="vp-spinner" style={{margin:"0 auto 14px"}} />
-                  <div>{overlay}</div>
-                  {overlay === "タップして再生" && (
-                    <div className="vp-note">ブラウザの自動再生制限によりタップが必要です</div>
-                  )}
+          <div className={`vp-loader${buffering ? '' : ' is-hidden'}`} aria-hidden="true">
+            <div className="vp-spinner" />
+          </div>
+
+          <div
+            className={`prep-ovr${showPrepareScreen ? '' : ' is-hidden'}`}
+            aria-hidden={!showPrepareScreen}
+          >
+            <div className="prep-card">
+              <h2 className="prep-h1">再生準備</h2>
+
+              <div className="prep-sec">
+                <div className="prep-label">デバイスハブID</div>
+                <div className="prep-grid">
+                  <input className="xh-input" placeholder="例: DHX001" value={deviceHubId} onChange={(e)=>setDeviceHubId(e.target.value)} />
+                  <button className="xh-btn xh-login" onClick={handleDeviceConnect} disabled={isDeviceConnected}>接続</button>
                 </div>
-              ) : (
-                <div className="vp-spinner" />
-              )}
+                <div className="prep-statusRow">
+                  <div className={`prep-loader ${isDeviceConnected ? 'done' : ''}`}> <div className="prep-spin" /> {isDeviceConnected && <div className="prep-check">✓</div>} </div>
+                  <div className={`prep-status ${isDeviceConnected ? 'ok' : ''}`}>{isDeviceConnected ? '接続済み' : '未接続'}</div>
+                </div>
+              </div>
+
+              <div className="prep-sec">
+                <div className="prep-label">動画読み込み</div>
+                <div className="prep-statusRow" aria-live="polite">
+                  <div className={`prep-loader ${isVideoReady ? 'done' : ''}`}> <div className="prep-spin" /> {isVideoReady && <div className="prep-check">✓</div>} </div>
+                  <div className={`prep-status ${isVideoReady ? 'ok' : ''}`}>{isVideoReady ? '読み込み完了' : '読み込み中...'}</div>
+                </div>
+              </div>
+
+              <div className="prep-sec">
+                <div className="prep-label">タイムラインJSON送信</div>
+                <div className="prep-statusRow">
+                  <div className={`prep-loader ${(isTimelineSent) ? 'done' : (timelineUploading ? '' : '')}`}> <div className="prep-spin" /> {isTimelineSent && <div className="prep-check">✓</div>} </div>
+                  <div style={{flex:1}}>
+                    {isTimelineSent ? (
+                      <div className="prep-status ok">送信完了</div>
+                    ) : (
+                      <TimelineUploadButton
+                        sessionId={sessionId}
+                        videoId={contentId || 'demo1'}
+                        onComplete={() => onTimelineComplete()}
+                        onError={onTimelineError}
+                        onUploadingChange={(u)=>setTimelineUploading(u)}
+                        className="xh-btn xh-login"
+                      />
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              <div className="prep-sec">
+                <div className="prep-label">デバイス動作確認</div>
+                <div className="prep-statusRow">
+                  <div className={`prep-loader ${(isDevicesTested) ? 'done' : (devicesTesting ? '' : '')}`}> <div className="prep-spin" /> {isDevicesTested && <div className="prep-check">✓</div>} </div>
+                  <div style={{flex:1, display:'flex', alignItems:'center', gap:'12px'}}>
+                    {isDevicesTested ? (
+                      <div className="prep-status ok">確認完了</div>
+                    ) : (
+                      <button
+                        className="xh-btn xh-login"
+                        onClick={()=>{ if (devicesTesting||isDevicesTested||!isTimelineSent) return; setDevicesTesting(true); setTimeout(()=>{ setDevicesTesting(false); setIsDevicesTested(true); }, 600); }}
+                        disabled={!isTimelineSent || devicesTesting || isDevicesTested}
+                      >
+                        {devicesTesting ? 'テスト中...' : 'テスト実行'}
+                      </button>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              {prepareError && <div className="prep-status err">⚠ {prepareError}</div>}
+
+              {/* 明示的に開始ボタン */}
+              <div className="prep-sec">
+                <div className="prep-label">準備完了後の開始</div>
+                <button
+                  className="xh-btn xh-login xh-wide"
+                  onClick={handleStartClick}
+                  disabled={!allReady}
+                >
+                  再生を開始する
+                </button>
+              </div>
             </div>
-          )}
+          </div>
 
           <div
             ref={progressRef}
@@ -710,7 +714,6 @@ export default function PlayerPage() {
                   ? <svg className="vp-icon" viewBox="0 0 24 24"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/></svg>
                   : <svg className="vp-icon" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>}
               </button>
-// ✅ updated for 4DX@HOME spec
             </div>
             <div style={{display:"grid", justifyItems:"end", paddingRight:"min(4vw,24px)"}}>
               <button className="vp-circle" onClick={() => skip(5)} aria-label="5秒進める" title="5s進める">
@@ -718,20 +721,6 @@ export default function PlayerPage() {
               </button>
             </div>
           </div>
-
-          {overlay && (
-            <div className="vp-overlay" onClick={() => {
-              unmuteIfPossible();
-              void tryStartPlayback();
-            }}>
-              <div>
-                <div style={{textAlign:"center"}}>{overlay}</div>
-                {overlay === "タップして再生" && (
-                  <div className="vp-note">タップで再生を開始します</div>
-                )}
-              </div>
-            </div>
-          )}
 
           <div className="vp-info">
             <div className="vp-chip">
@@ -748,4 +737,4 @@ export default function PlayerPage() {
   );
 }
 
-// ✅ updated for 4DX@HOME spec
+ 
