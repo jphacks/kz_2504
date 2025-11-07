@@ -201,8 +201,11 @@ export default function VideoPreparationPage() {
 
         <div style={{padding:"12px 0 0"}}>
           <div className="prep-label" style={{fontSize:13,opacity:.9,marginBottom:6}}>準備完了後の開始</div>
-          <button className="xh-btn xh-login" onClick={handleStart} disabled={!allReady} style={{width:"100%",height:"clamp(42px,7vw,48px)",borderRadius:8,fontWeight:700,background:"#fff",color:"#111"}}>
+          <button className="xh-btn xh-login" onClick={handleStart} disabled={!allReady} style={{width:"100%",height:"clamp(42px,7vw,48px)",borderRadius:8,fontWeight:700,background:"#fff",color:"#111",marginBottom:10}}>
             再生を開始する
+          </button>
+          <button className="xh-btn" onClick={handleStart} style={{width:"100%",height:"clamp(38px,6vw,42px)",borderRadius:8,fontWeight:600,background:"rgba(74,144,226,0.2)",color:"#4a90e2",border:"1px solid #4a90e2"}}>
+            テスト: 準備をスキップして再生画面へ
           </button>
         </div>
       </div>
