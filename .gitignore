@@ -71,10 +71,20 @@ backend/debug/
 debug/
 test_received_jsons/
 
+# 機密情報を含むドキュメント・スクリプト（実際のCloud Run URLを含むため除外）
+/TESTING_GUIDE.md
+/QUICK_START.md
+/quick_start_test.ps1
+/backend/DEPLOYMENT_GUIDE.md
+/.github/copilot-instructions.md
+/communication_test_dashboard.html
+
 # Debug frontend (API test tool - local use only)
 debug_frontend/
 
 debug_hardware/
+
+4DXHOME/
 
 # Database and data files
 *.db

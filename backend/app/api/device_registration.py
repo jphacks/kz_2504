@@ -279,7 +279,7 @@ async def test_device(request: dict):
         try:
             device_response = await asyncio.wait_for(
                 response_queue.get(),
-                timeout=5.0
+                timeout=30.0  # Raspberry Pi通信を考慮して30秒に延長
             )
             
             logger.info(f"✅ [API] デバイスから応答受信: {device_response}")

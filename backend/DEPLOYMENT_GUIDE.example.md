@@ -1,5 +1,7 @@
 # 4DX@HOME Backend デプロイガイド
 
+> **⚠️ 注意**: このファイルはテンプレートです。実際のデプロイURLは `backend/DEPLOYMENT_GUIDE.md` に記載されていますが、そのファイルは `.gitignore` により除外されています。
+
 ## 環境変数の設定
 
 ### 1. 環境変数ファイルの作成
@@ -15,8 +17,8 @@ cp .env.example .env
 
 ```bash
 # 本番環境のURL(デプロイ後に設定)
-BACKEND_API_URL="https://fdx-home-backend-api-XXXXXXXXXX.asia-northeast1.run.app"
-BACKEND_WS_URL="wss://fdx-home-backend-api-XXXXXXXXXX.asia-northeast1.run.app"
+BACKEND_API_URL="https://your-backend-api-XXXXXXXXXX.asia-northeast1.run.app"
+BACKEND_WS_URL="wss://your-backend-api-XXXXXXXXXX.asia-northeast1.run.app"
 ```
 
 ### 3. 機密情報の管理
@@ -24,8 +26,8 @@ BACKEND_WS_URL="wss://fdx-home-backend-api-XXXXXXXXXX.asia-northeast1.run.app"
 **重要**: 以下のファイルは `.gitignore` に登録されており、Gitにコミットされません:
 
 - `.env` - 環境変数ファイル
-- `docs/backend-report/current-status-handover.md` - デプロイURLを含むドキュメント
-- `docs/backend-report/deployment-urls.md` - URLリスト
+- `docs/backend-report/` - デプロイURLを含むドキュメント
+- `backend/DEPLOYMENT_GUIDE.md` - このファイルの実際の版（URLを含む）
 
 ## Cloud Runへのデプロイ
 
@@ -38,11 +40,28 @@ Cloud Runサービス名: **fdx-home-backend-api**
 https://fdx-home-backend-api-[PROJECT_NUMBER].asia-northeast1.run.app
 ```
 
-### デプロイスクリプトの実行
+### デプロイ手順
 
-```powershell
-# docs/backend-report ディレクトリから実行
-.\deploy-to-cloudrun.ps1
+```bash
+# 1. Dockerイメージのビルド
+cd backend
+docker build -f Dockerfile.cloudrun \
+  -t asia-northeast1-docker.pkg.dev/fourdk-home-2024/my-fastapi-repo/fdx-home-backend-api:latest .
+
+# 2. Artifact Registryへのプッシュ
+docker push asia-northeast1-docker.pkg.dev/fourdk-home-2024/my-fastapi-repo/fdx-home-backend-api:latest
+
+# 3. Cloud Runへのデプロイ
+gcloud run deploy fdx-home-backend-api \
+  --image=asia-northeast1-docker.pkg.dev/fourdk-home-2024/my-fastapi-repo/fdx-home-backend-api:latest \
+  --region=asia-northeast1 \
+  --port=8080 \
+  --memory=512Mi \
+  --cpu=1 \
+  --timeout=300s \
+  --concurrency=80 \
+  --max-instances=20 \
+  --allow-unauthenticated
 ```
 
 ### デプロイ後の確認
@@ -54,6 +73,8 @@ gcloud run services describe fdx-home-backend-api --region=asia-northeast1
 # URLの取得
 gcloud run services describe fdx-home-backend-api --region=asia-northeast1 --format="value(status.url)"
 ```
+
+取得したURLを各環境変数ファイルに設定してください。
 
 ## セキュリティ考慮事項
 
@@ -93,3 +114,24 @@ gcloud run services update fdx-home-backend-api \
   --region=asia-northeast1 \
   --set-env-vars="ENVIRONMENT=production,DEBUG=false"
 ```
+
+### CORS設定の更新
+
+`backend/debug/.env.cloudrun` ファイルを編集してCORS設定を更新:
+
+```bash
+cd backend/debug
+# .env.cloudrunを編集
+gcloud run services update fdx-home-backend-api \
+  --region=asia-northeast1 \
+  --env-vars-file=.env.cloudrun
+```
+
+## デプロイ履歴
+
+デプロイ履歴は実際の `backend/DEPLOYMENT_GUIDE.md` ファイル（Git除外）に記録されています。
+
+---
+
+**最終更新**: 2025年11月7日  
+**テンプレートバージョン**: 1.0

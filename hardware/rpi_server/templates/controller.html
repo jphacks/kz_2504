@@ -1,0 +1,286 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>4DX@HOME Controller</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background-color: #f0f2f5;
+            display: grid;
+            justify-content: center;
+            gap: 20px;
+        }
+        .container {
+            width: 100%;
+            max-width: 500px;
+            background-color: #ffffff;
+            border-radius: 12px;
+            box-shadow: 0 6px 16px rgba(0, 0, 0, 0.1);
+            padding: 24px;
+            box-sizing: border-box; 
+        }
+        h1 {
+            text-align: center;
+            color: #333;
+            margin-top: 0;
+            margin-bottom: 24px;
+        }
+        .status-box {
+            padding: 12px;
+            border-radius: 8px;
+            text-align: center;
+            font-weight: bold;
+            margin-bottom: 20px;
+            transition: all 0.3s ease;
+        }
+        .status-connected {
+            background-color: #e6f7ed;
+            color: #1d8a4c;
+            border: 1px solid #b7ebc9;
+        }
+        .status-disconnected {
+            background-color: #fff1f0;
+            color: #d93026;
+            border: 1px solid #ffccc7;
+        }
+        .control-group {
+            margin-bottom: 20px;
+            border: 1px solid #e8e8e8;
+            border-radius: 8px;
+            padding: 16px;
+        }
+        .control-group h2, .control-group h3 {
+            font-size: 1.2rem;
+            color: #555;
+            margin-top: 0;
+            margin-bottom: 16px;
+            border-bottom: 1px solid #f0f0f0;
+            padding-bottom: 8px;
+        }
+        .button-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+        }
+        .button-grid-4 {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(100px, 1fr));
+            gap: 12px;
+        }
+        .button-grid-color {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(80px, 1fr));
+            gap: 10px;
+        }
+        .button-grid-motor {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 12px;
+        }
+        @media (max-width: 400px) {
+            .button-grid-motor {
+                grid-template-columns: 1fr 1fr;
+            }
+        }
+        button {
+            font-size: 1rem;
+            padding: 14px 10px;
+            border-radius: 8px;
+            border: none;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            font-weight: 500;
+            color: #fff;
+        }
+        button:disabled {
+            background-color: #cccccc;
+            cursor: not-allowed;
+        }
+        button:active:not(:disabled) {
+            transform: translateY(2px);
+            opacity: 0.9;
+        }
+        .btn-water { background-color: #007bff; }
+        .btn-water:hover:not(:disabled) { background-color: #0056b3; }
+        .btn-water-loop-on { background-color: #28a745; }
+        .btn-water-loop-on:hover:not(:disabled) { background-color: #1e7e34; }
+        .btn-water-loop-off { background-color: #dc3545; }
+        .btn-water-loop-off:hover:not(:disabled) { background-color: #b02a37; }
+        .btn-wind-on { background-color: #17a2b8; }
+        .btn-wind-on:hover:not(:disabled) { background-color: #117a8b; }
+        .btn-wind-off { background-color: #6c757d; }
+        .btn-wind-off:hover:not(:disabled) { background-color: #545b62; }
+        .btn-light-on { background-color: #ffc107; color: #212529; }
+        .btn-light-on:hover:not(:disabled) { background-color: #d39e00; }
+        .btn-light-slow { background-color: #fd7e14; }
+        .btn-light-slow:hover:not(:disabled) { background-color: #c6620f; }
+        .btn-light-fast { background-color: #e83e8c; }
+        .btn-light-fast:hover:not(:disabled) { background-color: #c22b6e; }
+        .btn-light-off { background-color: #343a40; }
+        .btn-light-off:hover:not(:disabled) { background-color: #23272b; }
+        .btn-color { border: 2px solid #fff; box-shadow: 0 2px 4px rgba(0,0,0,0.2); }
+        .btn-color[data-color="RED"]     { background-color: #dc3545; }
+        .btn-color[data-color="GREEN"]   { background-color: #28a745; }
+        .btn-color[data-color="BLUE"]    { background-color: #007bff; }
+        .btn-color[data-color="YELLOW"]  { background-color: #ffc107; color: #212529; }
+        .btn-color[data-color="CYAN"]    { background-color: #17a2b8; }
+        .btn-color[data-color="PURPLE"]  { background-color: #6f42c1; }
+        .btn-motor-strong { background-color: #dc3545; }
+        .btn-motor-med_strong { background-color: #e83e8c; }
+        .btn-motor-med_weak { background-color: #fd7e14; }
+        .btn-motor-weak { background-color: #ffc107; color: #212529; }
+        .btn-motor-heartbeat { background-color: #6f42c1; }
+        .btn-motor-rumble-fast { background-color: #17a2b8; }
+        .btn-motor-rumble-slow { background-color: #007bff; }
+        .btn-motor-off { background-color: #343a40; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>4DX@HOME Controller</h1>
+        <div id="status" class="status-box status-disconnected">
+            サーバーに接続中...
+        </div>
+    </div>
+
+    <div class="container">
+        <h2>ESP 1 (Water/Wind)</h2>
+        <div class="control-group">
+            <h3>Water (Servo)</h3>
+            <div class="button-grid">
+                <button class="btn-water" onclick="publish('/4dx/water', 'trigger')" disabled>Water (単発)</button>
+                <button class="btn-water-loop-on" onclick="publish('/4dx/water/loop/on', 'ON')" disabled>Water Loop ON</button>
+                <button class="btn-water-loop-off" onclick="publish('/4dx/water/loop/off', 'OFF')" disabled>Water Loop OFF</button>
+            </div>
+        </div>
+        <div class="control-group">
+            <h3>Wind (Motor)</h3>
+            <div class="button-grid">
+                <button class="btn-wind-on" onclick="publish('/4dx/wind', 'ON')" disabled>Wind ON</button>
+                <button class="btn-wind-off" onclick="publish('/4dx/wind', 'OFF')" disabled>Wind OFF</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="container">
+        <h2>ESP 2 (LEDs)</h2>
+        <div class="control-group">
+            <h3>Single LED (D2)</h3>
+            <div class="button-grid-4">
+                <button class="btn-light-on" onclick="publish('/4dx/light', 'ON')" disabled>ON</button>
+                <button class="btn-light-slow" onclick="publish('/4dx/light', 'BLINK_SLOW')" disabled>Blink Slow</button>
+                <button class="btn-light-fast" onclick="publish('/4dx/light', 'BLINK_FAST')" disabled>Blink Fast</button>
+                <button class="btn-light-off" onclick="publish('/4dx/light', 'OFF')" disabled>OFF</button>
+            </div>
+        </div>
+        <div class="control-group">
+            <h3>RGB Tape (D5,D6,D7)</h3>
+            <div class="button-grid-color">
+                <button class="btn-color" data-color="RED" onclick="publish('/4dx/color', 'RED')" disabled>Red</button>
+                <button class="btn-color" data-color="GREEN" onclick="publish('/4dx/color', 'GREEN')" disabled>Green</button>
+                <button class="btn-color" data-color="BLUE" onclick="publish('/4dx/color', 'BLUE')" disabled>Blue</button>
+                <button class="btn-color" data-color="YELLOW" onclick="publish('/4dx/color', 'YELLOW')" disabled>Yellow</button>
+                <button class="btn-color" data-color="CYAN" onclick="publish('/4dx/color', 'CYAN')" disabled>Cyan</button>
+                <button class="btn-color" data-color="PURPLE" onclick="publish('/4dx/color', 'PURPLE')" disabled>Purple</button>
+            </div>
+        </div>
+    </div>
+    
+    <div class="container">
+        <h2>ESP 3 (Motor 1)</h2>
+        <div class="control-group">
+            <h3>Vibration Patterns (D5-D8)</h3>
+            <div class="button-grid-motor">
+                <button class="btn-motor-strong" onclick="publish('/4dx/motor1/control', 'STRONG')" disabled>振動 強</button>
+                <button class="btn-motor-med_strong" onclick="publish('/4dx/motor1/control', 'MEDIUM_STRONG')" disabled>振動 中強</button>
+                <button class="btn-motor-med_weak" onclick="publish('/4dx/motor1/control', 'MEDIUM_WEAK')" disabled>振動 中弱</button>
+                <button class="btn-motor-weak" onclick="publish('/4dx/motor1/control', 'WEAK')" disabled>振動 弱</button>
+                <button class="btn-motor-heartbeat" onclick="publish('/4dx/motor1/control', 'HEARTBEAT')" disabled>心拍</button>
+                <button class="btn-motor-rumble-fast" onclick="publish('/4dx/motor1/control', 'RUMBLE_FAST')" disabled>Rumble Fast</button>
+                <button class="btn-motor-rumble-slow" onclick="publish('/4dx/motor1/control', 'RUMBLE_SLOW')" disabled>Rumble Slow</button>
+                <button class="btn-motor-off" onclick="publish('/4dx/motor1/control', 'OFF')" disabled>OFF</button>
+            </div>
+        </div>
+    </div>
+    
+    <div class="container">
+        <h2>ESP 4 (Motor 2)</h2>
+        <div class="control-group">
+            <h3>Vibration Patterns (D5-D8)</h3>
+            <div class="button-grid-motor">
+                <button class="btn-motor-strong" onclick="publish('/4dx/motor2/control', 'STRONG')" disabled>振動 強</button>
+                <button class="btn-motor-med_strong" onclick="publish('/4dx/motor2/control', 'MEDIUM_STRONG')" disabled>振動 中強</button>
+                <button class="btn-motor-med_weak" onclick="publish('/4dx/motor2/control', 'MEDIUM_WEAK')" disabled>振動 中弱</button>
+                <button class="btn-motor-weak" onclick="publish('/4dx/motor2/control', 'WEAK')" disabled>振動 弱</button>
+                <button class="btn-motor-heartbeat" onclick="publish('/4dx/motor2/control', 'HEARTBEAT')" disabled>心拍</button>
+                <button class="btn-motor-rumble-fast" onclick="publish('/4dx/motor2/control', 'RUMBLE_FAST')" disabled>Rumble Fast</button>
+                <button class="btn-motor-rumble-slow" onclick="publish('/4dx/motor2/control', 'RUMBLE_SLOW')" disabled>Rumble Slow</button>
+                <button class="btn-motor-off" onclick="publish('/4dx/motor2/control', 'OFF')" disabled>OFF</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const statusEl = document.getElementById('status');
+        const allButtons = document.querySelectorAll('button');
+        const publishUrl = "/api/mqtt/publish";
+
+        window.addEventListener('load', checkServerStatus);
+
+        async function checkServerStatus() {
+            try {
+                const response = await fetch('/health');
+                if (response.ok) {
+                    setStatus('サーバー接続完了', 'connected');
+                    enableButtons(true);
+                } else {
+                    throw new Error('Server not reachable');
+                }
+            } catch (error) {
+                console.error("サーバー接続失敗:", error);
+                setStatus('サーバーに接続できません', 'disconnected');
+                enableButtons(false);
+            }
+        }
+        
+        async function publish(topic, payload) {
+            enableButtons(false);
+            console.log(`Sending: [${topic}] -> ${payload}`);
+            
+            try {
+                const response = await fetch(publishUrl, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ topic: topic, payload: payload })
+                });
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                
+                const result = await response.json();
+                console.log('Server response:', result);
+                setStatus('コマンド送信成功', 'connected');
+            } catch (error) {
+                console.error('Publish error:', error);
+                setStatus('コマンド送信失敗', 'disconnected');
+            } finally {
+                setTimeout(() => enableButtons(true), 200);
+            }
+        }
+
+        function setStatus(text, statusClass) {
+            statusEl.textContent = text;
+            statusEl.className = `status-box status-${statusClass}`;
+        }
+
+        function enableButtons(enabled) {
+            allButtons.forEach(button => button.disabled = !enabled);
+        }
+    </script>
+</body>
+</html>
