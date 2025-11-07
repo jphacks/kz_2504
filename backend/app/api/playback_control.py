@@ -415,6 +415,33 @@ async def handle_sync_message(session_id: str, connection_id: str, data: dict):
         }
         await ws_manager.send_to_session(session_id, response)
         
+    elif message_type == "stop_signal":
+        # ストップ信号をデバイスに中継（全ハードウェア停止）
+        logger.info(f"[STOP_SIGNAL] WebSocketストップ信号受信: session={session_id}")
+        
+        # ストップ信号データを作成
+        stop_signal_data = {
+            "type": "stop_signal",
+            "session_id": session_id,
+            "timestamp": time.time(),
+            "message": "stop_all_actuators",
+            "action": "stop_all",
+            "source": "websocket"
+        }
+        
+        # デバイスに信号を送信
+        sent_count = await relay_stop_signal_to_devices(session_id, stop_signal_data)
+        
+        # 送信結果をフロントエンドに返す
+        response = {
+            "type": "stop_signal_ack",
+            "session_id": session_id,
+            "success": sent_count > 0,
+            "sent_to_devices": sent_count,
+            "message": f"ストップ信号を{sent_count}台のデバイスに送信しました" if sent_count > 0 else "接続されたデバイスがありません"
+        }
+        await ws_manager.send_to_session(session_id, response)
+        
     else:
         logger.warning(f"[SYNC] 未知のメッセージタイプ: {message_type}")
 
@@ -653,6 +680,57 @@ async def send_start_signal(session_id: str):
         logger.error(f"[START_SIGNAL] スタート信号送信エラー: {e}")
         raise HTTPException(status_code=500, detail=f"スタート信号送信失敗: {str(e)}")
 
+@router.post("/stop/{session_id}")
+async def send_stop_signal(session_id: str):
+    """
+    ストップ信号をデバイスに送信（全ハードウェア停止）
+    
+    再生一時停止時や動画終了時に呼び出され、
+    全てのアクチュエータを停止させる信号をデバイスに送信する
+    
+    Args:
+        session_id: セッションID
+        
+    Returns:
+        ストップ信号送信結果
+    """
+    try:
+        logger.info(f"[STOP_SIGNAL] ストップ信号送信要求: session={session_id}")
+        
+        # ストップ信号データを作成
+        stop_signal_data = {
+            "type": "stop_signal",
+            "session_id": session_id,
+            "timestamp": time.time(),
+            "message": "stop_all_actuators",
+            "action": "stop_all"
+        }
+        
+        # デバイスに信号を送信
+        sent_count = await relay_stop_signal_to_devices(session_id, stop_signal_data)
+        
+        if sent_count == 0:
+            logger.warning(f"[STOP_SIGNAL] デバイス未接続: session={session_id}")
+            return {
+                "success": False,
+                "message": "接続されたデバイスがありません",
+                "session_id": session_id,
+                "sent_to_devices": 0
+            }
+        
+        logger.info(f"[STOP_SIGNAL] ストップ信号送信完了: session={session_id}, devices={sent_count}")
+        return {
+            "success": True,
+            "message": f"ストップ信号を{sent_count}台のデバイスに送信しました",
+            "session_id": session_id,
+            "sent_to_devices": sent_count,
+            "signal_data": stop_signal_data
+        }
+        
+    except Exception as e:
+        logger.error(f"[STOP_SIGNAL] ストップ信号送信エラー: {e}")
+        raise HTTPException(status_code=500, detail=f"ストップ信号送信失敗: {str(e)}")
+
 @router.get("/debug/sync/all")
 async def get_all_debug_syncs():
     """デバッグ用: 全セッションの同期状態"""
@@ -790,6 +868,68 @@ async def relay_start_signal_to_devices(session_id: str, start_signal_data: dict
         return 0
     except Exception as e:
         logger.error(f"[START_SIGNAL_RELAY] 並列送信でエラー: {e}")
+        return 0
+
+async def relay_stop_signal_to_devices(session_id: str, stop_signal_data: dict) -> int:
+    """
+    ストップ信号をデバイス（ラズベリーパイ）に並列送信
+    
+    全てのアクチュエータを停止させるための信号を送信する。
+    一時停止や動画終了時に使用される。
+    
+    Args:
+        session_id: セッションID
+        stop_signal_data: 送信するストップ信号データ
+        
+    Returns:
+        int: 送信に成功したデバイス数
+    """
+    logger.info(f"[STOP_SIGNAL_RELAY] セッション {session_id} のデバイスにストップ信号並列送信")
+    
+    # セッション内のデバイス接続を探す
+    if session_id not in ws_manager.session_connections:
+        logger.warning(f"[STOP_SIGNAL_RELAY] セッション {session_id} が存在しません")
+        return 0
+    
+    device_tasks = []
+    device_count = 0
+    
+    for connection_id in ws_manager.session_connections[session_id]:
+        if connection_id.startswith("device_"):
+            websocket = ws_manager.active_connections.get(connection_id)
+            if websocket:
+                # 並列送信タスク作成
+                task = asyncio.create_task(
+                    safe_send_to_device(websocket, stop_signal_data, connection_id)
+                )
+                device_tasks.append(task)
+                device_count += 1
+    
+    if not device_tasks:
+        logger.warning(f"[STOP_SIGNAL_RELAY] セッション {session_id} にアクティブなデバイス接続がありません")
+        return 0
+    
+    # 並列実行（2秒タイムアウト）
+    try:
+        results = await asyncio.wait_for(
+            asyncio.gather(*device_tasks, return_exceptions=True),
+            timeout=2.0
+        )
+        
+        # 成功数カウント
+        success_count = sum(1 for result in results if result is True)
+        logger.info(f"[STOP_SIGNAL_RELAY] {success_count}/{device_count} デバイスにストップ信号送信完了")
+        return success_count
+        
+    except asyncio.TimeoutError:
+        logger.warning(f"[STOP_SIGNAL_RELAY] ストップ信号送信がタイムアウト ({device_count}台)")
+        # タスクをキャンセル
+        for task in device_tasks:
+            if not task.done():
+                task.cancel()
+        return 0
+    except Exception as e:
+        logger.error(f"[STOP_SIGNAL_RELAY] 並列送信でエラー: {e}")
         return 0
 
 async def get_device_connections(session_id: str) -> list:

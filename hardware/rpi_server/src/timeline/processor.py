@@ -113,6 +113,9 @@ class TimelineProcessor:
     def _process_events_at_time(self, current_time: float) -> None:
         """指定時刻のイベントを処理
         
+        現在時刻から±tolerance_sec（デフォルト0.1秒）の範囲内にあるイベントを実行します。
+        例: イベント時刻が1.0秒の場合、現在時刻が0.9~1.1秒の範囲で実行されます。
+        
         Args:
             current_time: 現在時刻（秒）
         """
@@ -129,8 +132,16 @@ class TimelineProcessor:
                 continue
             
             # 現在時刻±tolerance内のイベントを処理
-            if abs(event_time - current_time) <= tolerance_sec:
+            # 例: event_time=1.0, tolerance=0.1の場合、current_time=0.9~1.1で実行
+            time_diff = abs(event_time - current_time)
+            
+            if time_diff <= tolerance_sec:
                 events_to_process.append(event)
+                logger.debug(
+                    f"⏱️  イベント実行範囲内: event_time={event_time:.2f}s, "
+                    f"current_time={current_time:.2f}s, diff={time_diff:.3f}s, "
+                    f"tolerance=±{tolerance_sec:.3f}s"
+                )
             
             # 現在時刻を過ぎたイベントは次回以降
             if event_time > current_time + tolerance_sec:

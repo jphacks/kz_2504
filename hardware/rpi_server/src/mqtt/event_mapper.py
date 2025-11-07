@@ -152,3 +152,35 @@ class EventToMQTTMapper:
         action = event.get("action", "start")
         
         return cls.map_event_to_mqtt(effect, mode, action)
+    
+    @classmethod
+    def get_stop_all_commands(cls) -> List[Tuple[str, str]]:
+        """全アクチュエータを停止するMQTTコマンドを生成
+        
+        再生一時停止や動画終了時に呼び出される。
+        全てのエフェクトを安全な状態（OFF）に戻す。
+        
+        Returns:
+            [(topic, payload), ...] のリスト
+        """
+        stop_commands = [
+            # Wind OFF
+            ("/4dx/wind", "OFF"),
+            
+            # Flash/Light OFF
+            ("/4dx/light", "OFF"),
+            
+            # Color を RED に戻す（LEDを完全OFFにはしない）
+            ("/4dx/color", "RED"),
+            
+            # Motor1 OFF
+            ("/4dx/motor1/control", "OFF"),
+            
+            # Motor2 OFF
+            ("/4dx/motor2/control", "OFF"),
+        ]
+        
+        logger.info(f"🛑 全停止MQTTコマンド生成: {len(stop_commands)}件")
+        
+        return stop_commands
+

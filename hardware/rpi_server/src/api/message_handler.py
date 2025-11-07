@@ -20,7 +20,8 @@ class WebSocketMessageHandler:
         on_sync_time: Optional[Callable[[float], None]] = None,
         on_control_command: Optional[Callable[[Dict], None]] = None,
         on_device_test: Optional[Callable[[Dict], None]] = None,
-        on_video_sync: Optional[Callable[[Dict], None]] = None
+        on_video_sync: Optional[Callable[[Dict], None]] = None,
+        on_stop_signal: Optional[Callable[[Dict], None]] = None
     ):
         """
         Args:
@@ -29,12 +30,14 @@ class WebSocketMessageHandler:
             on_control_command: 制御コマンド受信時のコールバック
             on_device_test: デバイステスト受信時のコールバック
             on_video_sync: 動画同期受信時のコールバック
+            on_stop_signal: ストップ信号受信時のコールバック
         """
         self.on_sync_data = on_sync_data
         self.on_sync_time = on_sync_time
         self.on_control_command = on_control_command
         self.on_device_test = on_device_test
         self.on_video_sync = on_video_sync
+        self.on_stop_signal = on_stop_signal
     
     def handle_message(self, message: Dict[str, Any]) -> None:
         """受信メッセージを処理
@@ -64,6 +67,9 @@ class WebSocketMessageHandler:
         
         elif message_type == "device_test":
             self._handle_device_test(message)
+        
+        elif message_type == "stop_signal":
+            self._handle_stop_signal(message)
         
         elif message_type == "device_ack":
             self._handle_device_ack(message)
@@ -263,6 +269,43 @@ class WebSocketMessageHandler:
         
         except Exception as e:
             logger.error(f"device_test処理エラー: {e}", exc_info=True)
+    
+    def _handle_stop_signal(self, message: Dict[str, Any]) -> None:
+        """ストップ信号メッセージを処理（全アクチュエータ停止）
+        
+        メッセージ形式:
+        {
+            "type": "stop_signal",
+            "session_id": "session_xyz",
+            "timestamp": 1699999999.999,
+            "message": "stop_all_actuators",
+            "action": "stop_all",
+            "source": "websocket" | "rest"
+        }
+        """
+        try:
+            session_id = message.get("session_id")
+            action = message.get("action", "stop_all")
+            source = message.get("source", "unknown")
+            
+            logger.info(
+                f"🛑 ストップ信号受信: session_id={session_id}, "
+                f"action={action}, source={source}"
+            )
+            
+            # コールバック実行（全アクチュエータ停止処理）
+            if self.on_stop_signal:
+                self.on_stop_signal({
+                    "session_id": session_id,
+                    "action": action,
+                    "timestamp": message.get("timestamp"),
+                    "source": source
+                })
+            else:
+                logger.warning("on_stop_signal コールバックが未設定です")
+        
+        except Exception as e:
+            logger.error(f"stop_signal処理エラー: {e}", exc_info=True)
     
     def _handle_device_ack(self, message: Dict[str, Any]) -> None:
         """デバイス接続確認応答メッセージを処理

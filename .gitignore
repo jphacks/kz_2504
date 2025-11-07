@@ -65,6 +65,7 @@ api_keys.txt
 
 # デプロイ情報・機密URL情報（backend-report全体を除外）
 docs/backend-report/
+docs/project_report/
 
 # Debug and test files (debug folder)
 backend/debug/

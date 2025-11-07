@@ -153,7 +153,8 @@ class RaspberryPiServer:
             on_sync_time=self._on_sync_time_received,
             on_control_command=self._on_control_command_received,
             on_device_test=self._on_device_test_received,
-            on_video_sync=self._on_video_sync_received
+            on_video_sync=self._on_video_sync_received,
+            on_stop_signal=self._on_stop_signal_received
         )
         
         handler.handle_message(message)
@@ -309,6 +310,42 @@ class RaspberryPiServer:
             logger.info(f"📤 デバイステスト結果送信完了")
         except Exception as e:
             logger.error(f"❌ デバイステスト結果送信エラー: {e}", exc_info=True)
+    
+    def _on_stop_signal_received(self, stop_data: Dict) -> None:
+        """ストップ信号受信時の処理（全アクチュエータ停止）
+        
+        Args:
+            stop_data: ストップ信号データ（session_id, action, timestamp, sourceを含む）
+        """
+        session_id = stop_data.get("session_id")
+        action = stop_data.get("action", "stop_all")
+        source = stop_data.get("source", "unknown")
+        
+        logger.info(
+            f"🛑 ストップ信号処理開始: session_id={session_id}, "
+            f"action={action}, source={source}"
+        )
+        
+        try:
+            # タイムライン再生を停止
+            if self.timeline_processor.is_playing:
+                self.timeline_processor.stop_playback()
+                logger.info("⏸️  タイムライン再生停止")
+            
+            # 全アクチュエータ停止MQTTコマンドを取得
+            stop_commands = EventToMQTTMapper.get_stop_all_commands()
+            
+            # MQTTコマンドを送信
+            for topic, payload in stop_commands:
+                self.mqtt_client.publish(topic, payload)
+                logger.debug(f"📤 MQTT送信: {topic} = {payload}")
+            
+            logger.info(
+                f"✅ 全アクチュエータ停止完了: {len(stop_commands)}個のコマンド送信"
+            )
+        
+        except Exception as e:
+            logger.error(f"❌ ストップ信号処理エラー: {e}", exc_info=True)
     
     def _on_timeline_event(self, event: Dict) -> None:
         """タイムラインイベント発火時の処理
