@@ -105,6 +105,8 @@ export default function PlayerPage() {
   const startSentRef = useRef(false);
   // ★ 再生は始まっているが、まだ送れていない（WS未OPEN/詰まり）の保留フラグ
   const wantStartRef = useRef(false);
+  // ★ コンポーネントがマウントされているかのフラグ
+  const isMountedRef = useRef(true);
 
   /* ====== 送信を"確実化"するユーティリティ ====== */
 
@@ -532,6 +534,12 @@ export default function PlayerPage() {
 
   // ストップ信号を送信 (REST API + WebSocket)
   const sendStopSignal = async () => {
+    // コンポーネントがアンマウントされている場合は何もしない
+    if (!isMountedRef.current) {
+      console.log("⏹️ [Signal] sendStopSignal SKIPPED - component unmounted");
+      return;
+    }
+
     // URLから直接sessionIdを取得（状態更新の遅延を回避）
     const currentSessionId = sessionId || q.get("session") || "demo-session";
     
@@ -555,6 +563,12 @@ export default function PlayerPage() {
     } catch (e) {
       console.error("❌ [Signal] sendStopSignal (REST) FAILED", e);
       // RESTが失敗してもWSは試行する
+    }
+
+    // コンポーネントがアンマウントされていないか再確認
+    if (!isMountedRef.current) {
+      console.log("⏹️ [Signal] sendStopSignal interrupted - component unmounted");
+      return;
     }
 
     // 2. WebSocketでストップ信号を送信
@@ -634,13 +648,19 @@ export default function PlayerPage() {
     const onPause  = () => { 
       setIsPlaying(false);
       stopSyncLoop(); // 一時停止時に同期ループ停止
-      void sendStopSignal(); // ストップ信号を送信
+      // sendStopSignalを非同期で実行し、エラーをキャッチ
+      sendStopSignal().catch((err) => {
+        console.error("[video] pause - sendStopSignal failed", err);
+      });
       console.log("[video] pause - sync loop stopped");
     };
     const onEnded  = () => { 
       setIsPlaying(false);
       stopSyncLoop(); // 終了時に同期ループ停止
-      void sendStopSignal(); // ストップ信号を送信
+      // sendStopSignalを非同期で実行し、エラーをキャッチ
+      sendStopSignal().catch((err) => {
+        console.error("[video] ended - sendStopSignal failed", err);
+      });
       console.log("[video] ended - sync loop stopped");
     };
 
@@ -889,9 +909,13 @@ export default function PlayerPage() {
 
   /* ====== WebSocket クリーンアップ ====== */
   useEffect(() => {
+    // コンポーネントマウント時
+    isMountedRef.current = true;
+    
     // コンポーネントアンマウント時にWebSocket接続をクリーンアップ
     return () => {
       console.log("[player-ws] cleanup on unmount");
+      isMountedRef.current = false; // アンマウントフラグを設定
       if (wsRef.current) {
         try {
           wsRef.current.close();
