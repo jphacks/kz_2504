@@ -45,22 +45,26 @@ export default function PlayerPage() {
     [contentId]
   );
 
-  const sessionId = useMemo(() => {
+  const [sessionId, setSessionId] = useState<string>("");
+
+  // セッションID初期化
+  useEffect(() => {
     // 1. URLクエリから取得
     const urlSid = q.get("session");
     if (urlSid) {
-      sessionStorage.setItem("sessionId", urlSid);
-      return urlSid;
+      try { sessionStorage.setItem("sessionId", urlSid); } catch {}
+      setSessionId(urlSid);
+      return;
     }
-    
+
     // 2. sessionStorageから取得
-    const stored = sessionStorage.getItem("sessionId");
-    if (stored) return stored;
-    
+    const stored = (() => { try { return sessionStorage.getItem("sessionId"); } catch { return null; } })();
+    if (stored) { setSessionId(stored); return; }
+
     // 3. 環境変数のデフォルト値を使用（READMEに準拠）
     const defaultSid = import.meta.env.VITE_PRODUCTION_SESSION_ID || "demo1";
-    sessionStorage.setItem("sessionId", defaultSid);
-    return defaultSid;
+    try { sessionStorage.setItem("sessionId", defaultSid); } catch {}
+    setSessionId(defaultSid);
   }, [q]);
 
   const videoRef = useRef<HTMLVideoElement | null>(null);
@@ -166,6 +170,26 @@ export default function PlayerPage() {
     const v = videoRef.current; if (!v) return;
     if (v.muted) { v.muted = false; setMuted(false); }
     if (v.volume === 0) v.volume = 1;
+  };
+
+  /* ====== セッションID 適用 ====== */
+  const handleSessionApply = () => {
+    const sid = (sessionId || "").trim();
+    if (!sid) {
+      setPrepareError("セッションIDを入力してください");
+      return;
+    }
+    setPrepareError(null);
+    setSessionId(sid);
+    try {
+      sessionStorage.setItem("sessionId", sid);
+    } catch {}
+    // URLクエリにも反映（共有しやすくする）
+    try {
+      const url = new URL(window.location.href);
+      url.searchParams.set("session", sid);
+      window.history.replaceState({}, "", url.toString());
+    } catch {}
   };
 
   /* ====== デバイスハブ接続処理 ====== */
@@ -1116,10 +1140,19 @@ export default function PlayerPage() {
             <div className="prep-card">
               <h2 className="prep-h1">再生準備</h2>
 
-              {/* セッションID表示 */}
+              {/* セッションID入力（デバイスハブと同じデザイン） */}
               <div className="prep-sec">
                 <div className="prep-label">セッションID</div>
-                <div className="prep-status ok">{sessionId}</div>
+                <div className="prep-grid">
+                  <input
+                    className="xh-input"
+                    placeholder="例: session01"
+                    value={sessionId}
+                    onChange={(e) => setSessionId(e.target.value)}
+                    autoComplete="off"
+                  />
+                  <button className="xh-btn xh-login" onClick={handleSessionApply}>適用</button>
+                </div>
               </div>
 
               <div className="prep-sec">

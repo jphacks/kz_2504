@@ -96,7 +96,6 @@ export async function loadAndSendTimeline(
 ): Promise<TimelineUploadResponse> {
   // 複数候補パスを試行: /sync-data/{id}.json → /json/{id}.json → /json/demo1.json (フォールバック)
   const candidates = [
-    `/sync-data/${encodeURIComponent(videoId)}.json`,
     `/json/${encodeURIComponent(videoId)}.json`,
     videoId !== "demo1" ? "/json/demo1.json" : null,
   ].filter(Boolean) as string[];
