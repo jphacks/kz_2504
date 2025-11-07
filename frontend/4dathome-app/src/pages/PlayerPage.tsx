@@ -696,11 +696,113 @@ export default function PlayerPage() {
     return () => window.removeEventListener("keydown", h);
   }, []);
 
+  /* ====== 再生開始処理（handlePlay） ====== */
+  const handlePlay = () => {
+    const v = videoRef.current;
+    if (!v) {
+      console.warn("❌ [handlePlay] video element not found");
+      return;
+    }
+
+    console.log("▶️  [handlePlay] 再生開始処理開始");
+    
+    // 1. 状態更新
+    setIsPlaying(true);
+    
+    // 2. 既存の送信インターバルをクリア（重複防止）
+    stopSyncLoop();
+    console.log("   既存の同期ループをクリア");
+    
+    // 3. WebSocket接続状態を確認
+    const ws = wsRef.current;
+    const wsReady = ws && ws.readyState === WebSocket.OPEN;
+    const hubId = q.get("hub")?.trim() || "";
+    console.log("   WebSocket状態:", {
+      connected: wsReady,
+      readyState: ws?.readyState,
+      sessionId,
+      hubId
+    });
+    
+    // 4. HTML5動画を再生
+    v.play()
+      .then(() => {
+        console.log("✅ [handlePlay] 動画再生成功");
+        
+        // 5. 500ms間隔の同期ループを開始
+        startSyncLoop();
+        console.log("   同期ループ開始（間隔: " + SYNC_INTERVAL_MS + "ms）");
+        
+        // 6. 初回同期メッセージを即座に送信
+        if (wsReady) {
+          const currentTime = v.currentTime || 0;
+          const msg: OutMsg = {
+            type: "sync",
+            state: "play",
+            time: currentTime,
+            duration: v.duration || 0,
+            ts: Date.now()
+          };
+          send(msg);
+          console.log("📤 [handlePlay] 初回同期メッセージ送信", {
+            time: currentTime.toFixed(3) + "秒",
+            state: "play"
+          });
+        } else {
+          console.warn("⚠️  [handlePlay] WebSocket未接続のため同期メッセージ送信不可");
+        }
+      })
+      .catch((err) => {
+        console.error("❌ [handlePlay] 動画再生失敗", err);
+        setIsPlaying(false);
+      });
+  };
+
+  /* ====== 一時停止処理（handlePause） ====== */
+  const handlePause = () => {
+    const v = videoRef.current;
+    if (!v) {
+      console.warn("❌ [handlePause] video element not found");
+      return;
+    }
+
+    console.log("⏸️  [handlePause] 一時停止処理開始");
+    
+    // 1. 動画を一時停止
+    v.pause();
+    
+    // 2. 状態更新
+    setIsPlaying(false);
+    
+    // 3. 同期ループを停止
+    stopSyncLoop();
+    console.log("   同期ループ停止");
+    
+    // 4. 一時停止メッセージを送信
+    const ws = wsRef.current;
+    if (ws && ws.readyState === WebSocket.OPEN) {
+      const msg: OutMsg = {
+        type: "sync",
+        state: "pause",
+        time: v.currentTime || 0,
+        duration: v.duration || 0,
+        ts: Date.now()
+      };
+      send(msg);
+      console.log("📤 [handlePause] 一時停止メッセージ送信");
+    } else {
+      console.warn("⚠️  [handlePause] WebSocket未接続のため送信スキップ");
+    }
+  };
+
   const togglePlay = () => {
     const v = videoRef.current; if (!v) return;
     unmuteIfPossible();
-    if (v.paused) v.play().catch(()=>{});
-    else v.pause();
+    if (v.paused) {
+      handlePlay(); // 明示的なhandlePlayを使用
+    } else {
+      handlePause(); // 明示的なhandlePauseを使用
+    }
   };
 
   const skip = (sec: number) => {
