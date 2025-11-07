@@ -46,10 +46,15 @@ export default function PlayerPage() {
   const q = useMemo(() => new URLSearchParams(search), [search]);
 
   const contentId = q.get("content");
-  const src = useMemo(
-    () => (contentId ? `/video/${contentId}.mp4` : "/video/demo1.mp4"),
-    [contentId]
-  );
+  const src = useMemo(() => {
+    if (!contentId) return "/video/demo1.mp4";
+    // allow queries like ?content=demo2 or ?content=demo2.mp4
+    const hasExt = /\.mp4$/i.test(contentId);
+    const fileName = hasExt ? contentId : `${contentId}.mp4`;
+    const s = `/video/${encodeURIComponent(fileName)}`;
+    console.log("[debug] video src computed:", { contentId, fileName, src: s });
+    return s;
+  }, [contentId]);
 
   const [sessionId, setSessionId] = useState<string>("");
 
