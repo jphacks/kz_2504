@@ -1,0 +1,14 @@
+@import "tailwindcss";
+
+@layer base {
+  html, body, #root { height: 100%; }
+  body { margin: 0; } /* これだけでOK */
+}
+
+@layer components {
+  .btn {
+    @apply rounded-lg border border-black/10 bg-white px-3 py-2 text-sm
+           transition hover:bg-gray-50
+           dark:bg-gray-800 dark:border-white/10 dark:hover:bg-gray-700;
+  }
+}
