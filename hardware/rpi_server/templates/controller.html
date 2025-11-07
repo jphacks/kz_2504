@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>4DX@HOME Controller</title>
+    <title>4DX@HOME Debug Controller</title>
     <style>
         body {
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
@@ -46,6 +46,27 @@
             background-color: #fff1f0;
             color: #d93026;
             border: 1px solid #ffccc7;
+        }
+        .emergency-stop {
+            background-color: #ff1744;
+            color: white;
+            font-size: 1.5rem;
+            padding: 20px;
+            border-radius: 12px;
+            font-weight: bold;
+            text-align: center;
+            cursor: pointer;
+            border: 4px solid #c51162;
+            box-shadow: 0 8px 16px rgba(255, 23, 68, 0.3);
+            transition: all 0.2s ease;
+            margin-bottom: 20px;
+        }
+        .emergency-stop:active {
+            transform: scale(0.95);
+            box-shadow: 0 4px 8px rgba(255, 23, 68, 0.3);
+        }
+        .emergency-stop:hover {
+            background-color: #c51162;
         }
         .control-group {
             margin-bottom: 20px;
@@ -137,13 +158,206 @@
         .btn-motor-rumble-fast { background-color: #17a2b8; }
         .btn-motor-rumble-slow { background-color: #007bff; }
         .btn-motor-off { background-color: #343a40; }
+        
+        /* デバッグツール用スタイル */
+        .btn-test { background-color: #6f42c1; }
+        .btn-test:hover:not(:disabled) { background-color: #5a32a3; }
+        .btn-preset { background-color: #20c997; }
+        .btn-preset:hover:not(:disabled) { background-color: #17a589; }
+        
+        .device-status-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 8px 12px;
+            margin: 8px 0;
+            background-color: #f8f9fa;
+            border-radius: 6px;
+            font-size: 0.9rem;
+        }
+        .device-status-item .name {
+            font-weight: 600;
+            color: #495057;
+        }
+        .device-status-item .status {
+            font-weight: 500;
+        }
+        .device-status-item .online {
+            color: #28a745;
+        }
+        .device-status-item .offline {
+            color: #dc3545;
+        }
+        
+        .log-viewer {
+            max-height: 200px;
+            overflow-y: auto;
+            background-color: #212529;
+            color: #0f0;
+            font-family: 'Courier New', monospace;
+            font-size: 0.85rem;
+            padding: 12px;
+            border-radius: 6px;
+            line-height: 1.4;
+        }
+        .log-entry {
+            margin: 4px 0;
+        }
+        .log-time {
+            color: #6c757d;
+        }
+        .log-success {
+            color: #28a745;
+        }
+        .log-error {
+            color: #dc3545;
+        }
+        
+        .progress-bar {
+            width: 100%;
+            height: 8px;
+            background-color: #e9ecef;
+            border-radius: 4px;
+            overflow: hidden;
+            margin-top: 8px;
+        }
+        .progress-bar-fill {
+            height: 100%;
+            background-color: #007bff;
+            transition: width 0.3s ease;
+        }
+        
+        .tab-container {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 16px;
+            border-bottom: 2px solid #e8e8e8;
+        }
+        .tab-button {
+            background-color: transparent;
+            color: #6c757d;
+            border: none;
+            border-bottom: 3px solid transparent;
+            padding: 12px 16px;
+            cursor: pointer;
+            font-weight: 500;
+            transition: all 0.2s ease;
+        }
+        .tab-button.active {
+            color: #007bff;
+            border-bottom-color: #007bff;
+        }
+        .tab-button:hover {
+            color: #0056b3;
+        }
+        .tab-content {
+            display: none;
+        }
+        .tab-content.active {
+            display: block;
+        }
     </style>
 </head>
 <body>
     <div class="container">
-        <h1>4DX@HOME Controller</h1>
+        <h1>🎮 4DX@HOME Debug Controller</h1>
         <div id="status" class="status-box status-disconnected">
             サーバーに接続中...
+        </div>
+        
+        <!-- 緊急停止ボタン -->
+        <div class="emergency-stop" onclick="emergencyStopAll()">
+            🛑 ALL STOP (緊急停止)
+        </div>
+        
+        <!-- デバイス情報 -->
+        <div style="font-size: 0.9rem; color: #666; text-align: center;">
+            <div id="deviceInfo">デバイス情報を取得中...</div>
+            <div id="mqttStatus" style="margin-top: 8px;">MQTT: 接続確認中...</div>
+        </div>
+    </div>
+
+    <!-- デバッグツールタブ -->
+    <div class="container">
+        <div class="tab-container">
+            <button class="tab-button active" onclick="switchTab('controls')">手動制御</button>
+            <button class="tab-button" onclick="switchTab('auto-test')">自動テスト</button>
+            <button class="tab-button" onclick="switchTab('devices')">デバイス状態</button>
+            <button class="tab-button" onclick="switchTab('logs')">ログ</button>
+        </div>
+        
+        <!-- タブ1: 手動制御（既存のコントロール） -->
+        <div id="tab-controls" class="tab-content active">
+            <p style="text-align: center; color: #666; font-size: 0.9rem;">
+                各デバイスを手動で操作できます
+            </p>
+        </div>
+        
+        <!-- タブ2: 自動テスト -->
+        <div id="tab-auto-test" class="tab-content">
+            <div class="control-group">
+                <h3>🧪 連続テストモード</h3>
+                <p style="font-size: 0.9rem; color: #666; margin-bottom: 12px;">
+                    全デバイスを順番に自動テストします
+                </p>
+                <div class="button-grid">
+                    <button class="btn-test" onclick="runAutoTest('quick')" id="quickTestBtn">
+                        クイックテスト (30秒)
+                    </button>
+                    <button class="btn-test" onclick="runAutoTest('full')" id="fullTestBtn">
+                        完全テスト (2分)
+                    </button>
+                </div>
+                <div id="testProgress" style="display: none;">
+                    <div style="margin-top: 12px; font-size: 0.9rem; color: #666;">
+                        <div id="testStatus">準備中...</div>
+                        <div class="progress-bar">
+                            <div id="testProgressBar" class="progress-bar-fill" style="width: 0%;"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="control-group">
+                <h3>🎯 クイックプリセット</h3>
+                <div class="button-grid">
+                    <button class="btn-preset" onclick="runPreset('action')">
+                        アクションシーン
+                    </button>
+                    <button class="btn-preset" onclick="runPreset('horror')">
+                        ホラーシーン
+                    </button>
+                    <button class="btn-preset" onclick="runPreset('racing')">
+                        レーシング
+                    </button>
+                    <button class="btn-preset" onclick="runPreset('demo')">
+                        デモ演出
+                    </button>
+                </div>
+            </div>
+        </div>
+        
+        <!-- タブ3: デバイス状態 -->
+        <div id="tab-devices" class="tab-content">
+            <div class="control-group">
+                <h3>📡 デバイス詳細ステータス</h3>
+                <div id="deviceDetailList">
+                    <p style="text-align: center; color: #999;">読み込み中...</p>
+                </div>
+            </div>
+        </div>
+        
+        <!-- タブ4: ログビューワー -->
+        <div id="tab-logs" class="tab-content">
+            <div class="control-group">
+                <h3>📝 通信ログ（最新20件）</h3>
+                <button class="btn-test" onclick="refreshLogs()" style="width: 100%; margin-bottom: 12px;">
+                    ログ更新
+                </button>
+                <div class="log-viewer" id="logViewer">
+                    <div class="log-entry">ログを読み込み中...</div>
+                </div>
+            </div>
         </div>
     </div>
 
@@ -226,30 +440,97 @@
 
     <script>
         const statusEl = document.getElementById('status');
+        const deviceInfoEl = document.getElementById('deviceInfo');
+        const mqttStatusEl = document.getElementById('mqttStatus');
         const allButtons = document.querySelectorAll('button');
         const publishUrl = "/api/mqtt/publish";
 
-        window.addEventListener('load', checkServerStatus);
+        window.addEventListener('load', async () => {
+            await checkServerStatus();
+            // 定期的にステータスを更新（5秒ごと）
+            setInterval(updateDeviceStatus, 5000);
+        });
 
         async function checkServerStatus() {
             try {
                 const response = await fetch('/health');
                 if (response.ok) {
-                    setStatus('サーバー接続完了', 'connected');
+                    const data = await response.json();
+                    setStatus('✅ サーバー接続完了', 'connected');
                     enableButtons(true);
+                    
+                    // デバイス情報を更新
+                    mqttStatusEl.textContent = `MQTT: ${data.mqtt_connected ? '🟢 接続中' : '🔴 切断'}`;
+                    await updateDeviceStatus();
                 } else {
                     throw new Error('Server not reachable');
                 }
             } catch (error) {
                 console.error("サーバー接続失敗:", error);
-                setStatus('サーバーに接続できません', 'disconnected');
+                setStatus('❌ サーバーに接続できません', 'disconnected');
                 enableButtons(false);
+                mqttStatusEl.textContent = 'MQTT: ❌ 接続失敗';
+            }
+        }
+        
+        async function updateDeviceStatus() {
+            try {
+                const response = await fetch('/api/devices');
+                if (response.ok) {
+                    const data = await response.json();
+                    const deviceCount = data.devices.length;
+                    const onlineCount = data.devices.filter(d => d.is_online).length;
+                    deviceInfoEl.textContent = `デバイス: ${onlineCount}/${deviceCount} オンライン`;
+                } else {
+                    deviceInfoEl.textContent = 'デバイス情報取得エラー';
+                }
+            } catch (error) {
+                console.error("デバイス情報取得エラー:", error);
+            }
+        }
+        
+        async function emergencyStopAll() {
+            console.log('🛑 緊急停止実行');
+            
+            // UIフィードバック
+            setStatus('🛑 全デバイス停止中...', 'disconnected');
+            
+            // 全停止コマンドを並列送信
+            const stopCommands = [
+                { topic: '/4dx/wind', payload: 'OFF' },
+                { topic: '/4dx/light', payload: 'OFF' },
+                { topic: '/4dx/color', payload: 'RED' },
+                { topic: '/4dx/motor1/control', payload: 'OFF' },
+                { topic: '/4dx/motor2/control', payload: 'OFF' }
+            ];
+            
+            try {
+                const promises = stopCommands.map(cmd => 
+                    fetch(publishUrl, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(cmd)
+                    })
+                );
+                
+                await Promise.all(promises);
+                
+                console.log('✅ 全停止完了');
+                setStatus('✅ 全デバイス停止完了', 'connected');
+                
+                // 3秒後にステータスを戻す
+                setTimeout(() => {
+                    setStatus('✅ サーバー接続完了', 'connected');
+                }, 3000);
+            } catch (error) {
+                console.error('❌ 停止コマンド送信エラー:', error);
+                setStatus('❌ 停止コマンド送信失敗', 'disconnected');
             }
         }
         
         async function publish(topic, payload) {
             enableButtons(false);
-            console.log(`Sending: [${topic}] -> ${payload}`);
+            console.log(`📤 送信: [${topic}] -> ${payload}`);
             
             try {
                 const response = await fetch(publishUrl, {
@@ -263,11 +544,16 @@
                 }
                 
                 const result = await response.json();
-                console.log('Server response:', result);
-                setStatus('コマンド送信成功', 'connected');
+                console.log('✅ Server response:', result);
+                setStatus('✅ コマンド送信成功', 'connected');
+                
+                // 1秒後にステータスを戻す
+                setTimeout(() => {
+                    setStatus('✅ サーバー接続完了', 'connected');
+                }, 1000);
             } catch (error) {
-                console.error('Publish error:', error);
-                setStatus('コマンド送信失敗', 'disconnected');
+                console.error('❌ Publish error:', error);
+                setStatus('❌ コマンド送信失敗', 'disconnected');
             } finally {
                 setTimeout(() => enableButtons(true), 200);
             }
@@ -281,6 +567,273 @@
         function enableButtons(enabled) {
             allButtons.forEach(button => button.disabled = !enabled);
         }
+        
+        // ===== タブ切り替え =====
+        function switchTab(tabName) {
+            // すべてのタブボタンとコンテンツを非アクティブに
+            document.querySelectorAll('.tab-button').forEach(btn => btn.classList.remove('active'));
+            document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
+            
+            // 選択されたタブをアクティブに
+            event.target.classList.add('active');
+            document.getElementById(`tab-${tabName}`).classList.add('active');
+            
+            // デバイス状態タブの場合は詳細情報を更新
+            if (tabName === 'devices') {
+                updateDeviceDetails();
+            }
+            // ログタブの場合はログを更新
+            if (tabName === 'logs') {
+                refreshLogs();
+            }
+        }
+        
+        // ===== デバイス詳細ステータス表示 =====
+        async function updateDeviceDetails() {
+            const detailList = document.getElementById('deviceDetailList');
+            
+            try {
+                const response = await fetch('/api/devices');
+                if (!response.ok) throw new Error('Failed to fetch');
+                
+                const data = await response.json();
+                
+                if (data.devices.length === 0) {
+                    detailList.innerHTML = '<p style="text-align: center; color: #999;">デバイスが見つかりません</p>';
+                    return;
+                }
+                
+                detailList.innerHTML = data.devices.map(device => `
+                    <div class="device-status-item">
+                        <div class="name">${device.device_id}</div>
+                        <div class="status ${device.is_online ? 'online' : 'offline'}">
+                            ${device.is_online ? '🟢 オンライン' : '🔴 オフライン'}
+                        </div>
+                    </div>
+                    <div style="font-size: 0.8rem; color: #6c757d; margin-left: 12px; margin-bottom: 8px;">
+                        タイプ: ${device.device_type} | 最終応答: ${device.last_heartbeat || 'N/A'}
+                    </div>
+                `).join('');
+                
+            } catch (error) {
+                console.error('デバイス詳細取得エラー:', error);
+                detailList.innerHTML = '<p style="text-align: center; color: #dc3545;">エラーが発生しました</p>';
+            }
+        }
+        
+        // ===== ログビューワー =====
+        let logEntries = [];
+        
+        function addLog(message, type = 'info') {
+            const timestamp = new Date().toLocaleTimeString('ja-JP');
+            const logClass = type === 'success' ? 'log-success' : type === 'error' ? 'log-error' : '';
+            
+            logEntries.unshift(`<div class="log-entry"><span class="log-time">[${timestamp}]</span> <span class="${logClass}">${message}</span></div>`);
+            
+            // 最新20件のみ保持
+            if (logEntries.length > 20) {
+                logEntries = logEntries.slice(0, 20);
+            }
+            
+            updateLogViewer();
+        }
+        
+        function updateLogViewer() {
+            const logViewer = document.getElementById('logViewer');
+            if (logViewer) {
+                logViewer.innerHTML = logEntries.length > 0 
+                    ? logEntries.join('') 
+                    : '<div class="log-entry">ログはありません</div>';
+            }
+        }
+        
+        function refreshLogs() {
+            addLog('ログを更新しました', 'success');
+        }
+        
+        // publishにログ記録を追加
+        const originalPublish = publish;
+        publish = async function(topic, payload) {
+            addLog(`📤 送信: ${topic} = ${payload}`, 'info');
+            
+            try {
+                await originalPublish(topic, payload);
+                addLog(`✅ 成功: ${topic}`, 'success');
+            } catch (error) {
+                addLog(`❌ 失敗: ${topic} - ${error.message}`, 'error');
+                throw error;
+            }
+        };
+        
+        // ===== 自動テストモード =====
+        let testRunning = false;
+        
+        async function runAutoTest(mode) {
+            if (testRunning) {
+                alert('テストが既に実行中です');
+                return;
+            }
+            
+            testRunning = true;
+            const progressEl = document.getElementById('testProgress');
+            const statusEl = document.getElementById('testStatus');
+            const barEl = document.getElementById('testProgressBar');
+            const quickBtn = document.getElementById('quickTestBtn');
+            const fullBtn = document.getElementById('fullTestBtn');
+            
+            // ボタンを無効化
+            quickBtn.disabled = true;
+            fullBtn.disabled = true;
+            progressEl.style.display = 'block';
+            
+            const testSequence = mode === 'quick' 
+                ? [
+                    { name: 'Water テスト', topic: '/4dx/water', payload: 'trigger', delay: 2000 },
+                    { name: 'Wind ON', topic: '/4dx/wind', payload: 'ON', delay: 3000 },
+                    { name: 'Wind OFF', topic: '/4dx/wind', payload: 'OFF', delay: 1000 },
+                    { name: 'LED 点灯', topic: '/4dx/light', payload: 'ON', delay: 2000 },
+                    { name: 'LED 点滅', topic: '/4dx/light', payload: 'BLINK_FAST', delay: 3000 },
+                    { name: 'LED OFF', topic: '/4dx/light', payload: 'OFF', delay: 1000 },
+                    { name: 'RGB 赤', topic: '/4dx/color', payload: 'RED', delay: 2000 },
+                    { name: 'RGB 青', topic: '/4dx/color', payload: 'BLUE', delay: 2000 },
+                    { name: 'RGB 緑', topic: '/4dx/color', payload: 'GREEN', delay: 2000 },
+                    { name: 'Motor1 強', topic: '/4dx/motor1/control', payload: 'STRONG', delay: 2000 },
+                    { name: 'Motor1 OFF', topic: '/4dx/motor1/control', payload: 'OFF', delay: 1000 },
+                    { name: 'Motor2 強', topic: '/4dx/motor2/control', payload: 'STRONG', delay: 2000 },
+                    { name: 'Motor2 OFF', topic: '/4dx/motor2/control', payload: 'OFF', delay: 1000 },
+                    { name: '全停止', topic: 'STOP_ALL', payload: '', delay: 1000 }
+                ]
+                : [
+                    // 完全テスト（より詳細）
+                    { name: 'Water 単発', topic: '/4dx/water', payload: 'trigger', delay: 3000 },
+                    { name: 'Wind ON', topic: '/4dx/wind', payload: 'ON', delay: 4000 },
+                    { name: 'Wind OFF', topic: '/4dx/wind', payload: 'OFF', delay: 2000 },
+                    { name: 'LED ON', topic: '/4dx/light', payload: 'ON', delay: 3000 },
+                    { name: 'LED Blink Slow', topic: '/4dx/light', payload: 'BLINK_SLOW', delay: 4000 },
+                    { name: 'LED Blink Fast', topic: '/4dx/light', payload: 'BLINK_FAST', delay: 4000 },
+                    { name: 'LED OFF', topic: '/4dx/light', payload: 'OFF', delay: 2000 },
+                    { name: 'RGB Red', topic: '/4dx/color', payload: 'RED', delay: 3000 },
+                    { name: 'RGB Green', topic: '/4dx/color', payload: 'GREEN', delay: 3000 },
+                    { name: 'RGB Blue', topic: '/4dx/color', payload: 'BLUE', delay: 3000 },
+                    { name: 'RGB Yellow', topic: '/4dx/color', payload: 'YELLOW', delay: 3000 },
+                    { name: 'RGB Cyan', topic: '/4dx/color', payload: 'CYAN', delay: 3000 },
+                    { name: 'RGB Purple', topic: '/4dx/color', payload: 'PURPLE', delay: 3000 },
+                    { name: 'Motor1 強', topic: '/4dx/motor1/control', payload: 'STRONG', delay: 3000 },
+                    { name: 'Motor1 中強', topic: '/4dx/motor1/control', payload: 'MEDIUM_STRONG', delay: 3000 },
+                    { name: 'Motor1 中弱', topic: '/4dx/motor1/control', payload: 'MEDIUM_WEAK', delay: 3000 },
+                    { name: 'Motor1 弱', topic: '/4dx/motor1/control', payload: 'WEAK', delay: 3000 },
+                    { name: 'Motor1 心拍', topic: '/4dx/motor1/control', payload: 'HEARTBEAT', delay: 4000 },
+                    { name: 'Motor1 OFF', topic: '/4dx/motor1/control', payload: 'OFF', delay: 2000 },
+                    { name: 'Motor2 強', topic: '/4dx/motor2/control', payload: 'STRONG', delay: 3000 },
+                    { name: 'Motor2 Rumble Fast', topic: '/4dx/motor2/control', payload: 'RUMBLE_FAST', delay: 4000 },
+                    { name: 'Motor2 Rumble Slow', topic: '/4dx/motor2/control', payload: 'RUMBLE_SLOW', delay: 4000 },
+                    { name: 'Motor2 OFF', topic: '/4dx/motor2/control', payload: 'OFF', delay: 2000 },
+                    { name: '全停止', topic: 'STOP_ALL', payload: '', delay: 2000 }
+                ];
+            
+            try {
+                for (let i = 0; i < testSequence.length; i++) {
+                    const step = testSequence[i];
+                    const progress = ((i + 1) / testSequence.length) * 100;
+                    
+                    statusEl.textContent = `${i + 1}/${testSequence.length}: ${step.name}`;
+                    barEl.style.width = `${progress}%`;
+                    addLog(`🧪 テスト: ${step.name}`, 'info');
+                    
+                    if (step.topic === 'STOP_ALL') {
+                        await emergencyStopAll();
+                    } else {
+                        await publish(step.topic, step.payload);
+                    }
+                    
+                    await new Promise(resolve => setTimeout(resolve, step.delay));
+                }
+                
+                statusEl.textContent = '✅ テスト完了!';
+                addLog('✅ 自動テスト完了', 'success');
+                
+                setTimeout(() => {
+                    progressEl.style.display = 'none';
+                    barEl.style.width = '0%';
+                }, 3000);
+                
+            } catch (error) {
+                statusEl.textContent = '❌ テスト失敗';
+                addLog(`❌ テストエラー: ${error.message}`, 'error');
+                console.error('自動テストエラー:', error);
+            } finally {
+                testRunning = false;
+                quickBtn.disabled = false;
+                fullBtn.disabled = false;
+            }
+        }
+        
+        // ===== クイックプリセット =====
+        async function runPreset(presetName) {
+            addLog(`🎯 プリセット実行: ${presetName}`, 'info');
+            
+            const presets = {
+                action: [
+                    { topic: '/4dx/motor1/control', payload: 'STRONG', delay: 500 },
+                    { topic: '/4dx/motor2/control', payload: 'STRONG', delay: 500 },
+                    { topic: '/4dx/wind', payload: 'ON', delay: 500 },
+                    { topic: '/4dx/light', payload: 'BLINK_FAST', delay: 3000 },
+                    { topic: '/4dx/motor1/control', payload: 'OFF', delay: 100 },
+                    { topic: '/4dx/motor2/control', payload: 'OFF', delay: 100 },
+                    { topic: '/4dx/wind', payload: 'OFF', delay: 100 },
+                    { topic: '/4dx/light', payload: 'OFF', delay: 100 }
+                ],
+                horror: [
+                    { topic: '/4dx/color', payload: 'RED', delay: 1000 },
+                    { topic: '/4dx/light', payload: 'BLINK_SLOW', delay: 2000 },
+                    { topic: '/4dx/motor1/control', payload: 'HEARTBEAT', delay: 3000 },
+                    { topic: '/4dx/motor2/control', payload: 'HEARTBEAT', delay: 3000 },
+                    { topic: '/4dx/motor1/control', payload: 'OFF', delay: 100 },
+                    { topic: '/4dx/motor2/control', payload: 'OFF', delay: 100 },
+                    { topic: '/4dx/light', payload: 'OFF', delay: 100 }
+                ],
+                racing: [
+                    { topic: '/4dx/motor1/control', payload: 'RUMBLE_FAST', delay: 500 },
+                    { topic: '/4dx/motor2/control', payload: 'RUMBLE_FAST', delay: 500 },
+                    { topic: '/4dx/wind', payload: 'ON', delay: 500 },
+                    { topic: '/4dx/color', payload: 'CYAN', delay: 4000 },
+                    { topic: '/4dx/motor1/control', payload: 'OFF', delay: 100 },
+                    { topic: '/4dx/motor2/control', payload: 'OFF', delay: 100 },
+                    { topic: '/4dx/wind', payload: 'OFF', delay: 100 }
+                ],
+                demo: [
+                    { topic: '/4dx/color', payload: 'RED', delay: 1000 },
+                    { topic: '/4dx/color', payload: 'GREEN', delay: 1000 },
+                    { topic: '/4dx/color', payload: 'BLUE', delay: 1000 },
+                    { topic: '/4dx/light', payload: 'BLINK_FAST', delay: 2000 },
+                    { topic: '/4dx/wind', payload: 'ON', delay: 2000 },
+                    { topic: '/4dx/motor1/control', payload: 'STRONG', delay: 2000 },
+                    { topic: '/4dx/water', payload: 'trigger', delay: 2000 },
+                    { topic: '/4dx/motor1/control', payload: 'OFF', delay: 100 },
+                    { topic: '/4dx/wind', payload: 'OFF', delay: 100 },
+                    { topic: '/4dx/light', payload: 'OFF', delay: 100 }
+                ]
+            };
+            
+            const sequence = presets[presetName];
+            if (!sequence) {
+                addLog(`❌ 不明なプリセット: ${presetName}`, 'error');
+                return;
+            }
+            
+            try {
+                for (const step of sequence) {
+                    await publish(step.topic, step.payload);
+                    await new Promise(resolve => setTimeout(resolve, step.delay));
+                }
+                addLog(`✅ プリセット完了: ${presetName}`, 'success');
+            } catch (error) {
+                addLog(`❌ プリセットエラー: ${error.message}`, 'error');
+            }
+        }
+        
+        // 初期ログ
+        addLog('デバッグコントローラー起動', 'success');
     </script>
 </body>
 </html>

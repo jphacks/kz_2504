@@ -4,9 +4,13 @@
 """
 
 import logging
+import json
+import os
+from pathlib import Path
+from datetime import datetime
 from flask import Flask, jsonify, render_template, request
 from flask_cors import CORS
-from typing import Dict, Any, Optional
+from typing import Dict, Any, Optional, List
 
 logger = logging.getLogger(__name__)
 
@@ -140,6 +144,139 @@ class FlaskServer:
             
             else:
                 return jsonify({"error": f"Unknown command: {command}"}), 400
+        
+        @self.app.route('/api/debug/logs', methods=['GET'])
+        def get_debug_logs():
+            """デバッグログ（最新のMQTT通信ログ）を取得"""
+            try:
+                from config import Config
+                
+                # 通信ログディレクトリを確認
+                log_dir = Path(Config.COMMUNICATION_LOG_DIR)
+                if not log_dir.exists():
+                    return jsonify({"logs": [], "message": "ログディレクトリが存在しません"})
+                
+                # 最新のログファイルを取得
+                log_files = sorted(log_dir.glob("*.json"), key=os.path.getmtime, reverse=True)
+                
+                logs = []
+                max_logs = 20
+                
+                for log_file in log_files[:5]:  # 最新5ファイルから取得
+                    try:
+                        with open(log_file, 'r', encoding='utf-8') as f:
+                            for line in f:
+                                if len(logs) >= max_logs:
+                                    break
+                                try:
+                                    log_entry = json.loads(line.strip())
+                                    logs.append(log_entry)
+                                except json.JSONDecodeError:
+                                    continue
+                    except Exception as e:
+                        logger.error(f"ログファイル読み込みエラー: {e}")
+                        continue
+                    
+                    if len(logs) >= max_logs:
+                        break
+                
+                return jsonify({"logs": logs[:max_logs]})
+            
+            except Exception as e:
+                logger.error(f"ログ取得エラー: {e}", exc_info=True)
+                return jsonify({"error": str(e), "logs": []}), 500
+        
+        @self.app.route('/api/debug/system-info', methods=['GET'])
+        def get_system_info():
+            """システム情報を取得"""
+            try:
+                from config import Config
+                import platform
+                import psutil
+                
+                # CPU使用率
+                cpu_percent = psutil.cpu_percent(interval=1)
+                
+                # メモリ使用率
+                memory = psutil.virtual_memory()
+                
+                # ディスク使用率
+                disk = psutil.disk_usage('/')
+                
+                system_info = {
+                    "platform": platform.system(),
+                    "platform_release": platform.release(),
+                    "python_version": platform.python_version(),
+                    "cpu_percent": cpu_percent,
+                    "memory": {
+                        "total_gb": round(memory.total / (1024**3), 2),
+                        "used_gb": round(memory.used / (1024**3), 2),
+                        "percent": memory.percent
+                    },
+                    "disk": {
+                        "total_gb": round(disk.total / (1024**3), 2),
+                        "used_gb": round(disk.used / (1024**3), 2),
+                        "percent": disk.percent
+                    },
+                    "config": {
+                        "device_hub_id": Config.DEVICE_HUB_ID,
+                        "mqtt_broker": f"{Config.MQTT_BROKER_HOST}:{Config.MQTT_BROKER_PORT}",
+                        "sync_tolerance_ms": Config.SYNC_TOLERANCE_MS
+                    }
+                }
+                
+                return jsonify(system_info)
+            
+            except ImportError:
+                # psutilがインストールされていない場合
+                from config import Config
+                import platform
+                
+                system_info = {
+                    "platform": platform.system(),
+                    "platform_release": platform.release(),
+                    "python_version": platform.python_version(),
+                    "config": {
+                        "device_hub_id": Config.DEVICE_HUB_ID,
+                        "mqtt_broker": f"{Config.MQTT_BROKER_HOST}:{Config.MQTT_BROKER_PORT}",
+                        "sync_tolerance_ms": Config.SYNC_TOLERANCE_MS
+                    },
+                    "note": "詳細なシステム情報を取得するには psutil をインストールしてください"
+                }
+                
+                return jsonify(system_info)
+            
+            except Exception as e:
+                logger.error(f"システム情報取得エラー: {e}", exc_info=True)
+                return jsonify({"error": str(e)}), 500
+        
+        @self.app.route('/api/debug/mqtt-test', methods=['POST'])
+        def mqtt_connection_test():
+            """MQTT接続テスト"""
+            if not self.mqtt_client:
+                return jsonify({"success": False, "error": "MQTT client not available"}), 503
+            
+            try:
+                is_connected = self.mqtt_client.is_connected
+                
+                # テストメッセージを送信
+                test_topic = "/4dx/debug/test"
+                test_payload = f"test_{datetime.now().timestamp()}"
+                
+                if is_connected:
+                    self.mqtt_client.publish(test_topic, test_payload)
+                
+                return jsonify({
+                    "success": True,
+                    "connected": is_connected,
+                    "test_sent": is_connected,
+                    "topic": test_topic,
+                    "payload": test_payload
+                })
+            
+            except Exception as e:
+                logger.error(f"MQTT接続テストエラー: {e}", exc_info=True)
+                return jsonify({"success": False, "error": str(e)}), 500
     
     def run(self, host: str = '0.0.0.0', port: int = 8000, debug: bool = False) -> None:
         """Flaskサーバーを起動

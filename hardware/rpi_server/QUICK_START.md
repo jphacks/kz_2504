@@ -122,6 +122,13 @@ WebSocket受信ループ開始
 2. 「サーバー接続完了」と表示されればOK
 3. デバイス制御ボタンをクリックしてMQTTコマンドが送信されるか確認
 
+**スマホからアクセス**:
+1. スマホを**Raspberry Piと同じWiFiネットワーク**に接続
+2. ブラウザで `http://<Raspberry_Pi_IP>:8000/` にアクセス
+3. **🛑 ALL STOP（緊急停止）**ボタンで全デバイスを即座に停止可能
+
+> 詳細は [DEBUG_CONTROLLER.md](./DEBUG_CONTROLLER.md) を参照してください。
+
 **停止**: `Ctrl+C`
 
 ---
@@ -190,9 +197,13 @@ WebSocket接続成功
 
 ### ✅ デバイス制御確認
 
-1. ブラウザで `http://<Raspberry_Pi_IP>:8000/` にアクセス
-2. 「Water (単発)」ボタンをクリック
-3. 実際にWaterデバイスが動作するか確認
+1. **PCから**: ブラウザで `http://<Raspberry_Pi_IP>:8000/` にアクセス
+2. **スマホから**: 同じWiFiに接続して、ブラウザで `http://<Raspberry_Pi_IP>:8000/` にアクセス
+3. 「Water (単発)」ボタンをクリック
+4. 実際にWaterデバイスが動作するか確認
+5. **緊急停止テスト**: 🛑 ALL STOPボタンで全デバイスが停止するか確認
+
+> **デバッグコントローラーの詳細**: [DEBUG_CONTROLLER.md](./DEBUG_CONTROLLER.md)
 
 ### ✅ タイムライン同期確認
 
