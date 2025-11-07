@@ -22,13 +22,7 @@ export default function VideoPreparationPage() {
   const wsRef = useRef<WebSocket | null>(null);
   const connInfoRef = useRef<string | null>(null);
 
-  useEffect(() => {
-    // 初期値: URL -> sessionStorage -> fallback
-    const sid = q.get("session") || (sessionStorage.getItem("sessionId") || "");
-    if (sid) setSessionId(sid);
-    const hub = q.get("hub") || (sessionStorage.getItem("deviceHubId") || "");
-    if (hub) setDeviceHubId(hub);
-  }, [q]);
+  // セッションIDやハブIDは手動入力のみ（URLクエリから自動入力しない）
 
   const waitWsHandshake = (timeoutMs = 5000): Promise<boolean> => {
     return new Promise<boolean>((resolve) => {

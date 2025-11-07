@@ -2,7 +2,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useLocation } from "react-router-dom";
 import { BACKEND_API_URL, BACKEND_WS_URL } from "../config/backend";
-import TimelineUploadButton from "../components/TimelineUploadButton";
 
 
 type SyncState = "play" | "pause" | "seeking" | "seeked";
@@ -47,24 +46,12 @@ export default function PlayerPage() {
 
   const [sessionId, setSessionId] = useState<string>("");
 
-  // セッションID初期化
+  // セッションID初期化（URLクエリパラメータから取得）
   useEffect(() => {
-    // 1. URLクエリから取得
     const urlSid = q.get("session");
     if (urlSid) {
-      try { sessionStorage.setItem("sessionId", urlSid); } catch {}
       setSessionId(urlSid);
-      return;
     }
-
-    // 2. sessionStorageから取得
-    const stored = (() => { try { return sessionStorage.getItem("sessionId"); } catch { return null; } })();
-    if (stored) { setSessionId(stored); return; }
-
-    // 3. 環境変数のデフォルト値を使用（READMEに準拠）
-    const defaultSid = import.meta.env.VITE_PRODUCTION_SESSION_ID || "demo1";
-    try { sessionStorage.setItem("sessionId", defaultSid); } catch {}
-    setSessionId(defaultSid);
   }, [q]);
 
   const videoRef = useRef<HTMLVideoElement | null>(null);
@@ -91,51 +78,15 @@ export default function PlayerPage() {
   const [wsError, setWsError] = useState<string | null>(null);
   const [connInfo, setConnInfo] = useState<string | null>(null);
 
-  // 動画準備状態
-  const [isVideoReady, setIsVideoReady] = useState(false);
-
   // タイムラインデータ（エフェクト情報）
   const [timelineEvents, setTimelineEvents] = useState<Array<{t: number; type: string; mode?: string; intensity?: number; duration_ms?: number}>>([]);
-
-  // デバイスハブ接続管理
-  const [deviceHubId, setDeviceHubId] = useState("");
-  const [isDeviceConnecting, setIsDeviceConnecting] = useState(false); // 接続確認中（WSハンドシェイク待ち）
-  const [isDeviceConnected, setIsDeviceConnected] = useState(false);
-  const [isTimelineSent, setIsTimelineSent] = useState(false);
-  const [timelineUploading, setTimelineUploading] = useState(false); // 再導入: スピナー用
-  const [devicesTesting, setDevicesTesting] = useState(false); // デバイステスト待機スピナー
-  const [isDevicesTested, setIsDevicesTested] = useState(false);
-  const [showPrepareScreen, setShowPrepareScreen] = useState(true);
-  const [prepareError, setPrepareError] = useState<string | null>(null);
-
-  // 準備オーバーレイは常にDOMに残し、CSSで非表示化して差し替え時のDOM不整合を防ぐ
-
-  // 全準備完了判定
-  const allReady = isDeviceConnected && isVideoReady && isTimelineSent && isDevicesTested;
 
   // ★ 最初の start を「確実に1回だけ」送ったか
   const startSentRef = useRef(false);
   // ★ 再生は始まっているが、まだ送れていない（WS未OPEN/詰まり）の保留フラグ
   const wantStartRef = useRef(false);
-  const firstCanPlayDoneRef = useRef(false);
 
-  /* ====== 再生開始（canplayまで待つ） ====== */
-  const tryStartPlayback = async () => {
-    // 準備オーバーレイ表示中は再生しない
-    if (showPrepareScreen) return;
-    const v = videoRef.current;
-    if (!v) return;
-    try {
-      v.muted = true;
-      setMuted(true);
-      await v.play();
-      setIsPlaying(true);
-    } catch {
-      // 自動再生がブロックされても中央テロップは出さない
-    }
-  };
-
-  /* ====== 送信を“確実化”するユーティリティ ====== */
+  /* ====== 送信を"確実化"するユーティリティ ====== */
 
   // WSがOPEN & バッファが空くまで待機（最大 maxWaitMs）
   const awaitReady = (maxWaitMs = 3000, drainBytes = 64 * 1024): Promise<boolean> => {
@@ -172,354 +123,11 @@ export default function PlayerPage() {
     if (v.volume === 0) v.volume = 1;
   };
 
-  /* ====== セッションID 適用 ====== */
-  const handleSessionApply = () => {
-    const sid = (sessionId || "").trim();
-    if (!sid) {
-      setPrepareError("セッションIDを入力してください");
-      return;
-    }
-    setPrepareError(null);
-    setSessionId(sid);
-    try {
-      sessionStorage.setItem("sessionId", sid);
-    } catch {}
-    // URLクエリにも反映（共有しやすくする）
-    try {
-      const url = new URL(window.location.href);
-      url.searchParams.set("session", sid);
-      window.history.replaceState({}, "", url.toString());
-    } catch {}
-  };
-
-  /* ====== デバイスハブ接続処理 ====== */
-  const handleDeviceConnect = async () => {
-    const hubId = deviceHubId.trim();
-    if (!hubId) {
-      setPrepareError("デバイスハブIDを入力してください");
-      return;
-    }
-    setPrepareError(null);
-    if (isDeviceConnected || isDeviceConnecting) return;
-    console.info("[prepare] deviceHubId input accepted", hubId);
-    sessionStorage.setItem("deviceHubId", hubId);
-    // WebSocket ハンドシェイク確認を開始
-    setIsDeviceConnecting(true);
-    
-    try {
-      if (!wsRef.current || wsRef.current.readyState >= WebSocket.CLOSING) {
-        connectWS();
-      } else {
-        // 既にOPENなら message("connection_established")を待つか即判定
-        if (connected) {
-          // 既に接続確立メッセージを受けているかどうかは connInfo の有無で判定
-          if (connInfo) {
-            setIsDeviceConnected(true);
-            setIsDeviceConnecting(false);
-          }
-          // 既にOPENなら identify を送って紐付けを明示
-          const s = wsRef.current;
-          if (s && s.readyState === WebSocket.OPEN) {
-            try {
-              const msg = { type: "identify", hub_id: hubId };
-              s.send(JSON.stringify(msg));
-              console.log("[player-ws] identify sent", msg);
-            } catch (e) {
-              console.warn("[player-ws] identify send failed", e);
-            }
-          }
-        }
-      }
-      // 新たに handshake 待機をここで実行（レース防止: ws生成後に短い遅延）
-      setTimeout(async () => {
-        if (isDeviceConnected) return; // すでに完了
-        try {
-          const ok = await waitWsHandshake(5000);
-          if (ok) {
-            setIsDeviceConnected(true);
-            setPrepareError(null);
-          } else {
-            setPrepareError("接続確認に失敗しました（タイムアウト）");
-          }
-        } catch (e: any) {
-          setPrepareError(`接続確認中にエラー: ${e?.message || String(e)}`);
-        } finally {
-          setIsDeviceConnecting(false);
-        }
-      }, 50);
-    } catch (e: any) {
-      console.error("[prepare] handleDeviceConnect error", e);
-      setPrepareError(`接続エラー: ${e?.message || String(e)}`);
-      setIsDeviceConnecting(false);
-    }
-  };
-
-  /* ====== タイムライン送信（手動） ====== */
-  const onTimelineComplete = async () => {
-    setIsTimelineSent(true);
-    
-    // タイムラインJSONを読み込んでイベントデータを保存
-    try {
-      const videoId = contentId || 'demo1';
-      const candidates = [
-        `/json/${videoId}.json`,              // 優先: public/json/
-        `/sync-data/${videoId}.json`,         // フォールバック
-        videoId !== "demo1" ? "/json/demo1.json" : null,
-      ].filter(Boolean) as string[];
-
-      for (const url of candidates) {
-        try {
-          const response = await fetch(url, { cache: "no-cache" });
-          if (!response.ok) continue;
-          
-          const text = await response.text();
-          if (/<!DOCTYPE html>/i.test(text) || /<html[\s>]/i.test(text)) continue;
-          
-          const timelineJson = JSON.parse(text);
-          if (timelineJson?.events && Array.isArray(timelineJson.events)) {
-            setTimelineEvents(timelineJson.events);
-            
-            // エフェクトイベントのみカウント
-            const effectEvents = timelineJson.events.filter((e: any) => 
-              e.action !== "caption" && e.effect
-            );
-            
-            console.log("📋 [タイムライン読込成功]", {
-              totalEvents: timelineJson.events.length,
-              effectEvents: effectEvents.length,
-              captionEvents: timelineJson.events.length - effectEvents.length,
-              from: url,
-              firstFewEffects: effectEvents.slice(0, 3).map((e: any) => ({
-                t: e.t,
-                action: e.action,
-                effect: e.effect,
-                mode: e.mode
-              }))
-            });
-            break;
-          }
-        } catch (err) {
-          console.warn(`タイムラインJSON読み込み失敗: ${url}`, err);
-        }
-      }
-    } catch (e) {
-      console.error("❌ タイムラインJSON読み込みエラー", e);
-    }
-  };
-  const onTimelineError = (e: Error) => {
-    console.error(e);
-    setPrepareError(`タイムライン送信に失敗しました: ${e.message || String(e)}`);
-  };
-
-  /* ====== デバイステスト処理（手動） ====== */
-  const handleDeviceTest = async () => {
-    // 前提条件チェック
-    if (!sessionId) {
-      setPrepareError("セッションIDが設定されていません");
-      return;
-    }
-    if (!isTimelineSent) {
-      setPrepareError("先にタイムラインを送信してください");
-      return;
-    }
-    if (!isDeviceConnected) {
-      setPrepareError("先にデバイスを接続してください");
-      return;
-    }
-
-    setPrepareError(null);
-    setDevicesTesting(true);
-    const startTime = performance.now();
-
-    console.log("🧪 デバイステスト開始", {
-      sessionId,
-      timestamp: new Date().toISOString(),
-      deviceHubId: deviceHubId.trim() || undefined
-    });
-
-    try {
-      // Player内で直接POST（分離なしで完結）
-      // デバイステストにはdevice_hub_idも必須（WebSocket接続先の特定に必要）
-      const url = `${BACKEND_API_URL}/api/device/test`;
-      const hubId = deviceHubId.trim();
-      const requestBody = {
-        test_type: "basic",
-        session_id: sessionId,
-        ...(hubId ? { device_hub_id: hubId } : {}),
-      };
-      
-      console.log("📤 デバイステストリクエスト", {
-        url,
-        body: requestBody,
-        timestamp: new Date().toISOString()
-      });
-      
-      const res = await fetch(url, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(requestBody),
-      });
-      if (!res.ok) {
-        const text = await res.text().catch(() => "");
-        throw new Error(text || `HTTP ${res.status}`);
-      }
-      const result = await res.json();
-      const testDuration = performance.now() - startTime;
-
-      console.log("📊 デバイステスト結果", {
-        result,
-        timestamp: new Date().toISOString(),
-        duration: `${testDuration.toFixed(0)}ms`,
-        status: result.status,
-        sessionId,
-        deviceHubId: deviceHubId.trim() || undefined
-      });
-
-      if (!result || typeof result.status !== "string") {
-        throw new Error("応答が不正な形式です");
-      }
-      
-      if (result.status.toLowerCase() === "success") {
-        setIsDevicesTested(true);
-        setPrepareError(null);
-        console.log("✅ デバイステスト成功", {
-          timestamp: new Date().toISOString(),
-          duration: `${testDuration.toFixed(0)}ms`,
-          sessionId
-        });
-      } else {
-        throw new Error(
-          `テストが失敗しました: ${result.message || `ステータス: ${result.status}`}`
-        );
-      }
-
-    } catch (err: any) {
-      const testDuration = performance.now() - startTime;
-      const errMsg = err?.message || String(err);
-      
-      console.error("❌ デバイステストエラー", {
-        error: err,
-        message: errMsg,
-        timestamp: new Date().toISOString(),
-        duration: `${testDuration.toFixed(0)}ms`,
-        sessionId,
-        deviceHubId: deviceHubId.trim() || undefined,
-        response: undefined
-      });
-      
-      setPrepareError(`デバイステスト失敗: ${errMsg}`);
-      setIsDevicesTested(false);
-    } finally {
-      setDevicesTesting(false);
-      const testDuration = performance.now() - startTime;
-      
-      console.log("🔄 デバイステスト完了", {
-        isSuccess: isDevicesTested,
-        timestamp: new Date().toISOString(),
-        duration: `${testDuration.toFixed(0)}ms`,
-        sessionId
-      });
-    }
-  };
-
-  /* ====== スタートボタン ====== */
-  // wsRef を使ってハンドシェイクを待つ（wsTestのロジックをベースにした本番版）
-  const waitWsHandshake = (timeoutMs = 5000): Promise<boolean> => {
-    return new Promise<boolean>((resolve) => {
-      if (connInfo) return resolve(true);
-      const ws = wsRef.current;
-      if (!ws) {
-        // まだ open 前。open 後にフォールバック判定
-      }
-      let settled = false;
-      const done = (ok: boolean) => {
-        if (settled) return;
-        settled = true;
-        try { ws?.removeEventListener("message", onMsg); } catch {}
-        try { ws?.removeEventListener("open", onOpen); } catch {}
-        try { ws?.removeEventListener("close", onClose); } catch {}
-        clearTimeout(timer);
-        resolve(ok);
-      };
-      const onMsg = (ev: MessageEvent) => {
-        try {
-          const j = JSON.parse((ev as any).data);
-          if (j?.type === "connection_established") {
-            done(true);
-          }
-        } catch {}
-      };
-      const onOpen = () => {
-        // サーバが connection_established を送らない場合のフォールバック
-        setTimeout(() => {
-          if (!settled) done(true);
-        }, 400);
-      };
-      const onClose = () => {
-        if (!settled) done(false);
-      };
-      const timer = setTimeout(() => done(false), timeoutMs);
-      wsRef.current?.addEventListener("message", onMsg);
-      wsRef.current?.addEventListener("open", onOpen);
-      wsRef.current?.addEventListener("close", onClose);
-    });
-  };
-
-  const handleStartClick = () => {
-    if (!allReady) return;
-    setShowPrepareScreen(false);
-    void tryStartPlayback();
-  };
-
-  // ====== 一時的: 接続テストトリガー ======
-  const runWsTest = async () => {
-    const { runWsHandshakeTest } = await import('../utils/wsTest');
-    console.log('[wsTest] starting handshake test…');
-    try {
-      const result = await runWsHandshakeTest(sessionId, 5000, deviceHubId.trim() || undefined);
-      console.log('[wsTest] result', result);
-      if (!result.ok) {
-        setPrepareError(`WS接続テスト失敗: phase=${result.phase} error=${result.error}`);
-      }
-    } catch (e: any) {
-      setPrepareError(`WS接続テスト例外: ${e?.message || String(e)}`);
-    }
-  };
-
-  /* ====== 準備フロー補助 ====== */
-  // デバイスIDは自動補完のみ（接続はボタンで）- 初回マウント時のみ実行
-  const deviceIdInitializedRef = useRef(false);
-  useEffect(() => {
-    if (!showPrepareScreen) return;
-    if (deviceIdInitializedRef.current) return; // 2回目以降はスキップ
-    if (deviceHubId) {
-      deviceIdInitializedRef.current = true;
-      return;
-    }
-    const hub = q.get("hub") || sessionStorage.getItem("deviceHubId") || "";
-    if (hub) {
-      setDeviceHubId(hub);
-      deviceIdInitializedRef.current = true;
-    }
-  }, [showPrepareScreen, deviceHubId, q]);
-
-  // デバッグ支援: URLに autoconnect=1 がある場合は自動で接続ボタン相当を1回だけ実行
-  const didAutoConnectRef = useRef(false);
-  useEffect(() => {
-    if (!showPrepareScreen) return;
-    if (didAutoConnectRef.current) return;
-    const auto = q.get("autoconnect");
-    if (auto === "1" && deviceHubId.trim()) {
-      didAutoConnectRef.current = true;
-      void handleDeviceConnect();
-    }
-  }, [q, showPrepareScreen, deviceHubId]);
-
-
   /* ====== WebSocket 接続 ====== */
   const connectWS = () => {
     try {
-      const hubId = deviceHubId.trim();
+      // URLパラメータからdeviceHubIdを取得
+      const hubId = q.get("hub")?.trim() || "";
       const url = hubId
         ? `${BACKEND_WS_URL}/api/playback/ws/sync/${encodeURIComponent(sessionId)}?hub=${encodeURIComponent(hubId)}`
         : `${BACKEND_WS_URL}/api/playback/ws/sync/${encodeURIComponent(sessionId)}`;
@@ -547,25 +155,15 @@ export default function PlayerPage() {
         reconnectAttemptsRef.current = 0;
         
         // ハブIDを明示的にサーバへ通知（任意対応）
-        const hubIdNow = deviceHubId.trim();
-        if (hubIdNow && ws.readyState === WebSocket.OPEN) {
+        if (hubId && ws.readyState === WebSocket.OPEN) {
           try {
-            const msg = { type: "identify", hub_id: hubIdNow };
+            const msg = { type: "identify", hub_id: hubId };
             ws.send(JSON.stringify(msg));
             console.log("[player-ws] identify sent", msg);
           } catch (e) {
             console.warn("[player-ws] identify send failed", e);
           }
         }
-        
-        // 接続確認中で、まだ確定していない場合はフォールバックとしてOPENを成功扱い
-        setTimeout(() => {
-          if (isDeviceConnecting && !isDeviceConnected) {
-            console.log("[prepare] WS open fallback -> mark device connected");
-            setIsDeviceConnected(true);
-            setIsDeviceConnecting(false);
-          }
-        }, 800);
         
         if (wantStartRef.current) {
           setTimeout(() => {
@@ -586,11 +184,6 @@ export default function PlayerPage() {
           });
           if (msg.type === "connection_established") {
             setConnInfo(msg.connection_id);
-            if (isDeviceConnecting && !isDeviceConnected) {
-              setIsDeviceConnected(true);
-              setIsDeviceConnecting(false);
-              console.log("✅ [デバイス接続確認] WebSocketメッセージ受信");
-            }
           }
         } catch {
           console.log("📨 [WS受信(raw)]", ev.data);
@@ -606,9 +199,6 @@ export default function PlayerPage() {
         console.log("[player-ws] close", { code: ev.code, reason: ev.reason, wasClean: ev.wasClean });
         setConnected(false);
         stopSyncLoop();
-        if (!isDeviceConnected) {
-          setIsDeviceConnecting(false);
-        }
         if (reconnectAttemptsRef.current < maxReconnectAttempts) {
           reconnectAttemptsRef.current += 1;
           setTimeout(connectWS, 1000 * reconnectAttemptsRef.current);
@@ -933,20 +523,6 @@ export default function PlayerPage() {
       console.log("[video] loadedmetadata", { duration: v.duration });
     };
 
-    const onCanPlay = () => {
-      setBuffering(false);
-      if (!firstCanPlayDoneRef.current) {
-        firstCanPlayDoneRef.current = true;
-        void tryStartPlayback();
-      }
-      console.log("[video] canplay");
-    };
-
-    const onCanPlayThrough = () => {
-      setIsVideoReady(true);
-      console.log("[video] canplaythrough ready");
-    };
-
     const onWaiting = () => setBuffering(true);
 
     const onPlay = () => {
@@ -1000,8 +576,6 @@ export default function PlayerPage() {
     };
 
     v.addEventListener("loadedmetadata", onLoaded);
-    v.addEventListener("canplay", onCanPlay);
-    v.addEventListener("canplaythrough", onCanPlayThrough);
     v.addEventListener("waiting", onWaiting);
     v.addEventListener("play", onPlay);
     v.addEventListener("playing", onPlaying);
@@ -1011,8 +585,6 @@ export default function PlayerPage() {
 
     return () => {
       v.removeEventListener("loadedmetadata", onLoaded);
-      v.removeEventListener("canplay", onCanPlay);
-      v.removeEventListener("canplaythrough", onCanPlayThrough);
       v.removeEventListener("waiting", onWaiting);
       v.removeEventListener("play", onPlay);
       v.removeEventListener("playing", onPlaying);
@@ -1021,14 +593,6 @@ export default function PlayerPage() {
       v.removeEventListener("ended", onEnded);
     };
   }, [seeking]);
-
-  // 準備オーバーレイが出ている間は常に動画を停止しておく
-  useEffect(() => {
-    if (showPrepareScreen) {
-      try { videoRef.current?.pause(); } catch {}
-      setIsPlaying(false);
-    }
-  }, [showPrepareScreen]);
 
   // focus 制御は行わない（従来挙動に戻す）
 
@@ -1058,6 +622,19 @@ export default function PlayerPage() {
     const now = performance.now();
     if (now - lastDragSyncRef.current >= 100) {
       lastDragSyncRef.current = now;
+      // シーク中も0.1秒間隔でWebSocket送信（requestAnimationFrameでReactのコミットフェーズ外で実行）
+      requestAnimationFrame(() => {
+        const v = videoRef.current;
+        if (!v) return;
+        const msg: OutMsg = {
+          type: "sync",
+          state: "seeking",
+          time: t,
+          duration: v.duration || 0,
+          ts: Date.now()
+        };
+        send(msg);
+      });
     }
   };
 
@@ -1068,6 +645,19 @@ export default function PlayerPage() {
     const t = posToTime(e.clientX);
     v.currentTime = Math.max(0, Math.min(t, v.duration || t));
     setCurrent(v.currentTime);
+    
+    // シーク完了をWebSocketで送信
+    requestAnimationFrame(() => {
+      const msg: OutMsg = {
+        type: "sync",
+        state: "seeked",
+        time: v.currentTime,
+        duration: v.duration || 0,
+        ts: Date.now()
+      };
+      send(msg);
+    });
+    
     unmuteIfPossible();
   };
 
@@ -1119,6 +709,13 @@ export default function PlayerPage() {
     return h > 0 ? `${h}:${String(m).padStart(2,"0")}:${String(s).padStart(2,"0")}` : `${m}:${String(s).padStart(2,"0")}`;
   };
 
+  /* ====== WebSocket 初期化 ====== */
+  useEffect(() => {
+    if (!sessionId) return;
+    console.log("[player-ws] initializing connection", { sessionId });
+    connectWS();
+  }, [sessionId]);
+
   /* ====== WebSocket クリーンアップ ====== */
   useEffect(() => {
     // コンポーネントアンマウント時にWebSocket接続をクリーンアップ
@@ -1135,8 +732,6 @@ export default function PlayerPage() {
       stopSyncLoop();
     };
   }, []);
-
-  // 準備オーバーレイは動画の上に重ねる（Loginページ風スタイルに合わせる）
 
   return (
     <div className="vp-root-wrapper">
@@ -1174,38 +769,6 @@ export default function PlayerPage() {
         .vp-info{ position:absolute; right:10px; bottom:24px; z-index:3; display:flex; flex-direction:column; gap:6px; align-items:flex-end;
           font-feature-settings:"tnum"; font-variant-numeric:tabular-nums; font-size:12px; color:#ddd; opacity:.9; }
         .vp-chip{ background:rgba(0,0,0,.35); padding:4px 6px; border-radius:6px; border:1px solid rgba(255,255,255,.15); }
-
-    /* 準備オーバーレイ */
-  .prep-ovr{ position:absolute; inset:0; z-index:7; display:flex; align-items:center; justify-content:center; background:rgba(0,0,0,.35); transition: opacity .18s ease; opacity:1; visibility:visible; pointer-events:auto; }
-  .prep-ovr.is-hidden{ opacity:0; visibility:hidden; pointer-events:none; }
-        .prep-card{ width:min(560px, 92%); background:rgba(16,20,32,.9); border:1px solid rgba(255,255,255,.12); border-radius:14px; padding:clamp(18px,3.5vw,28px); color:#fff; box-shadow:0 8px 24px rgba(0,0,0,.35); }
-        .prep-h1{ font-weight:800; font-size:clamp(18px,3.6vw,22px); margin:0 0 14px; }
-        .prep-sec{ padding:12px 0 14px; border-bottom:1px solid rgba(255,255,255,.08); }
-        .prep-sec:last-of-type{ border-bottom:none; }
-        .prep-label{ font-size:13px; opacity:.9; margin-bottom:6px; }
-        /* Loginページに合わせた入力 */
-        .xh-input{ width:100%; height:clamp(40px,6.6vw,48px); background:#fff; color:#111; border-radius:6px; border:2px solid #111; padding:0 12px; font-size:clamp(14px,3.2vw,18px); box-shadow:0 2px 0 rgba(0,0,0,.35); }
-        .prep-status{ margin-top:8px; font-size:12px; opacity:.95; }
-        .prep-status.ok{ color:#79ff7a; }
-        .prep-status.err{ color:#ff9f9f; }
-
-        /* Loginページのボタンスタイルに合わせる */
-        .xh-btn{ margin-top:14px; min-width:160px; height:clamp(42px,7vw,48px); border:none; border-radius:8px; font-weight:700; cursor:pointer; }
-        .xh-btn:disabled{ opacity:.5; cursor:not-allowed; }
-        .xh-wide{ width:100%; }
-        .xh-login{ background:#fff; color:#111; }
-        .xh-debug{ background:#4a90e2; color:#fff; font-size:clamp(13px,2.8vw,15px); }
-  /* デバイスハブ 入力＋ボタン行専用調整 */
-  .prep-grid{ display:grid; grid-template-columns:1fr auto; gap:10px; align-items:center; }
-  .prep-grid .xh-btn{ margin-top:0; }
-
-  /* 汎用: ステータス行スピナー＋チェック */
-  .prep-load{ display:flex; align-items:center; gap:12px; }
-  .prep-loader{ position:relative; width:30px; height:30px; flex:0 0 30px; }
-  .prep-spin{ position:absolute; inset:0; border:3px solid rgba(255,255,255,.25); border-top-color:#fff; border-radius:999px; animation:vp-spin .75s linear infinite; }
-  .prep-loader.done .prep-spin{ border:3px solid #79ff7a; animation:none; }
-  .prep-check{ position:absolute; inset:0; display:grid; place-items:center; font-size:18px; font-weight:700; color:#79ff7a; text-shadow:0 0 6px rgba(0,0,0,.55); }
-  .prep-statusRow{ display:flex; align-items:center; gap:12px; min-height:38px; }
       `}</style>
 
       <div className="vp" onTouchStart={(e)=>{ (e.currentTarget as HTMLDivElement).classList.add("touch"); }}>
@@ -1231,124 +794,6 @@ export default function PlayerPage() {
           </div>
 
           <div
-            className={`prep-ovr${showPrepareScreen ? "" : " is-hidden"}`}
-            aria-hidden={!showPrepareScreen}
-          >
-            <div className="prep-card">
-              <h2 className="prep-h1">再生準備</h2>
-
-              {/* セッションID入力（デバイスハブと同じデザイン） */}
-              <div className="prep-sec">
-                <div className="prep-label">セッションID</div>
-                <div className="prep-grid">
-                  <input
-                    className="xh-input"
-                    placeholder="例: session01"
-                    value={sessionId}
-                    onChange={(e) => setSessionId(e.target.value)}
-                    autoComplete="off"
-                  />
-                  <button className="xh-btn xh-login" onClick={handleSessionApply}>適用</button>
-                </div>
-              </div>
-
-              <div className="prep-sec">
-                <div className="prep-label">デバイスハブID</div>
-                <div className="prep-grid">
-                  <input
-                    className="xh-input"
-                    placeholder="例: DH001"
-                    value={deviceHubId}
-                    onChange={(e) => setDeviceHubId(e.target.value)}
-                    autoComplete="off"
-                  />
-                  <button className="xh-btn xh-login" onClick={handleDeviceConnect} disabled={isDeviceConnected}>接続</button>
-                </div>
-              </div>
-              <div className="prep-statusRow">
-                <div className={`prep-loader ${isDeviceConnected ? 'done' : ''}`}><div className="prep-spin" />{isDeviceConnected && <div className="prep-check">✓</div>}</div>
-                <div className={`prep-status ${isDeviceConnected ? 'ok' : ''}`}>
-                  {isDeviceConnected ? '接続確認完了' : (isDeviceConnecting ? '接続確認中…' : '未接続')}
-                </div>
-              </div>
-
-              <div className="prep-sec">
-                <div className="prep-label">動画読み込み</div>
-                <div className="prep-statusRow" aria-live="polite">
-                  <div className={`prep-loader ${isVideoReady ? 'done' : ''}`}><div className="prep-spin" />{isVideoReady && <div className="prep-check">✓</div>}</div>
-                  <div className={`prep-status ${isVideoReady ? 'ok' : ''}`}>{isVideoReady ? '読み込み完了' : '読み込み中...'}</div>
-                </div>
-              </div>
-
-              <div className="prep-sec">
-                <div className="prep-label">タイムラインJSON送信</div>
-                <div className="prep-statusRow">
-                  <div className={`prep-loader ${isTimelineSent ? 'done' : (timelineUploading ? '' : '')}`}><div className="prep-spin" />{isTimelineSent && <div className="prep-check">✓</div>}</div>
-                  <div style={{ flex: 1 }}>
-                    {isTimelineSent ? (
-                      <div className="prep-status ok">送信完了</div>
-                    ) : (
-                      <TimelineUploadButton
-                        sessionId={sessionId}
-                        videoId={contentId || 'demo1'}
-                        onComplete={() => onTimelineComplete()}
-                        onError={onTimelineError}
-                        onUploadingChange={(u) => setTimelineUploading(u)}
-                        className="xh-btn xh-login"
-                      />
-                    )}
-                  </div>
-                </div>
-              </div>
-
-              <div className="prep-sec">
-                <div className="prep-label">デバイス動作確認</div>
-                <div className="prep-statusRow">
-                  <div className={`prep-loader ${isDevicesTested ? 'done' : (devicesTesting ? '' : '')}`}><div className="prep-spin" />{isDevicesTested && <div className="prep-check">✓</div>}</div>
-                  <div style={{ flex: 1, display: 'flex', alignItems: 'center', gap: '12px' }}>
-                    {isDevicesTested ? (
-                      <div className="prep-status ok">確認完了</div>
-                    ) : (
-                      <button
-                        className="xh-btn xh-login"
-                        onClick={handleDeviceTest}
-                        disabled={!isTimelineSent || devicesTesting || isDevicesTested}
-                        style={{
-                          backgroundColor: !isTimelineSent ? '#ccc' 
-                            : isDevicesTested ? '#4caf50' 
-                            : '#fff',
-                          opacity: devicesTesting ? 0.7 : 1,
-                        }}
-                      >
-                        {devicesTesting ? 'テスト実行中...' 
-                          : isDevicesTested ? 'テスト完了' 
-                          : 'テスト実行'}
-                      </button>
-                    )}
-                  </div>
-                </div>
-              </div>
-
-              {prepareError && <div className="prep-status err">⚠ {prepareError}</div>}
-
-              {/* 明示的に開始ボタン */}
-              <div className="prep-sec">
-                <div className="prep-label">準備完了後の開始</div>
-                <button
-                  className="xh-btn xh-login xh-wide"
-                  onClick={handleStartClick}
-                  disabled={!allReady}
-                >
-                  再生を開始する
-                </button>
-                <div style={{ marginTop: 12, display: 'flex', gap: 12, flexWrap: 'wrap' }}>
-                  <button className="xh-btn xh-login" style={{ minWidth: 140 }} onClick={runWsTest}>WS接続テスト</button>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <div
             ref={progressRef}
             className={`vp-progress${seeking ? " dragging" : ""}`}
             onPointerDown={onProgressPointerDown}
@@ -1367,7 +812,7 @@ export default function PlayerPage() {
               </button>
             </div>
             <div className="vp-center" style={{display:"grid", justifyItems:"center"}}>
-              <button className="vp-circle" onClick={togglePlay} aria-label={isPlaying ? "一時停止" : "再生"} title={isPlaying ? "一時停止" : "再生"} disabled={!isVideoReady}>
+              <button className="vp-circle" onClick={togglePlay} aria-label={isPlaying ? "一時停止" : "再生"} title={isPlaying ? "一時停止" : "再生"}>
                 {isPlaying
                   ? <svg className="vp-icon" viewBox="0 0 24 24"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/></svg>
                   : <svg className="vp-icon" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>}

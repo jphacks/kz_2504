@@ -27,10 +27,9 @@ export default function SelectPage() {
     },
   ], []);
 
-  // 動画選択時に環境変数からセッションIDを取得
+  // 動画選択時に準備画面へ遷移（コンテンツIDのみを渡す）
   const goPlayer = (id: string) => {
-    const sessionId = import.meta.env.VITE_PRODUCTION_SESSION_ID || "demo1";
-    navigate(`/player?content=${encodeURIComponent(id)}&session=${encodeURIComponent(sessionId)}`);
+    navigate(`/prepare?content=${encodeURIComponent(id)}`);
   };
 
   return (
