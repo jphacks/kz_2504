@@ -454,6 +454,32 @@ ENABLE_COMMUNICATION_LOG=True
 
 ---
 
+## タイムラインJSON仕様対応
+
+### 対応状況
+
+ラズパイサーバーは最新のタイムラインJSON仕様（`docs/project_report/09_json_specification.md`）に完全対応しています。
+
+**対応イベント**:
+- ✅ **Water（水しぶき）**: `shot`アクションで単発発射
+- ✅ **Wind（風）**: `start`/`stop`で制御
+- ✅ **Flash（光）**: `steady`, `slow_blink`, `fast_blink`の3モード
+- ✅ **Color（色）**: 6色（red, green, blue, yellow, cyan, purple）
+- ✅ **Vibration（振動）**:
+  - 下（おしり）のみ: `down_weak`, `down_mid_weak`, `down_mid_strong`, `down_strong` → Motor1 (ESP3)
+  - 上（背中）のみ: `up_weak`, `up_mid_weak`, `up_mid_strong`, `up_strong` → Motor2 (ESP4)
+  - 上下同時: `up_down_weak`, `up_down_mid_weak`, `up_down_mid_strong`, `up_down_strong` → Motor1+Motor2
+  - 特殊パターン: `heartbeat`（ドキドキ）
+- ✅ **Caption（字幕）**: フロントエンドで表示（MQTT送信なし）
+
+**旧仕様との互換性**:
+- ✅ 旧JSON形式も引き続きサポート
+- ✅ デバッグコントローラーの手動操作も継続使用可能
+
+**詳細マッピング**: [TIMELINE_JSON_MAPPING.md](./TIMELINE_JSON_MAPPING.md)
+
+---
+
 ## ライセンス
 
 このプロジェクトは個人利用・研究用途です。
@@ -468,8 +494,16 @@ ENABLE_COMMUNICATION_LOG=True
 
 ## 更新履歴
 
+- **2025-11-08**: タイムラインJSON仕様v2.0対応
+  - 振動の詳細モード対応（おしり/背中を個別制御）
+  - 光の新モード対応（slow_blink, fast_blink）
+  - 最新JSON仕様（09_json_specification.md）完全対応
+  - 旧仕様との互換性維持
+  - デバッグコントローラーv2.0リリース（タブUI、自動テスト、プリセット）
+
 - **2025-01-06**: 初回リリース
   - Cloud Run API統合
   - WebSocket通信実装
   - MQTT制御実装
   - systemdサービス対応
+

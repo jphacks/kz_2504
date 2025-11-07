@@ -17,7 +17,7 @@ class EventToMQTTMapper:
     ESP-12Eデバイスのファームウェアと互換性を保つため、勝手に変更しないでください。
     """
     
-    # 4DXHOME/mqtt_server.py の event_map を完全継承
+    # 4DXHOME/mqtt_server.py の event_map を完全継承 + 最新JSON仕様対応
     # タプル(effect, mode)をキーとして、MQTT(topic, payload)のリストを返す
     EVENT_MAP: Dict[Tuple[str, str], List[Tuple[str, str]]] = {
         # === (1) ESP1 (Water/Wind) ===
@@ -53,10 +53,17 @@ class EventToMQTTMapper:
             ("/4dx/color", "PURPLE")
         ],
         
-        # フラッシュ
+        # フラッシュ（最新JSON仕様対応）
         ("flash", "steady"): [
             ("/4dx/light", "ON")
         ],
+        ("flash", "slow_blink"): [
+            ("/4dx/light", "BLINK_SLOW")
+        ],
+        ("flash", "fast_blink"): [
+            ("/4dx/light", "BLINK_FAST")
+        ],
+        # 旧仕様との互換性維持
         ("flash", "burst"): [
             ("/4dx/light", "BLINK_FAST")
         ],
@@ -65,6 +72,53 @@ class EventToMQTTMapper:
         ],
         
         # === (3) ESP3 / ESP4 (Motor) ===
+        # 振動: 下（おしり）のみ - Motor1 (ESP3)
+        ("vibration", "down_weak"): [
+            ("/4dx/motor1/control", "WEAK")
+        ],
+        ("vibration", "down_mid_weak"): [
+            ("/4dx/motor1/control", "MEDIUM_WEAK")
+        ],
+        ("vibration", "down_mid_strong"): [
+            ("/4dx/motor1/control", "MEDIUM_STRONG")
+        ],
+        ("vibration", "down_strong"): [
+            ("/4dx/motor1/control", "STRONG")
+        ],
+        
+        # 振動: 上（背中）のみ - Motor2 (ESP4)
+        ("vibration", "up_weak"): [
+            ("/4dx/motor2/control", "WEAK")
+        ],
+        ("vibration", "up_mid_weak"): [
+            ("/4dx/motor2/control", "MEDIUM_WEAK")
+        ],
+        ("vibration", "up_mid_strong"): [
+            ("/4dx/motor2/control", "MEDIUM_STRONG")
+        ],
+        ("vibration", "up_strong"): [
+            ("/4dx/motor2/control", "STRONG")
+        ],
+        
+        # 振動: 上下同時 - Motor1 + Motor2
+        ("vibration", "up_down_weak"): [
+            ("/4dx/motor1/control", "WEAK"),
+            ("/4dx/motor2/control", "WEAK")
+        ],
+        ("vibration", "up_down_mid_weak"): [
+            ("/4dx/motor1/control", "MEDIUM_WEAK"),
+            ("/4dx/motor2/control", "MEDIUM_WEAK")
+        ],
+        ("vibration", "up_down_mid_strong"): [
+            ("/4dx/motor1/control", "MEDIUM_STRONG"),
+            ("/4dx/motor2/control", "MEDIUM_STRONG")
+        ],
+        ("vibration", "up_down_strong"): [
+            ("/4dx/motor1/control", "STRONG"),
+            ("/4dx/motor2/control", "STRONG")
+        ],
+        
+        # 振動: 特殊パターン（旧仕様との互換性維持）
         ("vibration", "heartbeat"): [
             ("/4dx/motor1/control", "HEARTBEAT"),
             ("/4dx/motor2/control", "HEARTBEAT")
@@ -79,18 +133,109 @@ class EventToMQTTMapper:
         ],
     }
     
-    # 停止 (stop) アクションのマッピング（mqtt_server.py の stop_event_map）
-    STOP_EVENT_MAP: Dict[str, List[Tuple[str, str]]] = {
-        "wind": [
+    # 停止 (stop) アクションのマッピング（mqtt_server.py の stop_event_map + 最新JSON仕様対応）
+    STOP_EVENT_MAP: Dict[Tuple[str, str], List[Tuple[str, str]]] = {
+        # Wind
+        ("wind", "burst"): [
             ("/4dx/wind", "OFF")
         ],
-        "color": [
+        ("wind", "long"): [
+            ("/4dx/wind", "OFF")
+        ],
+        
+        # Color（すべての色モードで同じ停止処理）
+        ("color", "red"): [
             ("/4dx/color", "RED")  # LEDはOFFにせず「赤」に戻す
         ],
-        "flash": [
+        ("color", "green"): [
+            ("/4dx/color", "RED")
+        ],
+        ("color", "blue"): [
+            ("/4dx/color", "RED")
+        ],
+        ("color", "yellow"): [
+            ("/4dx/color", "RED")
+        ],
+        ("color", "cyan"): [
+            ("/4dx/color", "RED")
+        ],
+        ("color", "purple"): [
+            ("/4dx/color", "RED")
+        ],
+        
+        # Flash（すべての点滅モードで同じ停止処理）
+        ("flash", "steady"): [
             ("/4dx/light", "OFF")
         ],
-        "vibration": [
+        ("flash", "slow_blink"): [
+            ("/4dx/light", "OFF")
+        ],
+        ("flash", "fast_blink"): [
+            ("/4dx/light", "OFF")
+        ],
+        ("flash", "burst"): [
+            ("/4dx/light", "OFF")
+        ],
+        ("flash", "strobe"): [
+            ("/4dx/light", "OFF")
+        ],
+        
+        # Vibration - 下（おしり）のみ: Motor1停止
+        ("vibration", "down_weak"): [
+            ("/4dx/motor1/control", "OFF")
+        ],
+        ("vibration", "down_mid_weak"): [
+            ("/4dx/motor1/control", "OFF")
+        ],
+        ("vibration", "down_mid_strong"): [
+            ("/4dx/motor1/control", "OFF")
+        ],
+        ("vibration", "down_strong"): [
+            ("/4dx/motor1/control", "OFF")
+        ],
+        
+        # Vibration - 上（背中）のみ: Motor2停止
+        ("vibration", "up_weak"): [
+            ("/4dx/motor2/control", "OFF")
+        ],
+        ("vibration", "up_mid_weak"): [
+            ("/4dx/motor2/control", "OFF")
+        ],
+        ("vibration", "up_mid_strong"): [
+            ("/4dx/motor2/control", "OFF")
+        ],
+        ("vibration", "up_strong"): [
+            ("/4dx/motor2/control", "OFF")
+        ],
+        
+        # Vibration - 上下同時: Motor1+Motor2停止
+        ("vibration", "up_down_weak"): [
+            ("/4dx/motor1/control", "OFF"),
+            ("/4dx/motor2/control", "OFF")
+        ],
+        ("vibration", "up_down_mid_weak"): [
+            ("/4dx/motor1/control", "OFF"),
+            ("/4dx/motor2/control", "OFF")
+        ],
+        ("vibration", "up_down_mid_strong"): [
+            ("/4dx/motor1/control", "OFF"),
+            ("/4dx/motor2/control", "OFF")
+        ],
+        ("vibration", "up_down_strong"): [
+            ("/4dx/motor1/control", "OFF"),
+            ("/4dx/motor2/control", "OFF")
+        ],
+        
+        # Vibration - 特殊パターン（旧仕様との互換性維持）
+        ("vibration", "heartbeat"): [
+            ("/4dx/motor1/control", "OFF"),
+            ("/4dx/motor2/control", "OFF")
+        ],
+        ("vibration", "long"): [
+            ("/4dx/motor1/control", "OFF"),
+            ("/4dx/motor2/control", "OFF")
+        ],
+        ("vibration", "strong"): [
             ("/4dx/motor1/control", "OFF"),
             ("/4dx/motor2/control", "OFF")
         ],
@@ -107,18 +252,19 @@ class EventToMQTTMapper:
         
         Args:
             effect: エフェクト名 (water, wind, vibration, flash, color)
-            mode: モード (burst, strong, red, etc.)
+            mode: モード (burst, strong, red, down_weak, up_strong, etc.)
             action: アクション (start, stop, shot)
             
         Returns:
             [(topic, payload), ...] のリスト
         """
-        # actionがstopの場合は停止コマンドを使用（mqtt_server.pyに準拠）
+        key = (effect, mode)
+        
+        # actionがstopの場合は停止コマンドを使用
         if action == "stop":
-            mqtt_commands = cls.STOP_EVENT_MAP.get(effect, [])
+            mqtt_commands = cls.STOP_EVENT_MAP.get(key, [])
         else:
             # action == "start" or "shot"
-            key = (effect, mode)
             mqtt_commands = cls.EVENT_MAP.get(key, [])
         
         if not mqtt_commands:
