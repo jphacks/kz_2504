@@ -26,7 +26,7 @@ export default function LoginPage() {
     // ダミーログイン：成功扱いで動画選択画面へ遷移
     setTimeout(() => {
       sessionStorage.setItem("loggedIn", "true");
-      navigate("/selectpage", { replace: true });
+      navigate("/select", { replace: true });
     }, 300);
   };
 
@@ -161,7 +161,7 @@ export default function LoginPage() {
                 <button 
                   type="button" 
                   className="xh-btn xh-debug" 
-                  onClick={() => navigate("/player?content=demo1")}
+                  onClick={() => navigate("/player?content=demo1&session=demo1")}
                 >
                   🔧 デバッグ：動画へ直接移動
                 </button>

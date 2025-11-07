@@ -5,15 +5,22 @@ import App from "./App";
 import "./index.css";
 import ErrorBoundary from "./components/ErrorBoundary";
 
-ReactDOM.createRoot(document.getElementById("root")!).render(
-  <ErrorBoundary>
-    <BrowserRouter
-      future={{
-        v7_startTransition: true,
-        v7_relativeSplatPath: true,
-      }}
-    >
-      <App />
-    </BrowserRouter>
-  </ErrorBoundary>
+const rootEl = document.getElementById("root");
+if (!rootEl) {
+  throw new Error("Root element #root not found");
+}
+
+ReactDOM.createRoot(rootEl).render(
+  <React.StrictMode>
+    <ErrorBoundary>
+      <BrowserRouter
+        future={{
+          v7_startTransition: true,
+          v7_relativeSplatPath: true,
+        }}
+      >
+        <App />
+      </BrowserRouter>
+    </ErrorBoundary>
+  </React.StrictMode>
 );

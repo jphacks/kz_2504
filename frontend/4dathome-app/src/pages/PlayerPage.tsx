@@ -1,5 +1,6 @@
 // src/pages/PlayerPage.tsx
 import { useEffect, useMemo, useRef, useState } from "react";
+import { unstable_batchedUpdates } from "react-dom";
 import { useLocation } from "react-router-dom";
 import { BACKEND_API_URL, BACKEND_WS_URL } from "../config/backend";
 import TimelineUploadButton from "../components/TimelineUploadButton";
@@ -34,13 +35,42 @@ type OutMsg = {
 };
 
 // requestIdleCallback polyfill: commit phase 完了後にstate更新
-const safeSetState = (fn: () => void) => {
-  if (typeof requestIdleCallback !== 'undefined') {
-    requestIdleCallback(fn, { timeout: 50 });
-  } else {
-    setTimeout(fn, 0);
-  }
-};
+// 強化版 safeSetState: 同一フレーム内の更新を1回に集約し、commit中タイミングの競合を回避
+const safeSetState = (() => {
+  let queue: Array<() => void> = [];
+  let scheduled = false;
+
+  const scheduleFlush = () => {
+    // rAF 優先。なければ setTimeout で macrotask に逃がす
+    const runner = () => {
+      const batch = queue;
+      queue = [];
+      scheduled = false;
+      if (batch.length === 0) return;
+      unstable_batchedUpdates(() => {
+        for (const fn of batch) {
+          try { fn(); } catch (e) { console.error("safeSetState handler error", e); }
+        }
+      });
+    };
+    if (typeof requestAnimationFrame !== "undefined") {
+      requestAnimationFrame(runner);
+    } else if (typeof requestIdleCallback !== "undefined") {
+      // 一部環境で rAF 未定義のフォールバック
+      requestIdleCallback(runner, { timeout: 50 });
+    } else {
+      setTimeout(runner, 0);
+    }
+  };
+
+  return (fn: () => void) => {
+    queue.push(fn);
+    if (!scheduled) {
+      scheduled = true;
+      scheduleFlush();
+    }
+  };
+})();
 
 export default function PlayerPage() {
   const { search } = useLocation();
@@ -53,16 +83,21 @@ export default function PlayerPage() {
   );
 
   const sessionId = useMemo(() => {
+    // 1. URLクエリから取得
     const urlSid = q.get("session");
     if (urlSid) {
       sessionStorage.setItem("sessionId", urlSid);
       return urlSid;
     }
+    
+    // 2. sessionStorageから取得
     const stored = sessionStorage.getItem("sessionId");
     if (stored) return stored;
-    const temp = `webtest_${Math.random().toString(36).slice(2, 8)}_${Date.now()}`;
-    sessionStorage.setItem("sessionId", temp);
-    return temp;
+    
+    // 3. 環境変数のデフォルト値を使用（READMEに準拠）
+    const defaultSid = import.meta.env.VITE_PRODUCTION_SESSION_ID || "demo1";
+    sessionStorage.setItem("sessionId", defaultSid);
+    return defaultSid;
   }, [q]);
 
   const videoRef = useRef<HTMLVideoElement | null>(null);
@@ -102,6 +137,8 @@ export default function PlayerPage() {
   const [isDevicesTested, setIsDevicesTested] = useState(false);
   const [showPrepareScreen, setShowPrepareScreen] = useState(true);
   const [prepareError, setPrepareError] = useState<string | null>(null);
+
+  // DOM削除を行わず、CSS（opacity/visibility）のみで制御することで insertBefore エラーを完全回避
 
   // 全準備完了判定
   const allReady = isDeviceConnected && isVideoReady && isTimelineSent && isDevicesTested;
@@ -178,41 +215,59 @@ export default function PlayerPage() {
     sessionStorage.setItem("deviceHubId", hubId);
     // WebSocket ハンドシェイク確認を開始
     safeSetState(() => setIsDeviceConnecting(true));
-    if (!wsRef.current || wsRef.current.readyState >= WebSocket.CLOSING) {
-      connectWS();
-    } else {
-      // 既にOPENなら message("connection_established")を待つか即判定
-      if (connected) {
-        // 既に接続確立メッセージを受けているかどうかは connInfo の有無で判定
-        if (connInfo) {
-          safeSetState(() => {
-            setIsDeviceConnected(true);
-            setIsDeviceConnecting(false);
-          });
+    
+    try {
+      if (!wsRef.current || wsRef.current.readyState >= WebSocket.CLOSING) {
+        connectWS();
+      } else {
+        // 既にOPENなら message("connection_established")を待つか即判定
+        if (connected) {
+          // 既に接続確立メッセージを受けているかどうかは connInfo の有無で判定
+          if (connInfo) {
+            safeSetState(() => {
+              setIsDeviceConnected(true);
+              setIsDeviceConnecting(false);
+            });
+          }
+          // 既にOPENなら identify を送って紐付けを明示
+          const s = wsRef.current;
+          if (s && s.readyState === WebSocket.OPEN) {
+            try {
+              const msg = { type: "identify", hub_id: hubId };
+              s.send(JSON.stringify(msg));
+              console.log("[player-ws] identify sent", msg);
+            } catch (e) {
+              console.warn("[player-ws] identify send failed", e);
+            }
+          }
         }
-        // 既にOPENなら identify を送って紐付けを明示
-        try { sendIdentify(hubId); } catch {}
       }
+      // 新たに handshake 待機をここで実行（レース防止: ws生成後に短い遅延）
+      setTimeout(async () => {
+        if (isDeviceConnected) return; // すでに完了
+        try {
+          const ok = await waitWsHandshake(5000);
+          if (ok) {
+            safeSetState(() => {
+              setIsDeviceConnected(true);
+              setPrepareError(null);
+            });
+          } else {
+            safeSetState(() => setPrepareError("接続確認に失敗しました（タイムアウト）"));
+          }
+        } catch (e: any) {
+          safeSetState(() => setPrepareError(`接続確認中にエラー: ${e?.message || String(e)}`));
+        } finally {
+          safeSetState(() => setIsDeviceConnecting(false));
+        }
+      }, 50);
+    } catch (e: any) {
+      console.error("[prepare] handleDeviceConnect error", e);
+      safeSetState(() => {
+        setPrepareError(`接続エラー: ${e?.message || String(e)}`);
+        setIsDeviceConnecting(false);
+      });
     }
-    // 新たに handshake 待機をここで実行（レース防止: ws生成後に短い遅延）
-    setTimeout(async () => {
-      if (isDeviceConnected) return; // すでに完了
-      try {
-        const ok = await waitWsHandshake(5000);
-        if (ok) {
-          safeSetState(() => {
-            setIsDeviceConnected(true);
-            setPrepareError(null);
-          });
-        } else {
-          safeSetState(() => setPrepareError("接続確認に失敗しました（タイムアウト）"));
-        }
-      } catch (e: any) {
-        safeSetState(() => setPrepareError(`接続確認中にエラー: ${e?.message || String(e)}`));
-      } finally {
-        safeSetState(() => setIsDeviceConnecting(false));
-      }
-    }, 50);
   };
 
   /* ====== タイムライン送信（手動） ====== */
@@ -332,80 +387,95 @@ export default function PlayerPage() {
         ? `${BACKEND_WS_URL}/api/playback/ws/sync/${encodeURIComponent(sessionId)}?hub=${encodeURIComponent(hubId)}`
         : `${BACKEND_WS_URL}/api/playback/ws/sync/${encodeURIComponent(sessionId)}`;
       console.log("[player-ws] connecting", { url });
+      
+      // 既存の接続をクリーンアップ
+      if (wsRef.current) {
+        try {
+          wsRef.current.close();
+        } catch (e) {
+          console.warn("[player-ws] failed to close existing connection", e);
+        }
+        wsRef.current = null;
+      }
+      
       const ws = new WebSocket(url);
       wsRef.current = ws;
 
       ws.onopen = () => {
         console.log("[player-ws] open", { readyState: ws.readyState });
-        // DOM挿入中の同期セットを避けるため次フレームへデフ
-        safeSetState(() => {
-          setConnected(true);
-          setWsError(null);
-          reconnectAttemptsRef.current = 0;
-          // ハブIDを明示的にサーバへ通知（任意対応）
-          const hubIdNow = deviceHubId.trim();
-          if (hubIdNow) {
-            try { sendIdentify(hubIdNow); } catch {}
+        
+        // 状態更新は直接実行（WebSocketイベントなのでReactのcommit phaseとは無関係）
+        setConnected(true);
+        setWsError(null);
+        reconnectAttemptsRef.current = 0;
+        
+        // ハブIDを明示的にサーバへ通知（任意対応）
+        const hubIdNow = deviceHubId.trim();
+        if (hubIdNow && ws.readyState === WebSocket.OPEN) {
+          try {
+            const msg = { type: "identify", hub_id: hubIdNow };
+            ws.send(JSON.stringify(msg));
+            console.log("[player-ws] identify sent", msg);
+          } catch (e) {
+            console.warn("[player-ws] identify send failed", e);
           }
-          // 接続確認中で、まだ確定していない場合はフォールバックとしてOPENを成功扱い
+        }
+        
+        // 接続確認中で、まだ確定していない場合はフォールバックとしてOPENを成功扱い
+        setTimeout(() => {
+          if (isDeviceConnecting && !isDeviceConnected) {
+            console.log("[prepare] WS open fallback -> mark device connected");
+            setIsDeviceConnected(true);
+            setIsDeviceConnecting(false);
+          }
+        }, 800);
+        
+        if (wantStartRef.current) {
           setTimeout(() => {
-            if (isDeviceConnecting && !isDeviceConnected) {
-              console.log("[prepare] WS open fallback -> mark device connected");
-              safeSetState(() => {
-                setIsDeviceConnected(true);
-                setIsDeviceConnecting(false);
-              });
+            if (typeof sendStartOnce === 'function') {
+              void sendStartOnce();
             }
-          }, 800);
-          if (wantStartRef.current) {
-            Promise.resolve().then(() => { void sendStartOnce(); });
-          }
-        });
+          }, 0);
+        }
       };
 
       ws.onmessage = (ev) => {
-        // 解析は即時、state更新はsafeSetStateへ
-        safeSetState(() => {
-          try {
-            const msg: InMsg = JSON.parse(ev.data);
-            console.log("[player-ws] message", msg);
-            if (msg.type === "connection_established") {
-              setConnInfo(msg.connection_id);
-              if (isDeviceConnecting && !isDeviceConnected) {
-                setIsDeviceConnected(true);
-                setIsDeviceConnecting(false);
-                console.log("[prepare] device hub connection confirmed via WS message");
-              }
+        try {
+          const msg: InMsg = JSON.parse(ev.data);
+          console.log("[player-ws] message", msg);
+          if (msg.type === "connection_established") {
+            setConnInfo(msg.connection_id);
+            if (isDeviceConnecting && !isDeviceConnected) {
+              setIsDeviceConnected(true);
+              setIsDeviceConnecting(false);
+              console.log("[prepare] device hub connection confirmed via WS message");
             }
-          } catch {
-            console.log("[player-ws] message(raw)", ev.data);
           }
-        });
+        } catch {
+          console.log("[player-ws] message(raw)", ev.data);
+        }
       };
 
       ws.onerror = (e) => {
         console.error("[player-ws] error", e);
-        safeSetState(() => setWsError("WebSocket error"));
+        setWsError("WebSocket error");
       };
 
       ws.onclose = (ev) => {
-        // 次フレームに状態更新をデフ
-        safeSetState(() => {
-          console.log("[player-ws] close", { code: ev.code, reason: ev.reason, wasClean: ev.wasClean });
-          setConnected(false);
-          stopSyncLoop();
-          if (!isDeviceConnected) {
-            setIsDeviceConnecting(false);
-          }
-          if (reconnectAttemptsRef.current < maxReconnectAttempts) {
-            reconnectAttemptsRef.current += 1;
-            setTimeout(connectWS, 1000 * reconnectAttemptsRef.current);
-          }
-        });
+        console.log("[player-ws] close", { code: ev.code, reason: ev.reason, wasClean: ev.wasClean });
+        setConnected(false);
+        stopSyncLoop();
+        if (!isDeviceConnected) {
+          setIsDeviceConnecting(false);
+        }
+        if (reconnectAttemptsRef.current < maxReconnectAttempts) {
+          reconnectAttemptsRef.current += 1;
+          setTimeout(connectWS, 1000 * reconnectAttemptsRef.current);
+        }
       };
     } catch (e) {
       console.error("[player-ws] connect failed", e);
-      safeSetState(() => setWsError("WebSocket connection failed"));
+      setWsError("WebSocket connection failed");
     }
   };
 
@@ -483,30 +553,9 @@ export default function PlayerPage() {
       wantStartRef.current = true;
     }
   };
-  // 再生時間送信ループ（修復 + ログ追加）
-  useEffect(() => {
-    if (!isPlaying || showPrepareScreen) return;
-    const interval = setInterval(async () => {
-      const v = videoRef.current; if (!v || v.paused) return;
-      const currentTime = v.currentTime;
-      try {
-        await fetch(`${BACKEND_API_URL}/api/v1/playback/time`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            sessionId,
-            deviceHubId: deviceHubId.trim(),
-            currentTime,
-            timestamp: Date.now(),
-          }),
-        });
-        console.log("[playback] time sent", { currentTime });
-      } catch (err) {
-        console.warn("[playback] time send failed", err);
-      }
-    }, 500);
-    return () => clearInterval(interval);
-  }, [isPlaying, showPrepareScreen, sessionId, deviceHubId]);
+
+  // 注意: 再生時間の同期はWebSocket経由で行われるため、HTTPポーリングは不要
+  // 必要に応じて sync メッセージ（type: "sync"）を WebSocket で送信
 
   /* ====== video イベント ====== */
   useEffect(() => {
@@ -537,7 +586,11 @@ export default function PlayerPage() {
     const onWaiting = () => safeSetState(() => setBuffering(true));
 
     const onPlay = () => {
-      setTimeout(() => { void sendStartOnce(); }, 10);
+      setTimeout(() => {
+        if (typeof sendStartOnce === 'function') {
+          void sendStartOnce();
+        }
+      }, 10);
       console.log("[video] play");
     };
 
@@ -546,7 +599,11 @@ export default function PlayerPage() {
         setIsPlaying(true);
         setBuffering(false);
       });
-      setTimeout(() => { void sendStartOnce(); }, 0);
+      setTimeout(() => {
+        if (typeof sendStartOnce === 'function') {
+          void sendStartOnce();
+        }
+      }, 0);
       console.log("[video] playing");
     };
 
@@ -676,10 +733,27 @@ export default function PlayerPage() {
     return h > 0 ? `${h}:${String(m).padStart(2,"0")}:${String(s).padStart(2,"0")}` : `${m}:${String(s).padStart(2,"0")}`;
   };
 
+  /* ====== WebSocket クリーンアップ ====== */
+  useEffect(() => {
+    // コンポーネントアンマウント時にWebSocket接続をクリーンアップ
+    return () => {
+      console.log("[player-ws] cleanup on unmount");
+      if (wsRef.current) {
+        try {
+          wsRef.current.close();
+        } catch (e) {
+          console.warn("[player-ws] cleanup close error", e);
+        }
+        wsRef.current = null;
+      }
+      stopSyncLoop();
+    };
+  }, []);
+
   // 準備オーバーレイは動画の上に重ねる（Loginページ風スタイルに合わせる）
 
   return (
-    <>
+    <div className="vp-root-wrapper">
       <style>{`
         :root{
           --yt-red:#ff0000;
@@ -772,20 +846,32 @@ export default function PlayerPage() {
           <div
             className={`prep-ovr${showPrepareScreen ? '' : ' is-hidden'}`}
             aria-hidden={!showPrepareScreen}
+            style={{ pointerEvents: showPrepareScreen ? 'auto' : 'none' }}
           >
             <div className="prep-card">
               <h2 className="prep-h1">再生準備</h2>
 
+              {/* セッションID表示 */}
+              <div className="prep-sec">
+                <div className="prep-label">セッションID</div>
+                <div className="prep-status ok">{sessionId}</div>
+              </div>
+
               <div className="prep-sec">
                 <div className="prep-label">デバイスハブID</div>
                 <div className="prep-grid">
-                  <input className="xh-input" placeholder="例: DHX001" value={deviceHubId} onChange={(e)=>{ const v = e.target.value; safeSetState(() => setDeviceHubId(v)); }} />
+                  <input 
+                    className="xh-input" 
+                    placeholder="例: DH001" 
+                    value={deviceHubId} 
+                    onChange={(e) => setDeviceHubId(e.target.value)}
+                  />
                   <button className="xh-btn xh-login" onClick={handleDeviceConnect} disabled={isDeviceConnected}>接続</button>
                 </div>
                 <div className="prep-statusRow">
                   <div className={`prep-loader ${(isDeviceConnected) ? 'done' : ''}`}> <div className="prep-spin" /> {isDeviceConnected && <div className="prep-check">✓</div>} </div>
                   <div className={`prep-status ${isDeviceConnected ? 'ok' : ''}`}>
-                    {isDeviceConnected ? '接続済み' : (isDeviceConnecting ? '接続確認中…' : '未接続')}
+                    {isDeviceConnected ? '接続確認完了' : (isDeviceConnecting ? '接続確認中…' : '未接続')}
                   </div>
                 </div>
               </div>
@@ -811,7 +897,7 @@ export default function PlayerPage() {
                         videoId={contentId || 'demo1'}
                         onComplete={() => onTimelineComplete()}
                         onError={onTimelineError}
-                        onUploadingChange={(u)=>setTimelineUploading(u)}
+                        onUploadingChange={(u)=>safeSetState(() => setTimelineUploading(u))}
                         className="xh-btn xh-login"
                       />
                     )}
@@ -901,7 +987,7 @@ export default function PlayerPage() {
           </div>
         </div>
       </div>
-    </>
+    </div>
   );
 }
 

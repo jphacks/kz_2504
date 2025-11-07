@@ -1,5 +1,6 @@
 import { useMemo } from "react";
 import { useNavigate } from "react-router-dom";
+import { BACKEND_API_URL } from "../config/backend";
 
 /** Select：ヘッダー固定 / ヒーロー全幅 / グリッド */
 export default function SelectPage() {
@@ -26,7 +27,11 @@ export default function SelectPage() {
     },
   ], []);
 
-  const goPlayer = (id: string) => navigate(`/player?content=${encodeURIComponent(id)}`);
+  // 動画選択時に環境変数からセッションIDを取得
+  const goPlayer = (id: string) => {
+    const sessionId = import.meta.env.VITE_PRODUCTION_SESSION_ID || "demo1";
+    navigate(`/player?content=${encodeURIComponent(id)}&session=${encodeURIComponent(sessionId)}`);
+  };
 
   return (
     <>

@@ -45,10 +45,9 @@ export async function sendTimelineToBackend(
   if (events.length === 0) {
     throw new Error("No valid events after normalization");
   }
-  // ベースURLの末尾スラッシュを除去
-  const backendBaseUrl = (import.meta.env.VITE_BACKEND_API_URL ?? "").replace(/\/$/, "");
-  const base = import.meta.env.DEV ? "" : backendBaseUrl;
-  const url = `${base}/api/preparation/upload-timeline/${encodeURIComponent(sessionId)}`;
+  // ベースURLの末尾スラッシュを除去（開発環境でも完全URLを使用）
+  const backendBaseUrl = (import.meta.env.VITE_BACKEND_API_URL ?? BACKEND_API_URL ?? "").replace(/\/$/, "");
+  const url = `${backendBaseUrl}/api/preparation/upload-timeline/${encodeURIComponent(sessionId)}`;
   const started = performance.now();
 
   console.log("[timeline] POST start", { url, events: events.length, videoId, sessionId });
