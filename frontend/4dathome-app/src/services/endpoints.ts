@@ -38,6 +38,60 @@ export const deviceApi = {
 };
 
 export const playbackApi = {
-  sendTime: (body: { sessionId: string; deviceHubId?: string; currentTime: number; timestamp?: number }) =>
-    apiClient.post(`/api/v1/playback/time`, body),
+  // スタート信号を送信 (REST API + WebSocket)
+  sendStartSignal: async (sessionId: string, options: { hubId?: string } = {}) => {
+    console.log("▶️ [API] sendStartSignal", { sessionId, options });
+    try {
+      const response = await apiClient.post(`/api/playback/start/${encodeURIComponent(sessionId)}`, null, {
+        headers: { "Content-Type": "application/json" },
+      });
+      console.log("✅ [API] sendStartSignal SUCCEEDED", { status: response.status, data: response.data });
+      return { ok: true, data: response.data };
+    } catch (error) {
+      console.error("❌ [API] sendStartSignal FAILED", { error });
+      return { ok: false, error };
+    }
+  },
+
+  // ストップ信号を送信 (REST API + WebSocket)
+  sendStopSignal: async (sessionId: string, options: { hubId?: string } = {}) => {
+    console.log("⏹️ [API] sendStopSignal", { sessionId, options });
+    try {
+      const response = await apiClient.post(`/api/playback/stop/${encodeURIComponent(sessionId)}`, null, {
+        headers: { "Content-Type": "application/json" },
+      });
+      console.log("✅ [API] sendStopSignal SUCCEEDED", { status: response.status, data: response.data });
+      return { ok: true, data: response.data };
+    } catch (error) {
+      console.error("❌ [API] sendStopSignal FAILED", { error });
+      return { ok: false, error };
+    }
+  },
+
+  // 現在の再生状態を取得
+  getStatus: async () => {
+    console.log("ℹ️ [API] getStatus");
+    try {
+      const response = await apiClient.get(`/api/playback/status`);
+      console.log("✅ [API] getStatus SUCCEEDED", { data: response.data });
+      return { ok: true, data: response.data };
+    } catch (error) {
+      console.error("❌ [API] getStatus FAILED", { error });
+      return { ok: false, error };
+    }
+  },
+
+  // 現在接続中のクライアント一覧を取得
+  getConnections: async () => {
+    console.log("ℹ️ [API] getConnections");
+    try {
+      const response = await apiClient.get(`/api/playback/connections`);
+      console.log("✅ [API] getConnections SUCCEEDED", { data: response.data });
+      return { ok: true, data: response.data };
+    } catch (error) {
+      console.error("❌ [API] getConnections FAILED", { error });
+      return { ok: false, error };
+    }
+  },
 };
+

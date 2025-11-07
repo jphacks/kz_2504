@@ -2,6 +2,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useLocation } from "react-router-dom";
 import { BACKEND_API_URL, BACKEND_WS_URL } from "../config/backend";
+import { playbackApi } from "../services/endpoints";
 
 
 type SyncState = "play" | "pause" | "seeking" | "seeked";
@@ -55,10 +56,20 @@ export default function PlayerPage() {
   // セッションID初期化（URLクエリパラメータから取得）
   useEffect(() => {
     const urlSid = q.get("session");
+    console.log("[debug] URL query params:", {
+      session: urlSid,
+      content: q.get("content"),
+      hub: q.get("hub"),
+      fullSearch: search
+    });
     if (urlSid) {
       setSessionId(urlSid);
+      console.log("✅ [debug] sessionId set:", urlSid);
+    } else {
+      console.warn("⚠️ [debug] sessionId not found in URL - using fallback 'demo-session'");
+      setSessionId("demo-session"); // フォールバック値を設定
     }
-  }, [q]);
+  }, [q, search]);
 
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const progressRef = useRef<HTMLDivElement | null>(null);
@@ -83,6 +94,9 @@ export default function PlayerPage() {
   const [connected, setConnected] = useState(false);
   const [wsError, setWsError] = useState<string | null>(null);
   const [connInfo, setConnInfo] = useState<string | null>(null);
+
+  // ★ ストップ信号を送信済みかどうかのフラグ
+  const stopSentRef = useRef(false);
 
   // タイムラインデータ（エフェクト情報）
   const [timelineEvents, setTimelineEvents] = useState<Array<{t: number; type: string; mode?: string; intensity?: number; duration_ms?: number}>>([]);
@@ -516,6 +530,52 @@ export default function PlayerPage() {
     }
   };
 
+  // ストップ信号を送信 (REST API + WebSocket)
+  const sendStopSignal = async () => {
+    // URLから直接sessionIdを取得（状態更新の遅延を回避）
+    const currentSessionId = sessionId || q.get("session") || "demo-session";
+    
+    if (!currentSessionId) {
+      console.warn("⏹️ [Signal] sendStopSignal SKIPPED - sessionId is not available");
+      return;
+    }
+    
+    // 既に送信済み、または再生中でない場合は送信しない
+    if (stopSentRef.current && !isPlaying) {
+        console.log("⏹️ [Signal] sendStopSignal SKIPPED - already sent or not playing");
+        return;
+    }
+
+    console.log("⏹️ [Signal] sendStopSignal sending...", { sessionId: currentSessionId });
+    stopSentRef.current = true; // 送信試行を開始した時点でフラグを立てる
+
+    // 1. REST APIでストップ信号を送信
+    try {
+      await playbackApi.sendStopSignal(currentSessionId);
+    } catch (e) {
+      console.error("❌ [Signal] sendStopSignal (REST) FAILED", e);
+      // RESTが失敗してもWSは試行する
+    }
+
+    // 2. WebSocketでストップ信号を送信
+    const ws = wsRef.current;
+    if (ws && ws.readyState === WebSocket.OPEN) {
+      try {
+        const msg = {
+          type: "stop_signal",
+          session_id: currentSessionId,
+          timestamp: Date.now(),
+        };
+        ws.send(JSON.stringify(msg));
+        console.log("📤 [WS送信] stop_signal", { message: msg });
+      } catch (e) {
+        console.error("❌ [Signal] sendStopSignal (WS) FAILED", e);
+      }
+    } else {
+      console.warn("⚠️ [Signal] sendStopSignal (WS) SKIPPED - WebSocket not open");
+    }
+  };
+
   // 注意: 再生時間の同期はWebSocket経由で行われるため、HTTPポーリングは不要
   // 必要に応じて sync メッセージ（type: "sync"）を WebSocket で送信
 
@@ -544,6 +604,7 @@ export default function PlayerPage() {
     const onPlaying = () => {
       setIsPlaying(true);
       setBuffering(false);
+      stopSentRef.current = false; // 再生が開始されたらストップ信号の送信フラグをリセット
       setTimeout(() => {
         if (typeof sendStartOnce === 'function') {
           void sendStartOnce();
@@ -573,11 +634,13 @@ export default function PlayerPage() {
     const onPause  = () => { 
       setIsPlaying(false);
       stopSyncLoop(); // 一時停止時に同期ループ停止
+      void sendStopSignal(); // ストップ信号を送信
       console.log("[video] pause - sync loop stopped");
     };
     const onEnded  = () => { 
       setIsPlaying(false);
       stopSyncLoop(); // 終了時に同期ループ停止
+      void sendStopSignal(); // ストップ信号を送信
       console.log("[video] ended - sync loop stopped");
     };
 
