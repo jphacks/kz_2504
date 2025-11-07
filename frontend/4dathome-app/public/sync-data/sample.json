@@ -1,7 +1,0 @@
-{
-  "events": [
-    { "t": 0.0, "type": "flash", "mode": "burst", "intensity": 0.8, "duration_ms": 150 },
-    { "t": 3.0, "type": "vibration", "mode": "strong", "intensity": 1.0, "duration_ms": 400 },
-    { "t": 5.0, "type": "wind", "mode": "long", "intensity": 0.6, "duration_ms": 1200 }
-  ]
-}

@@ -34,6 +34,12 @@ type OutMsg = {
 
 // requestIdleCallback polyfill: commit phase 完了後にstate更新
 // 強化版 setState: 同一フレーム内の更新を1回に集約し、commit中タイミングの競合を回避
+
+// 環境変数から同期間隔を取得（ミリ秒）、デフォルトは100ms
+const SYNC_INTERVAL_MS = Number(import.meta.env.VITE_SYNC_INTERVAL_MS) || 100;
+// シーク中の同期間隔（デフォルトは同期間隔と同じ）
+const SEEK_SYNC_INTERVAL_MS = Number(import.meta.env.VITE_SEEK_SYNC_INTERVAL_MS) || SYNC_INTERVAL_MS;
+
 export default function PlayerPage() {
   const { search } = useLocation();
   const q = useMemo(() => new URLSearchParams(search), [search]);
@@ -352,7 +358,7 @@ export default function PlayerPage() {
     });
   };
 
-  // 0.5秒周期で動画の状態と時間をWebSocketで送信
+  // 同期ループ: 環境変数で設定された間隔で動画の状態と時間をWebSocketで送信
   const startSyncLoop = () => {
     stopSyncLoop();
     syncTimerRef.current = window.setInterval(() => {
@@ -432,7 +438,7 @@ export default function PlayerPage() {
           timestamp: new Date().toISOString()
         });
       }
-    }, 500);
+    }, SYNC_INTERVAL_MS);
   };
   const stopSyncLoop = () => {
     if (syncTimerRef.current) {
@@ -620,9 +626,9 @@ export default function PlayerPage() {
     const t = posToTime(e.clientX);
     setSeekValue(t);
     const now = performance.now();
-    if (now - lastDragSyncRef.current >= 100) {
+    if (now - lastDragSyncRef.current >= SEEK_SYNC_INTERVAL_MS) {
       lastDragSyncRef.current = now;
-      // シーク中も0.1秒間隔でWebSocket送信（requestAnimationFrameでReactのコミットフェーズ外で実行）
+      // シーク中も環境変数で設定された間隔でWebSocket送信（requestAnimationFrameでReactのコミットフェーズ外で実行）
       requestAnimationFrame(() => {
         const v = videoRef.current;
         if (!v) return;
