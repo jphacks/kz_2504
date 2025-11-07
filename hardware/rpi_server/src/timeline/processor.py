@@ -28,6 +28,15 @@ class TimelineProcessor:
         self.is_playing: bool = False
         self.on_event_callback = on_event_callback
         self.sync_tolerance_ms = Config.SYNC_TOLERANCE_MS
+        
+        # エフェクトごとのクールダウン管理（環境変数から設定）
+        self.effect_cooldowns: Dict[str, float] = {}
+        self.cooldown_durations = {
+            "water": Config.WATER_COOLDOWN_SEC,
+            "wind": Config.WIND_COOLDOWN_SEC,
+            "vibration": Config.VIBRATION_COOLDOWN_SEC,
+            "color": Config.COLOR_COOLDOWN_SEC,
+        }
     
     def load_timeline(self, timeline_data: Dict) -> None:
         """タイムラインデータをロード
@@ -98,6 +107,7 @@ class TimelineProcessor:
         self.is_playing = False
         self.current_time = 0.0
         self.last_processed_time = -1.0
+        self.effect_cooldowns.clear()  # クールダウンもリセット
         logger.info("タイムラインリセット")
     
     def _process_events_at_time(self, current_time: float) -> None:
@@ -147,6 +157,25 @@ class TimelineProcessor:
             mode = event.get("mode", "")
             action = event.get("action", "start")
             
+            # クールダウンチェック
+            if effect in self.cooldown_durations:
+                cooldown_duration = self.cooldown_durations[effect]
+                
+                # クールダウンが0秒の場合はスキップ（無効化）
+                if cooldown_duration <= 0:
+                    pass  # クールダウンなし、通常通り実行
+                else:
+                    last_executed_time = self.effect_cooldowns.get(effect, -999.0)
+                    time_since_last = self.current_time - last_executed_time
+                    
+                    if time_since_last < cooldown_duration:
+                        remaining = cooldown_duration - time_since_last
+                        logger.info(
+                            f"⏸️  イベントスキップ（クールダウン中）: t={event_time}, effect={effect}, "
+                            f"残り={remaining:.1f}秒"
+                        )
+                        return  # クールダウン中なので実行しない
+            
             logger.info(
                 f"イベント実行: t={event_time}, effect={effect}, "
                 f"mode={mode}, action={action}"
@@ -155,6 +184,11 @@ class TimelineProcessor:
             # コールバック実行
             if self.on_event_callback:
                 self.on_event_callback(event)
+            
+            # クールダウン対象のエフェクトの場合、最終実行時刻を記録
+            if effect in self.cooldown_durations and self.cooldown_durations[effect] > 0:
+                self.effect_cooldowns[effect] = self.current_time
+                logger.debug(f"クールダウン開始: effect={effect}, duration={self.cooldown_durations[effect]}秒")
         
         except Exception as e:
             logger.error(f"イベント実行エラー: {e}", exc_info=True)

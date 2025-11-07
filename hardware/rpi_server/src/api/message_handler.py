@@ -65,6 +65,12 @@ class WebSocketMessageHandler:
         elif message_type == "device_test":
             self._handle_device_test(message)
         
+        elif message_type == "device_ack":
+            self._handle_device_ack(message)
+        
+        elif message_type == "device_connected":
+            self._handle_device_connected(message)
+        
         elif message_type == "ping":
             self._handle_ping(message)
         
@@ -257,6 +263,66 @@ class WebSocketMessageHandler:
         
         except Exception as e:
             logger.error(f"device_test処理エラー: {e}", exc_info=True)
+    
+    def _handle_device_ack(self, message: Dict[str, Any]) -> None:
+        """デバイス接続確認応答メッセージを処理
+        
+        実際のメッセージ形式（バックエンドから送信）:
+        {
+            "type": "device_ack",
+            "received_type": "device_status" | "device_test_result" | etc.,
+            "device_id": "DH001" (オプション),
+            "server_time": "2025-11-07T10:30:00Z"
+        }
+        """
+        try:
+            # デバッグ: 実際のメッセージ構造を確認
+            logger.debug(f"device_ack 受信メッセージ全体: {message}")
+            
+            # バックエンドからの実際のフィールド名に対応
+            received_type = message.get("received_type", "unknown")
+            device_id = message.get("device_id")
+            server_time = message.get("server_time")
+            
+            logger.info(
+                f"✅ デバイスACK受信: received_type={received_type}, "
+                f"device_id={device_id}, server_time={server_time}"
+            )
+            
+            # 必要に応じてログ記録のみ（アクションは不要）
+        
+        except Exception as e:
+            logger.error(f"device_ack処理エラー: {e}", exc_info=True)
+    
+    def _handle_device_connected(self, message: Dict[str, Any]) -> None:
+        """デバイス接続通知メッセージを処理
+        
+        実際のメッセージ形式（バックエンドから送信）:
+        {
+            "type": "device_connected",
+            "connection_id": "conn_abc123",
+            "session_id": "demo1",
+            "server_time": "2025-11-07T10:30:00Z"
+        }
+        """
+        try:
+            # デバッグ: 実際のメッセージ構造を確認
+            logger.debug(f"device_connected 受信メッセージ全体: {message}")
+            
+            # バックエンドからの実際のフィールド名に対応
+            connection_id = message.get("connection_id")
+            session_id = message.get("session_id")
+            server_time = message.get("server_time")
+            
+            logger.info(
+                f"🔌 デバイス接続通知受信: connection_id={connection_id}, "
+                f"session_id={session_id}, server_time={server_time}"
+            )
+            
+            # 必要に応じてログ記録のみ（アクションは不要）
+        
+        except Exception as e:
+            logger.error(f"device_connected処理エラー: {e}", exc_info=True)
     
     def _handle_ping(self, message: Dict[str, Any]) -> None:
         """Pingメッセージを処理（ログのみ）"""

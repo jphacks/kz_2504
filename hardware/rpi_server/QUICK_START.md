@@ -48,6 +48,8 @@ cd ~/4dx-home
 ```bash
 # スクリプトに実行権限を付与
 chmod +x scripts/install_dependencies.sh
+chmod +x scripts/stop_server.sh
+chmod +x scripts/restart_server.sh
 
 # インストール実行（10-15分程度）
 bash scripts/install_dependencies.sh
@@ -201,6 +203,47 @@ WebSocket接続成功
 ---
 
 ## トラブルシューティング
+
+### エラー: "Port 8000 is in use"
+
+**既存プロセスを停止**:
+```bash
+# 停止スクリプトを実行
+bash scripts/stop_server.sh
+
+# または手動で停止
+sudo lsof -ti:8000 | xargs kill -9
+```
+
+**再起動スクリプトを使用**:
+```bash
+# 自動的に既存プロセスを停止して再起動
+bash scripts/restart_server.sh demo1
+```
+
+**別のポートを使用**:
+```bash
+nano .env
+# FLASK_PORT=8001 に変更
+```
+
+### デバイスIDが"unknown"と表示される
+
+**MQTTハートビートを確認**:
+```bash
+mosquitto_sub -h localhost -t "/4dx/heartbeat"
+```
+
+実際のデバイスIDが`alive_esp1_water`のような形式の場合、`src/mqtt/device_manager.py`の`DEVICE_TYPE_MAP`に登録されています（最新版では対応済み）。
+
+### "未知のメッセージタイプ"警告
+
+**警告例**:
+```
+WARNING - 未知のメッセージタイプ: device_connected
+```
+
+これは無害な警告です。バックエンドから新しいメッセージタイプが送信されていますが、ログ記録のみで問題ありません。
 
 ### エラー: "MQTT接続失敗"
 

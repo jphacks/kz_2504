@@ -235,6 +235,67 @@ curl -X POST http://localhost:8000/api/mqtt/publish \
 
 ## トラブルシューティング
 
+### ポート8000が既に使用されている
+
+**エラーメッセージ**:
+```
+Port 8000 is in use by another program
+```
+
+**解決方法1: 既存プロセスを停止**
+```bash
+# 停止スクリプトを実行
+bash scripts/stop_server.sh
+
+# または手動でポートを使用しているプロセスを停止
+sudo lsof -ti:8000 | xargs kill -9
+```
+
+**解決方法2: 別のポートを使用**
+```bash
+# .envファイルを編集
+nano .env
+
+# FLASK_PORTを変更（例: 8001）
+FLASK_PORT=8001
+```
+
+**解決方法3: 再起動スクリプトを使用**
+```bash
+# 自動的に既存プロセスを停止して再起動
+bash scripts/restart_server.sh demo1
+```
+
+### デバイスIDが"unknown"と表示される
+
+**原因**: ESP-12Eデバイスから送信されるデバイスIDが`DEVICE_TYPE_MAP`に登録されていない
+
+**確認方法**:
+```bash
+# MQTTハートビートを監視
+mosquitto_sub -h localhost -t "/4dx/heartbeat"
+```
+
+**修正方法**: `src/mqtt/device_manager.py`の`DEVICE_TYPE_MAP`に実際のデバイスIDを追加
+```python
+DEVICE_TYPE_MAP = {
+    "alive_esp1_water": "water_wind",
+    "alive_esp2_led": "led",
+    "alive_esp3_motor1": "motor1",
+    "alive_esp4_motor2": "motor2",
+    "your_device_id": "device_type",  # 追加
+}
+```
+
+### "未知のメッセージタイプ"警告が表示される
+
+**警告例**:
+```
+WARNING - 未知のメッセージタイプ: device_connected
+```
+
+**対応**: 通常は無害な警告です。バックエンドから新しいメッセージタイプが送信されている場合、必要に応じて`src/api/message_handler.py`にハンドラーを追加してください。
+
 ### MQTTブローカー接続エラー
 
 ```bash

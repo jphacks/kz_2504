@@ -45,6 +45,12 @@ class Config:
     TIMELINE_CACHE_DIR: str = os.getenv("TIMELINE_CACHE_DIR", "data/timeline_cache")
     COMMUNICATION_LOG_DIR: str = os.getenv("COMMUNICATION_LOG_DIR", "data/communication_logs")
     
+    # === エフェクトクールダウン設定（秒） ===
+    WATER_COOLDOWN_SEC: float = float(os.getenv("WATER_COOLDOWN_SEC", "3.0"))
+    WIND_COOLDOWN_SEC: float = float(os.getenv("WIND_COOLDOWN_SEC", "0.0"))
+    VIBRATION_COOLDOWN_SEC: float = float(os.getenv("VIBRATION_COOLDOWN_SEC", "0.0"))
+    COLOR_COOLDOWN_SEC: float = float(os.getenv("COLOR_COOLDOWN_SEC", "0.0"))
+    
     # === ログ設定 ===
     LOG_LEVEL: str = os.getenv("LOG_LEVEL", "INFO")
     LOG_FILE: str = os.getenv("LOG_FILE", "data/rpi_server.log")

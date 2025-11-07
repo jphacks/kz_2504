@@ -11,90 +11,88 @@ logger = logging.getLogger(__name__)
 
 
 class EventToMQTTMapper:
-    """イベント→MQTTコマンドマッピング"""
+    """イベント→MQTTコマンドマッピング
     
-    # 4DXHOMEのevent_mapを継承
+    重要: このマッピングは 4DXHOME/mqtt_server.py の event_map に準拠しています。
+    ESP-12Eデバイスのファームウェアと互換性を保つため、勝手に変更しないでください。
+    """
+    
+    # 4DXHOME/mqtt_server.py の event_map を完全継承
     # タプル(effect, mode)をキーとして、MQTT(topic, payload)のリストを返す
     EVENT_MAP: Dict[Tuple[str, str], List[Tuple[str, str]]] = {
-        # === 水エフェクト ===
+        # === (1) ESP1 (Water/Wind) ===
         ("water", "burst"): [
             ("/4dx/water", "trigger")
         ],
-        ("water", "spray"): [
-            ("/4dx/water", "trigger")
-        ],
         
-        # === 風エフェクト ===
         ("wind", "burst"): [
-            ("/4dx/wind", "trigger")
+            ("/4dx/wind", "ON")
         ],
-        ("wind", "continuous"): [
-            ("/4dx/wind", "trigger")
-        ],
-        
-        # === 振動エフェクト（モーター制御） ===
-        ("vibration", "strong"): [
-            ("/4dx/motor1/control", "STRONG"),
-            ("/4dx/motor2/control", "STRONG")
-        ],
-        ("vibration", "medium"): [
-            ("/4dx/motor1/control", "MEDIUM"),
-            ("/4dx/motor2/control", "MEDIUM")
-        ],
-        ("vibration", "weak"): [
-            ("/4dx/motor1/control", "WEAK"),
-            ("/4dx/motor2/control", "WEAK")
-        ],
-        ("vibration", "long"): [
-            ("/4dx/motor1/control", "LONG"),
-            ("/4dx/motor2/control", "LONG")
-        ],
-        ("vibration", "short"): [
-            ("/4dx/motor1/control", "SHORT"),
-            ("/4dx/motor2/control", "SHORT")
+        ("wind", "long"): [
+            ("/4dx/wind", "ON")
         ],
         
-        # === フラッシュエフェクト（LED） ===
+        # === (2) ESP2 (LED) ===
+        # 色変更
+        ("color", "red"): [
+            ("/4dx/color", "RED")
+        ],
+        ("color", "green"): [
+            ("/4dx/color", "GREEN")
+        ],
+        ("color", "blue"): [
+            ("/4dx/color", "BLUE")
+        ],
+        ("color", "yellow"): [
+            ("/4dx/color", "YELLOW")
+        ],
+        ("color", "cyan"): [
+            ("/4dx/color", "CYAN")
+        ],
+        ("color", "purple"): [
+            ("/4dx/color", "PURPLE")
+        ],
+        
+        # フラッシュ
+        ("flash", "steady"): [
+            ("/4dx/light", "ON")
+        ],
         ("flash", "burst"): [
             ("/4dx/light", "BLINK_FAST")
         ],
         ("flash", "strobe"): [
             ("/4dx/light", "BLINK_FAST")
         ],
-        ("flash", "pulse"): [
-            ("/4dx/light", "BLINK_SLOW")
-        ],
         
-        # === カラーエフェクト（LED色変更） ===
-        ("color", "red"): [
-            ("/4dx/color", "RED")
+        # === (3) ESP3 / ESP4 (Motor) ===
+        ("vibration", "heartbeat"): [
+            ("/4dx/motor1/control", "HEARTBEAT"),
+            ("/4dx/motor2/control", "HEARTBEAT")
         ],
-        ("color", "blue"): [
-            ("/4dx/color", "BLUE")
+        ("vibration", "long"): [
+            ("/4dx/motor1/control", "RUMBLE_SLOW"),
+            ("/4dx/motor2/control", "RUMBLE_SLOW")
         ],
-        ("color", "green"): [
-            ("/4dx/color", "GREEN")
+        ("vibration", "strong"): [
+            ("/4dx/motor1/control", "STRONG"),
+            ("/4dx/motor2/control", "STRONG")
         ],
-        ("color", "yellow"): [
-            ("/4dx/color", "YELLOW")
+    }
+    
+    # 停止 (stop) アクションのマッピング（mqtt_server.py の stop_event_map）
+    STOP_EVENT_MAP: Dict[str, List[Tuple[str, str]]] = {
+        "wind": [
+            ("/4dx/wind", "OFF")
         ],
-        ("color", "purple"): [
-            ("/4dx/color", "PURPLE")
+        "color": [
+            ("/4dx/color", "RED")  # LEDはOFFにせず「赤」に戻す
         ],
-        ("color", "white"): [
-            ("/4dx/color", "WHITE")
-        ],
-        
-        # === 停止コマンド ===
-        ("vibration", "stop"): [
-            ("/4dx/motor1/control", "STOP"),
-            ("/4dx/motor2/control", "STOP")
-        ],
-        ("flash", "stop"): [
+        "flash": [
             ("/4dx/light", "OFF")
         ],
-        ("color", "stop"): [
-            ("/4dx/color", "OFF")
+        "vibration": [
+            ("/4dx/motor1/control", "OFF"),
+            ("/4dx/motor2/control", "OFF")
         ],
     }
     
@@ -110,18 +108,18 @@ class EventToMQTTMapper:
         Args:
             effect: エフェクト名 (water, wind, vibration, flash, color)
             mode: モード (burst, strong, red, etc.)
-            action: アクション (start, stop)
+            action: アクション (start, stop, shot)
             
         Returns:
             [(topic, payload), ...] のリスト
         """
-        # actionがstopの場合は停止コマンドを使用
+        # actionがstopの場合は停止コマンドを使用（mqtt_server.pyに準拠）
         if action == "stop":
-            key = (effect, "stop")
+            mqtt_commands = cls.STOP_EVENT_MAP.get(effect, [])
         else:
+            # action == "start" or "shot"
             key = (effect, mode)
-        
-        mqtt_commands = cls.EVENT_MAP.get(key, [])
+            mqtt_commands = cls.EVENT_MAP.get(key, [])
         
         if not mqtt_commands:
             logger.warning(

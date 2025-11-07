@@ -27,10 +27,17 @@ class DeviceManager:
     
     # デバイスIDとタイプのマッピング
     DEVICE_TYPE_MAP = {
+        # 旧形式（後方互換性のため維持）
         "ESP_WATER_WIND": "water_wind",
         "ESP_LED": "led",
         "ESP_MOTOR1": "motor1",
         "ESP_MOTOR2": "motor2",
+        # 新形式（実際のハードウェアで使用）
+        "alive_esp1_water": "water_wind",
+        "alive_esp2_led": "led",
+        "alive_esp3_motor1": "motor1",
+        "alive_esp4_motor2": "motor2",
+        "alive": "heartbeat",  # ハートビート専用メッセージ
     }
     
     def __init__(self):

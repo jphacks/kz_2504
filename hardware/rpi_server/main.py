@@ -113,11 +113,21 @@ class RaspberryPiServer:
     def _start_flask_server(self) -> None:
         """Flaskサーバーをバックグラウンドスレッドで起動"""
         def run_flask():
-            self.flask_server.run(
-                host=Config.FLASK_HOST,
-                port=Config.FLASK_PORT,
-                debug=Config.FLASK_DEBUG
-            )
+            try:
+                self.flask_server.run(
+                    host=Config.FLASK_HOST,
+                    port=Config.FLASK_PORT,
+                    debug=Config.FLASK_DEBUG
+                )
+            except OSError as e:
+                if "Address already in use" in str(e):
+                    logger.error(
+                        f"ポート {Config.FLASK_PORT} は既に使用されています。"
+                        f"既存のプロセスを停止するか、.envファイルでFLASK_PORTを変更してください。"
+                    )
+                    logger.info("停止方法: bash scripts/stop_server.sh")
+                else:
+                    logger.error(f"Flaskサーバー起動エラー: {e}", exc_info=True)
         
         self.flask_thread = threading.Thread(target=run_flask, daemon=True)
         self.flask_thread.start()
@@ -249,7 +259,7 @@ class RaspberryPiServer:
             connected_devices = self.device_manager.get_all_devices()
             device_count = len(connected_devices)
             
-            # テスト結果を作成
+            # テスト結果を作成（DeviceStatusオブジェクトを辞書に変換）
             test_result = {
                 "type": "device_test_result",
                 "session_id": session_id,
@@ -257,7 +267,14 @@ class RaspberryPiServer:
                 "status": "success",
                 "mqtt_connected": is_mqtt_connected,
                 "device_count": device_count,
-                "devices": [{"device_id": d} for d in connected_devices],
+                "devices": [
+                    {
+                        "device_id": d.device_id,
+                        "device_type": d.device_type,
+                        "is_online": d.is_online,
+                        "last_heartbeat": d.last_heartbeat
+                    } for d in connected_devices
+                ],
                 "timestamp": datetime.now().isoformat()
             }
             
