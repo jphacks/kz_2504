@@ -184,9 +184,22 @@ class TimelineProcessor:
         """
         try:
             event_time = event.get("t", 0)
-            effect = event.get("effect", "unknown")
+            effect = event.get("effect", "")
             mode = event.get("mode", "")
             action = event.get("action", "start")
+            caption_text = event.get("text", "")
+            
+            # キャプションイベントの場合は専用ログ出力
+            if action == "caption":
+                logger.info(
+                    f"💬 キャプション: t={event_time}, text=\"{caption_text}\""
+                )
+                # キャプションはMQTTコマンドに変換しないのでここで終了
+                return
+            
+            # effectがない場合はunknownとする
+            if not effect:
+                effect = "unknown"
             
             # クールダウンチェック
             if effect in self.cooldown_durations:

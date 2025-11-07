@@ -267,7 +267,8 @@ class EventToMQTTMapper:
             # action == "start" or "shot"
             mqtt_commands = cls.EVENT_MAP.get(key, [])
         
-        if not mqtt_commands:
+        # キャプションイベントの場合は警告を出さない（MQTTコマンドなし）
+        if not mqtt_commands and action != "caption":
             logger.warning(
                 f"未マップイベント: effect={effect}, mode={mode}, action={action}"
             )
