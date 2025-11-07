@@ -1,63 +1,38 @@
 import { BACKEND_API_URL } from "../config/backend";
 import type { TimelineEvent, TimelineUploadResponse } from "../types/timeline";
 
-// 入力JSON（任意形）をサーバ仕様の TimelineEvent[] に正規化
-function normalizeEvents(rawEvents: any[]): TimelineEvent[] {
-  if (!Array.isArray(rawEvents)) return [];
-  const out: TimelineEvent[] = [];
-  for (const ev of rawEvents) {
-    const t = typeof ev?.t === "number" ? ev.t : Number(ev?.time ?? ev?.timestamp ?? NaN);
-    // effect/type の解決
-    const type: string | undefined =
-      typeof ev?.type === "string" ? ev.type :
-      typeof ev?.effect === "string" ? ev.effect : undefined;
-    if (!isFinite(t) || t < 0 || !type) {
-      // caption などはスキップ
-      continue;
-    }
-    // mode の解決（action が mode に混ざっているケースは除外）
-    const modeRaw: unknown = ev?.mode ?? ev?.pattern ?? ev?.style;
-    const mode = typeof modeRaw === "string" && !/(^start$|^stop$)/i.test(modeRaw) ? modeRaw : undefined;
-    const intensity = typeof ev?.intensity === "number" ? ev.intensity : undefined;
-    // duration 推定（shot は瞬間系）
-    let duration_ms: number | undefined =
-      typeof ev?.duration_ms === "number" ? ev.duration_ms :
-      typeof ev?.durationMs === "number" ? ev.durationMs : undefined;
-    if (!duration_ms && typeof ev?.action === "string" && ev.action.toLowerCase() === "shot") {
-      duration_ms = 200; // 短いパルスに寄せる
-    }
-
-    out.push({ t, type, mode, intensity, duration_ms });
-  }
-  return out;
-}
-
 export async function sendTimelineToBackend(
   sessionId: string,
   videoId: string,
-  timelineJson: { events: TimelineEvent[] }
+  timelineJson: { events: any[] }
 ): Promise<TimelineUploadResponse> {
   if (!timelineJson?.events || timelineJson.events.length === 0) {
     throw new Error("No events in timelineJson");
   }
-  // 異形データを正規化
-  const events = normalizeEvents(timelineJson.events);
-  if (events.length === 0) {
-    throw new Error("No valid events after normalization");
-  }
+  
+  // JSONをそのまま送信（正規化なし）
+  const events = timelineJson.events;
+  console.log("📦 [timeline] イベントデータ準備完了（正規化なし）");
+  console.log("   イベント数:", events.length);
+  
   // ベースURLの末尾スラッシュを除去（開発環境でも完全URLを使用）
   const backendBaseUrl = (import.meta.env.VITE_BACKEND_API_URL ?? BACKEND_API_URL ?? "").replace(/\/$/, "");
   const url = `${backendBaseUrl}/api/preparation/upload-timeline/${encodeURIComponent(sessionId)}`;
   const started = performance.now();
 
+  const payload = {
+    video_id: videoId,
+    timeline_data: { events }
+  };
+  
+  console.log("📤 [timeline] 送信するJSONデータ:");
+  console.log(JSON.stringify(payload, null, 2));
+
   console.log("[timeline] POST start", { url, events: events.length, videoId, sessionId });
   const res = await fetch(url, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      video_id: videoId,
-      timeline_data: { events }
-    }),
+    body: JSON.stringify(payload),
   });
 
   if (!res.ok) {
@@ -94,57 +69,63 @@ export async function loadAndSendTimeline(
   sessionId: string,
   videoId: string
 ): Promise<TimelineUploadResponse> {
-  // 複数候補パスを試行: /sync-data/{id}.json → /json/{id}.json → /json/demo1.json (フォールバック)
-  const candidates = [
-    `/json/${encodeURIComponent(videoId)}.json`,
-    videoId !== "demo1" ? "/json/demo1.json" : null,
-  ].filter(Boolean) as string[];
+  // 選択した動画のvideoIdと同じ名前のJSONファイルのみを読み込む（フォールバックなし）
+  const url = `/json/${encodeURIComponent(videoId)}.json`;
 
-  let lastError: Error | null = null;
+  console.log("📤 [timeline] 送信開始 ============");
+  console.log("   Session ID:", sessionId);
+  console.log("   Video ID:", videoId);
+  console.log("   読み込むファイル:", url);
+
   let timelineJson: any = null;
-  for (const url of candidates) {
-    const started = performance.now();
-    try {
-      console.log("[timeline] fetch local try", { url });
-      const r = await fetch(url, { cache: "no-cache" });
-      const ct = r.headers.get("content-type") || "";
-      const text = await r.text();
-      const elapsed = Math.round(performance.now() - started);
-      console.log("[timeline] fetch local result", { url, status: r.status, ct, elapsed, snippet: text.slice(0, 60).replace(/\n/g, " ") });
-      if (!r.ok) {
-        lastError = new Error(`HTTP ${r.status}`);
-        continue;
-      }
-      // index.html などHTMLを誤って受け取ったケースを弾く
-      if (/<!DOCTYPE html>/i.test(text) || /<html[\s>]/i.test(text)) {
-        lastError = new Error("Received HTML instead of JSON (possible missing file or dev server fallback)");
-        continue;
-      }
-      try {
-        timelineJson = JSON.parse(text);
-      } catch (e: any) {
-        lastError = new Error(`JSON parse error: ${e?.message || String(e)}`);
-        continue;
-      }
-      if (!timelineJson || !Array.isArray(timelineJson.events)) {
-        lastError = new Error("Invalid timeline format: missing events array");
-        continue;
-      }
-      // 成功
-      const count = timelineJson.events.length;
-      console.log("[timeline] local events(raw)", count, { from: url });
-      break;
-    } catch (e: any) {
-      lastError = new Error(e?.message || String(e));
+  const started = performance.now();
+  
+  try {
+    console.log("[timeline] fetch local try", { url, videoId });
+    const r = await fetch(url, { cache: "no-cache" });
+    const ct = r.headers.get("content-type") || "";
+    const text = await r.text();
+    const elapsed = Math.round(performance.now() - started);
+    console.log("[timeline] fetch local result", { url, status: r.status, ct, elapsed, snippet: text.slice(0, 60).replace(/\n/g, " ") });
+    
+    if (!r.ok) {
+      throw new Error(`JSONファイルが見つかりません: ${url} (HTTP ${r.status})`);
     }
+    
+    // index.html などHTMLを誤って受け取ったケースを弾く
+    if (/<!DOCTYPE html>/i.test(text) || /<html[\s>]/i.test(text)) {
+      throw new Error(`JSONファイルの代わりにHTMLが返されました: ${url} (ファイルが存在しない可能性があります)`);
+    }
+    
+    try {
+      timelineJson = JSON.parse(text);
+    } catch (e: any) {
+      throw new Error(`JSON parse error: ${e?.message || String(e)}`);
+    }
+    
+    if (!timelineJson || !Array.isArray(timelineJson.events)) {
+      throw new Error(`Invalid timeline format: missing events array in ${url}`);
+    }
+    
+    // 成功
+    const count = timelineJson.events.length;
+    console.log("✅ [timeline] JSONファイル読み込み成功");
+    console.log("   ファイル:", url);
+    console.log("   イベント数(raw):", count);
+    console.log("   最初の3イベント:", timelineJson.events.slice(0, 3));
+  } catch (e: any) {
+    console.error("❌ [timeline] JSONファイル読み込み失敗");
+    console.error("   ファイル:", url);
+    console.error("   エラー:", e.message);
+    throw new Error(`タイムライン読み込み失敗 (${videoId}.json): ${e?.message || String(e)}`);
   }
 
-  if (!timelineJson) {
-    throw new Error(`Timeline load failed for ${videoId}: ${lastError?.message}`);
-  }
-
+  console.log("📨 [timeline] バックエンドへ送信開始...");
   const result = await sendTimelineToBackend(sessionId, videoId, timelineJson);
-  console.log("[timeline] transmission_time_ms:", result.transmission_time_ms);
+  console.log("✅ [timeline] 送信完了 ============");
+  console.log("   送信時間:", result.transmission_time_ms, "ms");
+  console.log("   イベント数:", result.events_count);
+  console.log("   データサイズ:", result.size_kb, "KB");
   return result;
 }
 

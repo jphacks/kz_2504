@@ -17,16 +17,23 @@ export default function TimelineUploadButton({ sessionId, videoId, onComplete, o
 
   const onClick = async () => { 
     if (uploading) return;
+    
+    console.log("🔘 [TimelineUploadButton] クリックされました");
+    console.log("   Session ID:", sessionId);
+    console.log("   Video ID:", videoId);
+    
     setUploading(true);
-  setProgress("タイムライン読み込み中...");
-  try { onUploadingChange?.(true); } catch {}
+    setProgress("タイムライン読み込み中...");
+    try { onUploadingChange?.(true); } catch {}
     try {
       const result = await loadAndSendTimeline(sessionId, videoId);
       setProgress(`送信完了: ${result.transmission_time_ms} ms / events: ${result.events_count}`);
+      console.log("✅ [TimelineUploadButton] 送信成功", result);
       onComplete?.(result);
     } catch (e) {
       const err = e as Error;
       setProgress("エラー発生: " + (err.message || String(err)));
+      console.error("❌ [TimelineUploadButton] 送信失敗", err);
       onError?.(err);
     } finally {
       setUploading(false);
