@@ -4,6 +4,8 @@ import LoginPage from "./pages/LoginPage";
 import PairingPage from "./pages/PairingPage";
 import SelectPage from "./pages/SelectPage";
 import PlayerPage from "./pages/PlayerPage";
+import VideoPreparationPage from "./pages/VideoPreparationPage";
+import ProtectedRoute from "./components/ProtectedRoute";
 
 export default function App() {
   return (
@@ -12,11 +14,14 @@ export default function App() {
       <Route path="/" element={<LoginPage />} />
       <Route path="/login" element={<LoginPage />} />
       
-      {/* 2. 動画選択画面 */}
-      <Route path="/select" element={<SelectPage />} />
+  {/* 2. 動画選択画面 */}
+  <Route path="/select" element={<SelectPage />} />
+
+  {/* 準備（認証/接続/テスト）画面 */}
+  <Route path="/prepare" element={<ProtectedRoute><VideoPreparationPage /></ProtectedRoute>} />
       
-      {/* 3. プレイヤー画面（デバイスハブ＋準備＋再生を統合） */}
-      <Route path="/player" element={<PlayerPage />} />
+  {/* 3. プレイヤー画面（準備済みでアクセス） */}
+  <Route path="/player" element={<ProtectedRoute><PlayerPage /></ProtectedRoute>} />
       
       {/* 旧ページ（互換性のためリダイレクト） */}
       <Route path="/home" element={<Navigate to="/" replace />} />

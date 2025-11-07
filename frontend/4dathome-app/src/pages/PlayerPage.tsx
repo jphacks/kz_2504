@@ -313,16 +313,113 @@ export default function PlayerPage() {
 
   /* ====== デバイステスト処理（手動） ====== */
   const handleDeviceTest = async () => {
+    // 前提条件チェック
+    if (!sessionId) {
+      setPrepareError("セッションIDが設定されていません");
+      return;
+    }
     if (!isTimelineSent) {
       setPrepareError("先にタイムラインを送信してください");
       return;
     }
-    setPrepareError(null);
+    if (!isDeviceConnected) {
+      setPrepareError("先にデバイスを接続してください");
+      return;
+    }
 
-    // デバイステスト（実際はAPIコール）
-    setTimeout(() => {
-      setIsDevicesTested(true);
-    }, 500);
+    setPrepareError(null);
+    setDevicesTesting(true);
+    const startTime = performance.now();
+
+    console.log("🧪 デバイステスト開始", {
+      sessionId,
+      timestamp: new Date().toISOString(),
+      deviceHubId: deviceHubId.trim() || undefined
+    });
+
+    try {
+      // Player内で直接POST（分離なしで完結）
+      // デバイステストにはdevice_hub_idも必須（WebSocket接続先の特定に必要）
+      const url = `${BACKEND_API_URL}/api/device/test`;
+      const hubId = deviceHubId.trim();
+      const requestBody = {
+        test_type: "basic",
+        session_id: sessionId,
+        ...(hubId ? { device_hub_id: hubId } : {}),
+      };
+      
+      console.log("📤 デバイステストリクエスト", {
+        url,
+        body: requestBody,
+        timestamp: new Date().toISOString()
+      });
+      
+      const res = await fetch(url, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(requestBody),
+      });
+      if (!res.ok) {
+        const text = await res.text().catch(() => "");
+        throw new Error(text || `HTTP ${res.status}`);
+      }
+      const result = await res.json();
+      const testDuration = performance.now() - startTime;
+
+      console.log("📊 デバイステスト結果", {
+        result,
+        timestamp: new Date().toISOString(),
+        duration: `${testDuration.toFixed(0)}ms`,
+        status: result.status,
+        sessionId,
+        deviceHubId: deviceHubId.trim() || undefined
+      });
+
+      if (!result || typeof result.status !== "string") {
+        throw new Error("応答が不正な形式です");
+      }
+      
+      if (result.status.toLowerCase() === "success") {
+        setIsDevicesTested(true);
+        setPrepareError(null);
+        console.log("✅ デバイステスト成功", {
+          timestamp: new Date().toISOString(),
+          duration: `${testDuration.toFixed(0)}ms`,
+          sessionId
+        });
+      } else {
+        throw new Error(
+          `テストが失敗しました: ${result.message || `ステータス: ${result.status}`}`
+        );
+      }
+
+    } catch (err: any) {
+      const testDuration = performance.now() - startTime;
+      const errMsg = err?.message || String(err);
+      
+      console.error("❌ デバイステストエラー", {
+        error: err,
+        message: errMsg,
+        timestamp: new Date().toISOString(),
+        duration: `${testDuration.toFixed(0)}ms`,
+        sessionId,
+        deviceHubId: deviceHubId.trim() || undefined,
+        response: undefined
+      });
+      
+      setPrepareError(`デバイステスト失敗: ${errMsg}`);
+      setIsDevicesTested(false);
+    } finally {
+      setDevicesTesting(false);
+      const testDuration = performance.now() - startTime;
+      
+      console.log("🔄 デバイステスト完了", {
+        isSuccess: isDevicesTested,
+        timestamp: new Date().toISOString(),
+        duration: `${testDuration.toFixed(0)}ms`,
+        sessionId
+      });
+    }
   };
 
   /* ====== スタートボタン ====== */
@@ -1214,17 +1311,18 @@ export default function PlayerPage() {
                     ) : (
                       <button
                         className="xh-btn xh-login"
-                        onClick={() => {
-                          if (devicesTesting || isDevicesTested || !isTimelineSent) return;
-                          setDevicesTesting(true);
-                          setTimeout(() => {
-                            setDevicesTesting(false);
-                            setIsDevicesTested(true);
-                          }, 600);
-                        }}
+                        onClick={handleDeviceTest}
                         disabled={!isTimelineSent || devicesTesting || isDevicesTested}
+                        style={{
+                          backgroundColor: !isTimelineSent ? '#ccc' 
+                            : isDevicesTested ? '#4caf50' 
+                            : '#fff',
+                          opacity: devicesTesting ? 0.7 : 1,
+                        }}
                       >
-                        {devicesTesting ? 'テスト中...' : 'テスト実行'}
+                        {devicesTesting ? 'テスト実行中...' 
+                          : isDevicesTested ? 'テスト完了' 
+                          : 'テスト実行'}
                       </button>
                     )}
                   </div>

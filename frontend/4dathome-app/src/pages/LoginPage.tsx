@@ -23,10 +23,10 @@ export default function LoginPage() {
     setError(null);
     setLoading(true);
 
-    // ダミーログイン：成功扱いで動画選択画面へ遷移
+    // ダミーログイン：認証フラグを立て準備ページへ遷移
     setTimeout(() => {
-      sessionStorage.setItem("loggedIn", "true");
-      navigate("/select", { replace: true });
+      try { sessionStorage.setItem("auth", "1"); } catch {}
+      navigate("/prepare", { replace: true });
     }, 300);
   };
 
@@ -156,15 +156,20 @@ export default function LoginPage() {
                 </button>
               </div>
 
-              {/* デバッグ用：動画に直接飛ぶボタン */}
+              {/* デバッグ用：準備ページ/動画へ直接移動 */}
               <div className="xh-fade xh-d5" style={{marginTop:"12px"}}>
-                <button 
-                  type="button" 
-                  className="xh-btn xh-debug" 
-                  onClick={() => navigate("/player?content=demo1&session=demo1")}
-                >
-                  🔧 デバッグ：動画へ直接移動
-                </button>
+                <div style={{display:"flex",flexDirection:"column",gap:8}}>
+                  <button
+                    type="button"
+                    className="xh-btn xh-debug"
+                    onClick={() => { try{sessionStorage.setItem("auth","1");}catch{} navigate("/prepare?content=demo1", { replace:true }); }}
+                  >🔧 デバッグ：準備ページへ</button>
+                  <button
+                    type="button"
+                    className="xh-btn xh-debug"
+                    onClick={() => { try{sessionStorage.setItem("auth","1");}catch{} navigate("/player?content=demo1&session=demo1", { replace:true }); }}
+                  >🔧 デバッグ：動画へ直接移動</button>
+                </div>
               </div>
             </form>
           </div>

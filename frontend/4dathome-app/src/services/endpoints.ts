@@ -23,7 +23,18 @@ export const preparationApi = {
 export const deviceApi = {
   getInfo: (productCode: string) => apiClient.get(`/api/device/info/${encodeURIComponent(productCode)}`),
   register: (req: { product_code: string }) => apiClient.post(`/api/device/register`, req),
-  test: (testType: string, sessionId: string) => apiClient.post(`/api/device/test`, { test_type: testType, session_id: sessionId }, { /* timeout could be added by AbortController */ }),
+  /**
+   * デバイステスト実行
+   * POST /api/device/test
+   * Body: { test_type: string; session_id: string }
+   * 期待レスポンス例: { status: "success" | "error"; message?: string; [k: string]: any }
+   */
+  test: async (testType: string, sessionId: string): Promise<{ status: string; message?: string; [k: string]: any }> => {
+    return apiClient.post(`/api/device/test`, {
+      test_type: testType,
+      session_id: sessionId,
+    });
+  },
 };
 
 export const playbackApi = {

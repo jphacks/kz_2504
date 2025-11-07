@@ -29,13 +29,15 @@ async function handle<T>(res: Response): Promise<T> {
 
 export const apiClient = {
   get: async <T = any>(path: string, init?: RequestInit): Promise<T> => {
-    const base = import.meta.env.DEV ? "" : BACKEND_API_URL; // devはViteのproxyを利用
+    // 分岐なく一本化: 常にバックエンドのフルURLを直叩き
+    const base = BACKEND_API_URL;
     const url = join(base, path);
     const res = await fetch(url, { ...init, method: "GET" });
     return handle<T>(res);
   },
   post: async <T = any>(path: string, body?: any, init?: RequestInit): Promise<T> => {
-    const base = import.meta.env.DEV ? "" : BACKEND_API_URL; // devはViteのproxyを利用
+    // 分岐なく一本化: 常にバックエンドのフルURLを直叩き
+    const base = BACKEND_API_URL;
     const url = join(base, path);
     const res = await fetch(url, {
       method: "POST",
@@ -46,7 +48,8 @@ export const apiClient = {
     return handle<T>(res);
   },
   delete: async <T = any>(path: string, init?: RequestInit): Promise<T> => {
-    const base = import.meta.env.DEV ? "" : BACKEND_API_URL; // devはViteのproxyを利用
+    // 分岐なく一本化: 常にバックエンドのフルURLを直叩き
+    const base = BACKEND_API_URL;
     const url = join(base, path);
     const res = await fetch(url, { ...init, method: "DELETE" });
     return handle<T>(res);
