@@ -1,6 +1,5 @@
 // src/pages/PlayerPage.tsx
 import { useEffect, useMemo, useRef, useState } from "react";
-import { unstable_batchedUpdates } from "react-dom";
 import { useLocation } from "react-router-dom";
 import { BACKEND_API_URL, BACKEND_WS_URL } from "../config/backend";
 import TimelineUploadButton from "../components/TimelineUploadButton";
@@ -35,43 +34,7 @@ type OutMsg = {
 };
 
 // requestIdleCallback polyfill: commit phase 完了後にstate更新
-// 強化版 safeSetState: 同一フレーム内の更新を1回に集約し、commit中タイミングの競合を回避
-const safeSetState = (() => {
-  let queue: Array<() => void> = [];
-  let scheduled = false;
-
-  const scheduleFlush = () => {
-    // rAF 優先。なければ setTimeout で macrotask に逃がす
-    const runner = () => {
-      const batch = queue;
-      queue = [];
-      scheduled = false;
-      if (batch.length === 0) return;
-      unstable_batchedUpdates(() => {
-        for (const fn of batch) {
-          try { fn(); } catch (e) { console.error("safeSetState handler error", e); }
-        }
-      });
-    };
-    if (typeof requestAnimationFrame !== "undefined") {
-      requestAnimationFrame(runner);
-    } else if (typeof requestIdleCallback !== "undefined") {
-      // 一部環境で rAF 未定義のフォールバック
-      requestIdleCallback(runner, { timeout: 50 });
-    } else {
-      setTimeout(runner, 0);
-    }
-  };
-
-  return (fn: () => void) => {
-    queue.push(fn);
-    if (!scheduled) {
-      scheduled = true;
-      scheduleFlush();
-    }
-  };
-})();
-
+// 強化版 setState: 同一フレーム内の更新を1回に集約し、commit中タイミングの競合を回避
 export default function PlayerPage() {
   const { search } = useLocation();
   const q = useMemo(() => new URLSearchParams(search), [search]);
@@ -127,6 +90,9 @@ export default function PlayerPage() {
   // 動画準備状態
   const [isVideoReady, setIsVideoReady] = useState(false);
 
+  // タイムラインデータ（エフェクト情報）
+  const [timelineEvents, setTimelineEvents] = useState<Array<{t: number; type: string; mode?: string; intensity?: number; duration_ms?: number}>>([]);
+
   // デバイスハブ接続管理
   const [deviceHubId, setDeviceHubId] = useState("");
   const [isDeviceConnecting, setIsDeviceConnecting] = useState(false); // 接続確認中（WSハンドシェイク待ち）
@@ -138,7 +104,7 @@ export default function PlayerPage() {
   const [showPrepareScreen, setShowPrepareScreen] = useState(true);
   const [prepareError, setPrepareError] = useState<string | null>(null);
 
-  // DOM削除を行わず、CSS（opacity/visibility）のみで制御することで insertBefore エラーを完全回避
+  // 準備オーバーレイは常にDOMに残し、CSSで非表示化して差し替え時のDOM不整合を防ぐ
 
   // 全準備完了判定
   const allReady = isDeviceConnected && isVideoReady && isTimelineSent && isDevicesTested;
@@ -198,7 +164,7 @@ export default function PlayerPage() {
 
   const unmuteIfPossible = () => {
     const v = videoRef.current; if (!v) return;
-    if (v.muted) { v.muted = false; safeSetState(() => setMuted(false)); }
+    if (v.muted) { v.muted = false; setMuted(false); }
     if (v.volume === 0) v.volume = 1;
   };
 
@@ -206,15 +172,15 @@ export default function PlayerPage() {
   const handleDeviceConnect = async () => {
     const hubId = deviceHubId.trim();
     if (!hubId) {
-      safeSetState(() => setPrepareError("デバイスハブIDを入力してください"));
+      setPrepareError("デバイスハブIDを入力してください");
       return;
     }
-    safeSetState(() => setPrepareError(null));
+    setPrepareError(null);
     if (isDeviceConnected || isDeviceConnecting) return;
     console.info("[prepare] deviceHubId input accepted", hubId);
     sessionStorage.setItem("deviceHubId", hubId);
     // WebSocket ハンドシェイク確認を開始
-    safeSetState(() => setIsDeviceConnecting(true));
+    setIsDeviceConnecting(true);
     
     try {
       if (!wsRef.current || wsRef.current.readyState >= WebSocket.CLOSING) {
@@ -224,10 +190,8 @@ export default function PlayerPage() {
         if (connected) {
           // 既に接続確立メッセージを受けているかどうかは connInfo の有無で判定
           if (connInfo) {
-            safeSetState(() => {
-              setIsDeviceConnected(true);
-              setIsDeviceConnecting(false);
-            });
+            setIsDeviceConnected(true);
+            setIsDeviceConnecting(false);
           }
           // 既にOPENなら identify を送って紐付けを明示
           const s = wsRef.current;
@@ -248,48 +212,92 @@ export default function PlayerPage() {
         try {
           const ok = await waitWsHandshake(5000);
           if (ok) {
-            safeSetState(() => {
-              setIsDeviceConnected(true);
-              setPrepareError(null);
-            });
+            setIsDeviceConnected(true);
+            setPrepareError(null);
           } else {
-            safeSetState(() => setPrepareError("接続確認に失敗しました（タイムアウト）"));
+            setPrepareError("接続確認に失敗しました（タイムアウト）");
           }
         } catch (e: any) {
-          safeSetState(() => setPrepareError(`接続確認中にエラー: ${e?.message || String(e)}`));
+          setPrepareError(`接続確認中にエラー: ${e?.message || String(e)}`);
         } finally {
-          safeSetState(() => setIsDeviceConnecting(false));
+          setIsDeviceConnecting(false);
         }
       }, 50);
     } catch (e: any) {
       console.error("[prepare] handleDeviceConnect error", e);
-      safeSetState(() => {
-        setPrepareError(`接続エラー: ${e?.message || String(e)}`);
-        setIsDeviceConnecting(false);
-      });
+      setPrepareError(`接続エラー: ${e?.message || String(e)}`);
+      setIsDeviceConnecting(false);
     }
   };
 
   /* ====== タイムライン送信（手動） ====== */
-  const onTimelineComplete = () => {
-    safeSetState(() => setIsTimelineSent(true));
+  const onTimelineComplete = async () => {
+    setIsTimelineSent(true);
+    
+    // タイムラインJSONを読み込んでイベントデータを保存
+    try {
+      const videoId = contentId || 'demo1';
+      const candidates = [
+        `/json/${videoId}.json`,              // 優先: public/json/
+        `/sync-data/${videoId}.json`,         // フォールバック
+        videoId !== "demo1" ? "/json/demo1.json" : null,
+      ].filter(Boolean) as string[];
+
+      for (const url of candidates) {
+        try {
+          const response = await fetch(url, { cache: "no-cache" });
+          if (!response.ok) continue;
+          
+          const text = await response.text();
+          if (/<!DOCTYPE html>/i.test(text) || /<html[\s>]/i.test(text)) continue;
+          
+          const timelineJson = JSON.parse(text);
+          if (timelineJson?.events && Array.isArray(timelineJson.events)) {
+            setTimelineEvents(timelineJson.events);
+            
+            // エフェクトイベントのみカウント
+            const effectEvents = timelineJson.events.filter((e: any) => 
+              e.action !== "caption" && e.effect
+            );
+            
+            console.log("📋 [タイムライン読込成功]", {
+              totalEvents: timelineJson.events.length,
+              effectEvents: effectEvents.length,
+              captionEvents: timelineJson.events.length - effectEvents.length,
+              from: url,
+              firstFewEffects: effectEvents.slice(0, 3).map((e: any) => ({
+                t: e.t,
+                action: e.action,
+                effect: e.effect,
+                mode: e.mode
+              }))
+            });
+            break;
+          }
+        } catch (err) {
+          console.warn(`タイムラインJSON読み込み失敗: ${url}`, err);
+        }
+      }
+    } catch (e) {
+      console.error("❌ タイムラインJSON読み込みエラー", e);
+    }
   };
   const onTimelineError = (e: Error) => {
     console.error(e);
-    safeSetState(() => setPrepareError(`タイムライン送信に失敗しました: ${e.message || String(e)}`));
+    setPrepareError(`タイムライン送信に失敗しました: ${e.message || String(e)}`);
   };
 
   /* ====== デバイステスト処理（手動） ====== */
   const handleDeviceTest = async () => {
     if (!isTimelineSent) {
-      safeSetState(() => setPrepareError("先にタイムラインを送信してください"));
+      setPrepareError("先にタイムラインを送信してください");
       return;
     }
-    safeSetState(() => setPrepareError(null));
+    setPrepareError(null);
 
     // デバイステスト（実際はAPIコール）
     setTimeout(() => {
-      safeSetState(() => setIsDevicesTested(true));
+      setIsDevicesTested(true);
     }, 500);
   };
 
@@ -338,7 +346,7 @@ export default function PlayerPage() {
 
   const handleStartClick = () => {
     if (!allReady) return;
-    safeSetState(() => setShowPrepareScreen(false));
+    setShowPrepareScreen(false);
     void tryStartPlayback();
   };
 
@@ -350,20 +358,28 @@ export default function PlayerPage() {
       const result = await runWsHandshakeTest(sessionId, 5000, deviceHubId.trim() || undefined);
       console.log('[wsTest] result', result);
       if (!result.ok) {
-        safeSetState(() => setPrepareError(`WS接続テスト失敗: phase=${result.phase} error=${result.error}`));
+        setPrepareError(`WS接続テスト失敗: phase=${result.phase} error=${result.error}`);
       }
     } catch (e: any) {
-      safeSetState(() => setPrepareError(`WS接続テスト例外: ${e?.message || String(e)}`));
+      setPrepareError(`WS接続テスト例外: ${e?.message || String(e)}`);
     }
   };
 
   /* ====== 準備フロー補助 ====== */
-  // デバイスIDは自動補完のみ（接続はボタンで）
+  // デバイスIDは自動補完のみ（接続はボタンで）- 初回マウント時のみ実行
+  const deviceIdInitializedRef = useRef(false);
   useEffect(() => {
     if (!showPrepareScreen) return;
-    if (deviceHubId) return;
+    if (deviceIdInitializedRef.current) return; // 2回目以降はスキップ
+    if (deviceHubId) {
+      deviceIdInitializedRef.current = true;
+      return;
+    }
     const hub = q.get("hub") || sessionStorage.getItem("deviceHubId") || "";
-    if (hub) setDeviceHubId(hub);
+    if (hub) {
+      setDeviceHubId(hub);
+      deviceIdInitializedRef.current = true;
+    }
   }, [showPrepareScreen, deviceHubId, q]);
 
   // デバッグ支援: URLに autoconnect=1 がある場合は自動で接続ボタン相当を1回だけ実行
@@ -442,17 +458,21 @@ export default function PlayerPage() {
       ws.onmessage = (ev) => {
         try {
           const msg: InMsg = JSON.parse(ev.data);
-          console.log("[player-ws] message", msg);
+          console.log("📨 [WS受信]", {
+            type: msg.type,
+            message: msg,
+            timestamp: new Date().toISOString()
+          });
           if (msg.type === "connection_established") {
             setConnInfo(msg.connection_id);
             if (isDeviceConnecting && !isDeviceConnected) {
               setIsDeviceConnected(true);
               setIsDeviceConnecting(false);
-              console.log("[prepare] device hub connection confirmed via WS message");
+              console.log("✅ [デバイス接続確認] WebSocketメッセージ受信");
             }
           }
         } catch {
-          console.log("[player-ws] message(raw)", ev.data);
+          console.log("📨 [WS受信(raw)]", ev.data);
         }
       };
 
@@ -486,17 +506,221 @@ export default function PlayerPage() {
     const msg = { type: "identify", hub_id: hubId } as const;
     try {
       s.send(JSON.stringify(msg));
-      console.log("[player-ws] identify sent", msg);
+      console.log("📤 [WS送信] identify", {
+        message: msg,
+        hubId,
+        timestamp: new Date().toISOString()
+      });
     } catch (e) {
-      console.warn("[player-ws] identify send failed", e);
+      console.warn("⚠️  [WS送信失敗] identify", e);
     }
   };
 
-  // （未使用）0.5秒周期 sync ループ（コメントアウト維持）
+  // 現在時刻に該当するアクティブなエフェクトを検索
+  // action="start"の場合は次のstopまで有効、action="shot"は瞬間的
+  const findActiveEffects = (currentTime: number) => {
+    interface ActiveEffect {
+      effect: string;
+      mode?: string;
+      action: string;
+      startTime: number;
+      endTime: number | null; // nullの場合は動画終了まで
+      intensity?: number;
+      duration_ms?: number;
+    }
+
+    const activeEffects: ActiveEffect[] = [];
+    
+    // タイムラインをソート（時刻順）
+    const sortedEvents = [...timelineEvents].sort((a, b) => a.t - b.t);
+    
+    // 各effectとmodeの組み合わせごとに、現在アクティブな範囲を追跡
+    const activeRanges = new Map<string, { startTime: number; startEvent: any }>();
+    
+    for (const event of sortedEvents) {
+      // captionは除外
+      if ((event as any).action === "caption") continue;
+      
+      const effect = (event as any).effect;
+      const mode = (event as any).mode;
+      const action = (event as any).action;
+      
+      if (!effect) continue;
+      
+      const key = `${effect}_${mode || 'default'}`;
+      
+      if (action === "start") {
+        // 新しい範囲の開始
+        activeRanges.set(key, { startTime: event.t, startEvent: event });
+      } else if (action === "stop") {
+        // 範囲の終了
+        const range = activeRanges.get(key);
+        if (range && range.startTime <= currentTime && currentTime < event.t) {
+          // 現在時刻がこの範囲内にある
+          activeEffects.push({
+            effect,
+            mode,
+            action: "start",
+            startTime: range.startTime,
+            endTime: event.t,
+            intensity: (range.startEvent as any).intensity,
+            duration_ms: (range.startEvent as any).duration_ms
+          });
+        }
+        activeRanges.delete(key);
+      } else if (action === "shot") {
+        // shotは瞬間的（±0.1秒）
+        if (Math.abs(event.t - currentTime) <= 0.1) {
+          activeEffects.push({
+            effect,
+            mode,
+            action: "shot",
+            startTime: event.t,
+            endTime: event.t,
+            intensity: (event as any).intensity,
+            duration_ms: (event as any).duration_ms
+          });
+        }
+      }
+    }
+    
+    // まだstopされていない範囲もチェック
+    for (const [key, range] of activeRanges.entries()) {
+      if (range.startTime <= currentTime) {
+        const [effect, modeOrDefault] = key.split('_');
+        const mode = modeOrDefault === 'default' ? undefined : modeOrDefault;
+        activeEffects.push({
+          effect,
+          mode,
+          action: "start",
+          startTime: range.startTime,
+          endTime: null, // 終了時刻不明
+          intensity: (range.startEvent as any).intensity,
+          duration_ms: (range.startEvent as any).duration_ms
+        });
+      }
+    }
+    
+    return activeEffects;
+  };
+
+  // 現在時刻の近くで発生するイベント（start/stop/shot）を検索（ログ表示用）
+  const findNearbyEvents = (currentTime: number) => {
+    const tolerance = 0.5; // 0.5秒の範囲
+    return timelineEvents.filter(event => {
+      if ((event as any).action === "caption") return false;
+      const t = event.t;
+      return t >= currentTime && t < currentTime + tolerance;
+    }).map(event => {
+      const action = (event as any).action;
+      const effect = (event as any).effect;
+      const mode = (event as any).mode;
+      const t = event.t;
+      
+      // 次のイベント時刻を探す（stopの場合の範囲表示用）
+      let nextT: number | null = null;
+      if (action === "start" || action === "stop") {
+        const nextEvent = timelineEvents.find(e => 
+          e.t > t && 
+          (e as any).effect === effect && 
+          (e as any).mode === mode &&
+          (e as any).action !== "caption"
+        );
+        if (nextEvent) nextT = nextEvent.t;
+      }
+      
+      return {
+        time: t,
+        action,
+        effect,
+        mode,
+        nextTime: nextT,
+        intensity: (event as any).intensity,
+        duration_ms: (event as any).duration_ms
+      };
+    });
+  };
+
+  // 0.5秒周期で動画の状態と時間をWebSocketで送信
   const startSyncLoop = () => {
     stopSyncLoop();
     syncTimerRef.current = window.setInterval(() => {
-      // sendSync();
+      const v = videoRef.current;
+      if (!v || !wsRef.current || wsRef.current.readyState !== WebSocket.OPEN) return;
+      
+      const state = computeState();
+      const time = v.currentTime || 0;
+      const dur = v.duration || 0;
+      
+      // デバッグ: タイムラインイベント数を確認
+      if (Math.floor(time * 2) % 8 === 0) {
+        console.log("🔍 [デバッグ]", {
+          timelineEventsCount: timelineEvents.length,
+          currentTime: time.toFixed(3) + "秒"
+        });
+      }
+      
+      // 現在時刻に対応するエフェクトを検索
+      const activeEffects = findActiveEffects(time);
+      
+      const msg: OutMsg = {
+        type: "sync",
+        state,
+        time,
+        duration: dur,
+        ts: Date.now()
+      };
+      
+      send(msg);
+      
+      // 近くで発生するイベント（start/stop/shot）をログ出力
+      const nearbyEvents = findNearbyEvents(time);
+      if (nearbyEvents.length > 0) {
+        nearbyEvents.forEach(evt => {
+          let rangeStr = "";
+          if (evt.action === "start") {
+            rangeStr = evt.nextTime !== null 
+              ? `${evt.time.toFixed(1)} <= x < ${evt.nextTime.toFixed(1)}`
+              : `${evt.time.toFixed(1)} <= x (終了未定)`;
+          } else if (evt.action === "stop") {
+            rangeStr = `${evt.time.toFixed(1)} <= x < ${(evt.nextTime || (evt.time + 0.5)).toFixed(1)}`;
+          } else if (evt.action === "shot") {
+            rangeStr = `${evt.time.toFixed(1)} (瞬間)`;
+          }
+          
+          console.log("📍 [イベント発生]", {
+            time: evt.time.toFixed(1) + "秒",
+            action: evt.action,
+            effect: evt.effect,
+            mode: evt.mode,
+            range: rangeStr,
+            intensity: evt.intensity,
+            duration_ms: evt.duration_ms
+          });
+        });
+      }
+      
+      // アクティブなエフェクト一覧（2秒ごと）
+      if (Math.floor(time * 2) % 4 === 0 && activeEffects.length > 0) {
+        console.log("🎬 [アクティブエフェクト]", {
+          currentTime: time.toFixed(3) + "秒",
+          activeCount: activeEffects.length,
+          effects: activeEffects.map(e => {
+            const rangeStr = e.endTime !== null 
+              ? `${e.startTime.toFixed(1)} <= x < ${e.endTime.toFixed(1)}`
+              : `${e.startTime.toFixed(1)} <= x (終了未定)`;
+            return {
+              effect: e.effect,
+              mode: e.mode,
+              action: e.action,
+              range: rangeStr,
+              intensity: e.intensity,
+              duration_ms: e.duration_ms
+            };
+          }),
+          timestamp: new Date().toISOString()
+        });
+      }
     }, 500);
   };
   const stopSyncLoop = () => {
@@ -517,7 +741,19 @@ export default function PlayerPage() {
 
   const send = (obj: OutMsg) => {
     const s = wsRef.current;
-    if (s && s.readyState === WebSocket.OPEN) s.send(JSON.stringify(obj));
+    if (s && s.readyState === WebSocket.OPEN) {
+      const currentTime = videoRef.current?.currentTime ?? 0;
+      // syncメッセージは頻繁なので、2秒ごとにログ表示（それ以外は常に表示）
+      const shouldLog = obj.type !== "sync" || Math.floor(currentTime * 2) % 4 === 0;
+      if (shouldLog) {
+        console.log("📤 [WS送信]", {
+          message: obj,
+          videoTime: currentTime.toFixed(3) + "秒",
+          timestamp: new Date().toISOString()
+        });
+      }
+      s.send(JSON.stringify(obj));
+    }
   };
 
   const sendStartOnce = async () => {
@@ -531,8 +767,13 @@ export default function PlayerPage() {
         const again = await awaitReady(1000);
         if (again && wsRef.current) {
           try {
-            wsRef.current.send(JSON.stringify({ type: "start_continuous_sync" }));
-            console.log(`[player-ws] start_continuous_sync retry#${i+1}`);
+            const msg = { type: "start_continuous_sync" };
+            wsRef.current.send(JSON.stringify(msg));
+            console.log(`📤 [WS送信] start_continuous_sync retry#${i+1}`, {
+              message: msg,
+              attempt: i + 1,
+              timestamp: new Date().toISOString()
+            });
             startSentRef.current = true;
             wantStartRef.current = false;
             return;
@@ -544,8 +785,12 @@ export default function PlayerPage() {
       return;
     }
     try {
-      wsRef.current?.send(JSON.stringify({ type: "start_continuous_sync" }));
-      console.log("[player-ws] start_continuous_sync sent");
+      const msg = { type: "start_continuous_sync" };
+      wsRef.current?.send(JSON.stringify(msg));
+      console.log("📤 [WS送信] start_continuous_sync", {
+        message: msg,
+        timestamp: new Date().toISOString()
+      });
       startSentRef.current = true;
       wantStartRef.current = false;
     } catch {
@@ -562,15 +807,13 @@ export default function PlayerPage() {
     const v = videoRef.current; if (!v) return;
 
     const onLoaded = () => {
-      safeSetState(() => {
-        setDuration(v.duration || 0);
-        setBuffering(v.readyState < 4);
-      });
+      setDuration(v.duration || 0);
+      setBuffering(v.readyState < 4);
       console.log("[video] loadedmetadata", { duration: v.duration });
     };
 
     const onCanPlay = () => {
-      safeSetState(() => setBuffering(false));
+      setBuffering(false);
       if (!firstCanPlayDoneRef.current) {
         firstCanPlayDoneRef.current = true;
         void tryStartPlayback();
@@ -579,11 +822,11 @@ export default function PlayerPage() {
     };
 
     const onCanPlayThrough = () => {
-      safeSetState(() => setIsVideoReady(true));
+      setIsVideoReady(true);
       console.log("[video] canplaythrough ready");
     };
 
-    const onWaiting = () => safeSetState(() => setBuffering(true));
+    const onWaiting = () => setBuffering(true);
 
     const onPlay = () => {
       setTimeout(() => {
@@ -591,25 +834,49 @@ export default function PlayerPage() {
           void sendStartOnce();
         }
       }, 10);
-      console.log("[video] play");
+      startSyncLoop(); // 再生開始時に同期ループ開始
+      console.log("[video] play - sync loop started");
     };
 
     const onPlaying = () => {
-      safeSetState(() => {
-        setIsPlaying(true);
-        setBuffering(false);
-      });
+      setIsPlaying(true);
+      setBuffering(false);
       setTimeout(() => {
         if (typeof sendStartOnce === 'function') {
           void sendStartOnce();
         }
       }, 0);
+      startSyncLoop(); // 念のため再度開始
       console.log("[video] playing");
     };
 
-    const onTime   = () => { if (!seeking) safeSetState(() => setCurrent(v.currentTime || 0)); };
-    const onPause  = () => { safeSetState(() => setIsPlaying(false)); };
-    const onEnded  = () => { safeSetState(() => setIsPlaying(false)); };
+    const onTime   = () => { 
+      if (!seeking) {
+        const currentTime = v.currentTime || 0;
+        setCurrent(currentTime);
+        
+        // 現在時刻の詳細ログ（5秒ごとに表示して負荷軽減）
+        if (Math.floor(currentTime) % 5 === 0 && Math.abs(currentTime - Math.floor(currentTime)) < 0.1) {
+          console.log("⏱️  [再生時刻]", {
+            time: currentTime.toFixed(3) + "秒",
+            duration: (v.duration || 0).toFixed(3) + "秒",
+            progress: ((currentTime / (v.duration || 1)) * 100).toFixed(1) + "%",
+            state: isPlaying ? "再生中" : "一時停止",
+            timestamp: new Date().toISOString()
+          });
+        }
+      }
+    };
+    const onPause  = () => { 
+      setIsPlaying(false);
+      stopSyncLoop(); // 一時停止時に同期ループ停止
+      console.log("[video] pause - sync loop stopped");
+    };
+    const onEnded  = () => { 
+      setIsPlaying(false);
+      stopSyncLoop(); // 終了時に同期ループ停止
+      console.log("[video] ended - sync loop stopped");
+    };
 
     v.addEventListener("loadedmetadata", onLoaded);
     v.addEventListener("canplay", onCanPlay);
@@ -638,7 +905,7 @@ export default function PlayerPage() {
   useEffect(() => {
     if (showPrepareScreen) {
       try { videoRef.current?.pause(); } catch {}
-      safeSetState(() => setIsPlaying(false));
+      setIsPlaying(false);
     }
   }, [showPrepareScreen]);
 
@@ -656,11 +923,9 @@ export default function PlayerPage() {
 
   const onProgressPointerDown = (e: React.PointerEvent) => {
     (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
-    safeSetState(() => {
-      setSeeking(true);
-      const t = posToTime(e.clientX);
-      setSeekValue(t);
-    });
+    setSeeking(true);
+    const t = posToTime(e.clientX);
+    setSeekValue(t);
     // 送信はすべて無効化のまま
     lastDragSyncRef.current = performance.now();
   };
@@ -668,7 +933,7 @@ export default function PlayerPage() {
   const onProgressPointerMove = (e: React.PointerEvent) => {
     if (!seeking) return;
     const t = posToTime(e.clientX);
-    safeSetState(() => setSeekValue(t));
+    setSeekValue(t);
     const now = performance.now();
     if (now - lastDragSyncRef.current >= 100) {
       lastDragSyncRef.current = now;
@@ -677,17 +942,17 @@ export default function PlayerPage() {
 
   const onProgressPointerUp = (e: React.PointerEvent) => {
     (e.currentTarget as HTMLElement).releasePointerCapture(e.pointerId);
-    safeSetState(() => setSeeking(false));
+    setSeeking(false);
     const v = videoRef.current; if (!v) return;
     const t = posToTime(e.clientX);
     v.currentTime = Math.max(0, Math.min(t, v.duration || t));
-    safeSetState(() => setCurrent(v.currentTime));
+    setCurrent(v.currentTime);
     unmuteIfPossible();
   };
 
   const onProgressPointerCancel = (e: React.PointerEvent) => {
     (e.currentTarget as HTMLElement).releasePointerCapture(e.pointerId);
-    safeSetState(() => setSeeking(false));
+    setSeeking(false);
   };
 
   /* ====== キーボード/ボタン ====== */
@@ -703,7 +968,7 @@ export default function PlayerPage() {
         case "ArrowLeft":
           skip(-5); break;
         case "m": case "M":
-          v.muted = !v.muted; safeSetState(() => setMuted(v.muted)); break;
+          v.muted = !v.muted; setMuted(v.muted); break;
         case "f": case "F":
           if (document.fullscreenElement) document.exitFullscreen();
           else v.parentElement?.requestFullscreen();
@@ -790,7 +1055,8 @@ export default function PlayerPage() {
         .vp-chip{ background:rgba(0,0,0,.35); padding:4px 6px; border-radius:6px; border:1px solid rgba(255,255,255,.15); }
 
     /* 準備オーバーレイ */
-    .prep-ovr{ position:absolute; inset:0; z-index:7; display:flex; align-items:center; justify-content:center; background:rgba(0,0,0,.35); transition: opacity .18s ease; }
+  .prep-ovr{ position:absolute; inset:0; z-index:7; display:flex; align-items:center; justify-content:center; background:rgba(0,0,0,.35); transition: opacity .18s ease; opacity:1; visibility:visible; pointer-events:auto; }
+  .prep-ovr.is-hidden{ opacity:0; visibility:hidden; pointer-events:none; }
         .prep-card{ width:min(560px, 92%); background:rgba(16,20,32,.9); border:1px solid rgba(255,255,255,.12); border-radius:14px; padding:clamp(18px,3.5vw,28px); color:#fff; box-shadow:0 8px 24px rgba(0,0,0,.35); }
         .prep-h1{ font-weight:800; font-size:clamp(18px,3.6vw,22px); margin:0 0 14px; }
         .prep-sec{ padding:12px 0 14px; border-bottom:1px solid rgba(255,255,255,.08); }
@@ -831,11 +1097,11 @@ export default function PlayerPage() {
             preload="auto"
             muted
             onClick={togglePlay}
-            onLoadedMetadata={(e) => { const d = (e.target as HTMLVideoElement).duration || 0; safeSetState(() => setDuration(d)); }}
-            onTimeUpdate={(e) => { if (!seeking) { const t = (e.target as HTMLVideoElement).currentTime || 0; safeSetState(() => setCurrent(t)); } }}
-            onWaiting={() => safeSetState(() => setBuffering(true))}
-            onPlaying={() => safeSetState(() => setBuffering(false))}
-            onCanPlay={() => safeSetState(() => setBuffering(false))}
+            onLoadedMetadata={(e) => { const d = (e.target as HTMLVideoElement).duration || 0; setDuration(d); }}
+            onTimeUpdate={(e) => { if (!seeking) { const t = (e.target as HTMLVideoElement).currentTime || 0; setCurrent(t); } }}
+            onWaiting={() => setBuffering(true)}
+            onPlaying={() => setBuffering(false)}
+            onCanPlay={() => setBuffering(false)}
             onError={() => { /* 中央テロップは出さない */ }}
           />
 
@@ -844,9 +1110,8 @@ export default function PlayerPage() {
           </div>
 
           <div
-            className={`prep-ovr${showPrepareScreen ? '' : ' is-hidden'}`}
+            className={`prep-ovr${showPrepareScreen ? "" : " is-hidden"}`}
             aria-hidden={!showPrepareScreen}
-            style={{ pointerEvents: showPrepareScreen ? 'auto' : 'none' }}
           >
             <div className="prep-card">
               <h2 className="prep-h1">再生準備</h2>
@@ -860,26 +1125,27 @@ export default function PlayerPage() {
               <div className="prep-sec">
                 <div className="prep-label">デバイスハブID</div>
                 <div className="prep-grid">
-                  <input 
-                    className="xh-input" 
-                    placeholder="例: DH001" 
-                    value={deviceHubId} 
+                  <input
+                    className="xh-input"
+                    placeholder="例: DH001"
+                    value={deviceHubId}
                     onChange={(e) => setDeviceHubId(e.target.value)}
+                    autoComplete="off"
                   />
                   <button className="xh-btn xh-login" onClick={handleDeviceConnect} disabled={isDeviceConnected}>接続</button>
                 </div>
-                <div className="prep-statusRow">
-                  <div className={`prep-loader ${(isDeviceConnected) ? 'done' : ''}`}> <div className="prep-spin" /> {isDeviceConnected && <div className="prep-check">✓</div>} </div>
-                  <div className={`prep-status ${isDeviceConnected ? 'ok' : ''}`}>
-                    {isDeviceConnected ? '接続確認完了' : (isDeviceConnecting ? '接続確認中…' : '未接続')}
-                  </div>
+              </div>
+              <div className="prep-statusRow">
+                <div className={`prep-loader ${isDeviceConnected ? 'done' : ''}`}><div className="prep-spin" />{isDeviceConnected && <div className="prep-check">✓</div>}</div>
+                <div className={`prep-status ${isDeviceConnected ? 'ok' : ''}`}>
+                  {isDeviceConnected ? '接続確認完了' : (isDeviceConnecting ? '接続確認中…' : '未接続')}
                 </div>
               </div>
 
               <div className="prep-sec">
                 <div className="prep-label">動画読み込み</div>
                 <div className="prep-statusRow" aria-live="polite">
-                  <div className={`prep-loader ${isVideoReady ? 'done' : ''}`}> <div className="prep-spin" /> {isVideoReady && <div className="prep-check">✓</div>} </div>
+                  <div className={`prep-loader ${isVideoReady ? 'done' : ''}`}><div className="prep-spin" />{isVideoReady && <div className="prep-check">✓</div>}</div>
                   <div className={`prep-status ${isVideoReady ? 'ok' : ''}`}>{isVideoReady ? '読み込み完了' : '読み込み中...'}</div>
                 </div>
               </div>
@@ -887,8 +1153,8 @@ export default function PlayerPage() {
               <div className="prep-sec">
                 <div className="prep-label">タイムラインJSON送信</div>
                 <div className="prep-statusRow">
-                  <div className={`prep-loader ${(isTimelineSent) ? 'done' : (timelineUploading ? '' : '')}`}> <div className="prep-spin" /> {isTimelineSent && <div className="prep-check">✓</div>} </div>
-                  <div style={{flex:1}}>
+                  <div className={`prep-loader ${isTimelineSent ? 'done' : (timelineUploading ? '' : '')}`}><div className="prep-spin" />{isTimelineSent && <div className="prep-check">✓</div>}</div>
+                  <div style={{ flex: 1 }}>
                     {isTimelineSent ? (
                       <div className="prep-status ok">送信完了</div>
                     ) : (
@@ -897,7 +1163,7 @@ export default function PlayerPage() {
                         videoId={contentId || 'demo1'}
                         onComplete={() => onTimelineComplete()}
                         onError={onTimelineError}
-                        onUploadingChange={(u)=>safeSetState(() => setTimelineUploading(u))}
+                        onUploadingChange={(u) => setTimelineUploading(u)}
                         className="xh-btn xh-login"
                       />
                     )}
@@ -908,14 +1174,21 @@ export default function PlayerPage() {
               <div className="prep-sec">
                 <div className="prep-label">デバイス動作確認</div>
                 <div className="prep-statusRow">
-                  <div className={`prep-loader ${(isDevicesTested) ? 'done' : (devicesTesting ? '' : '')}`}> <div className="prep-spin" /> {isDevicesTested && <div className="prep-check">✓</div>} </div>
-                  <div style={{flex:1, display:'flex', alignItems:'center', gap:'12px'}}>
+                  <div className={`prep-loader ${isDevicesTested ? 'done' : (devicesTesting ? '' : '')}`}><div className="prep-spin" />{isDevicesTested && <div className="prep-check">✓</div>}</div>
+                  <div style={{ flex: 1, display: 'flex', alignItems: 'center', gap: '12px' }}>
                     {isDevicesTested ? (
                       <div className="prep-status ok">確認完了</div>
                     ) : (
                       <button
                         className="xh-btn xh-login"
-                        onClick={()=>{ if (devicesTesting||isDevicesTested||!isTimelineSent) return; setDevicesTesting(true); setTimeout(()=>{ setDevicesTesting(false); setIsDevicesTested(true); }, 600); }}
+                        onClick={() => {
+                          if (devicesTesting || isDevicesTested || !isTimelineSent) return;
+                          setDevicesTesting(true);
+                          setTimeout(() => {
+                            setDevicesTesting(false);
+                            setIsDevicesTested(true);
+                          }, 600);
+                        }}
                         disabled={!isTimelineSent || devicesTesting || isDevicesTested}
                       >
                         {devicesTesting ? 'テスト中...' : 'テスト実行'}
@@ -937,8 +1210,8 @@ export default function PlayerPage() {
                 >
                   再生を開始する
                 </button>
-                <div style={{marginTop:12, display:'flex', gap:12, flexWrap:'wrap'}}>
-                  <button className="xh-btn xh-login" style={{minWidth:140}} onClick={runWsTest}>WS接続テスト</button>
+                <div style={{ marginTop: 12, display: 'flex', gap: 12, flexWrap: 'wrap' }}>
+                  <button className="xh-btn xh-login" style={{ minWidth: 140 }} onClick={runWsTest}>WS接続テスト</button>
                 </div>
               </div>
             </div>
@@ -991,4 +1264,4 @@ export default function PlayerPage() {
   );
 }
 
- 
+
