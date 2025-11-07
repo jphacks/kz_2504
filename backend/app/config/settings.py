@@ -78,8 +78,9 @@ class Settings(BaseSettings):
     ping_interval: int = Field(default=30, description="Pingインターバル（秒）")
     
     # WebSocket URL設定（マイコン統合用）
+    # 注意: 実際のURLは環境変数 DEVICE_WEBSOCKET_BASE_URL で設定してください
     device_websocket_base_url: str = Field(
-        default="wss://fourdk-backend-333203798555.asia-northeast1.run.app",
+        default="wss://your-backend-api.run.app",
         description="マイコンWebSocket接続ベースURL"
     )
     
