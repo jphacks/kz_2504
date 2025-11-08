@@ -1,6 +1,6 @@
 // src/pages/PlayerPage.tsx
 import { useEffect, useMemo, useRef, useState } from "react";
-import { useLocation } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import { BACKEND_API_URL, BACKEND_WS_URL } from "../config/backend";
 import { playbackApi } from "../services/endpoints";
 import EffectStatusPanel from "../components/EffectStatusPanel";
@@ -44,6 +44,7 @@ const SEEK_SYNC_INTERVAL_MS = Number(import.meta.env.VITE_SEEK_SYNC_INTERVAL_MS)
 
 export default function PlayerPage() {
   const { search } = useLocation();
+  const navigate = useNavigate();
   const q = useMemo(() => new URLSearchParams(search), [search]);
 
   const contentId = q.get("content");
@@ -107,6 +108,9 @@ export default function PlayerPage() {
 
   // ★ エフェクトとキャプションの表示/非表示
   const [effectsVisible, setEffectsVisible] = useState(true);
+
+  // ★ 動画終了フラグ
+  const [videoEnded, setVideoEnded] = useState(false);
 
   // ★ ストップ信号を送信済みかどうかのフラグ
   const stopSentRef = useRef(false);
@@ -1046,6 +1050,35 @@ export default function PlayerPage() {
         .vp-effect-toggle.visible{ opacity:1; }
         .vp-effect-toggle.hidden{ opacity:0; pointer-events:none; }
 
+        /* 動画終了オーバーレイ */
+        .vp-ended-overlay{ position:absolute; inset:0; z-index:20; background:rgba(0,0,0,0.85); 
+          display:grid; place-items:center; animation:fadeIn .3s ease; }
+        @keyframes fadeIn { from { opacity:0; } to { opacity:1; } }
+        
+        .vp-ended-content{ text-align:center; padding:2rem; }
+        .vp-ended-title{ font-size:clamp(24px, 5vw, 36px); font-weight:700; margin-bottom:1.5rem; color:#fff; }
+        
+        .vp-ended-button{ 
+          padding:14px 32px; 
+          font-size:clamp(16px, 3vw, 18px); 
+          font-weight:600;
+          color:#fff; 
+          background:var(--yt-red); 
+          border:none; 
+          border-radius:8px; 
+          cursor:pointer;
+          transition: transform .15s ease, background .2s ease, box-shadow .2s ease;
+          box-shadow: 0 4px 12px rgba(255,0,0,0.3);
+        }
+        .vp-ended-button:hover{ 
+          transform:translateY(-2px); 
+          background:#e60000;
+          box-shadow: 0 6px 16px rgba(255,0,0,0.4);
+        }
+        .vp-ended-button:active{ 
+          transform:translateY(0); 
+        }
+
   /* 中央テロップは廃止 */
 
         .vp-info{ position:absolute; right:10px; bottom:24px; z-index:3; display:flex; flex-direction:column; gap:6px; align-items:flex-end;
@@ -1074,6 +1107,7 @@ export default function PlayerPage() {
             onWaiting={() => setBuffering(true)}
             onPlaying={() => setBuffering(false)}
             onCanPlay={() => setBuffering(false)}
+            onEnded={() => setVideoEnded(true)}
             onError={() => { /* 中央テロップは出さない */ }}
           />
 
@@ -1131,6 +1165,21 @@ export default function PlayerPage() {
             </div>
             <div className="vp-chip">{fmt(current)} / {fmt(duration)}</div>
           </div>
+
+          {/* 動画終了オーバーレイ */}
+          {videoEnded && (
+            <div className="vp-ended-overlay">
+              <div className="vp-ended-content">
+                <div className="vp-ended-title">動画が終了しました</div>
+                <button 
+                  className="vp-ended-button" 
+                  onClick={() => navigate('/select')}
+                >
+                  その他の素晴らしい体験に出逢う
+                </button>
+              </div>
+            </div>
+          )}
         </div>
       </div>
     </div>

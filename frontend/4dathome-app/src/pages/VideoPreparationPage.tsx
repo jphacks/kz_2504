@@ -537,7 +537,7 @@ export default function VideoPreparationPage() {
       <div
         style={{
           minHeight: "100vh",
-          background: "#0b0f1a",
+          background: "#0b0f1a url('/prepare.jpeg') center/cover no-repeat fixed",
           display: "grid",
           placeItems: "center",
           color: "#fff",

@@ -108,7 +108,19 @@ export default function SelectPage() {
           --xh-text:#f2f2f2;
         }
         html, body, #root { background:#0e1324; }
-        .xh-pg{ min-height:100vh; color:var(--xh-text); font-family: system-ui,-apple-system,Segoe UI,Roboto,"Noto Sans JP",sans-serif; }
+        .xh-pg{ 
+          min-height:100vh; 
+          color:var(--xh-text); 
+          font-family: system-ui,-apple-system,Segoe UI,Roboto,"Noto Sans JP",sans-serif;
+          /* 背景画像を追加 */
+          background-image: 
+            linear-gradient(to bottom, rgba(14, 19, 36, 0.85), rgba(14, 19, 36, 0.95)),
+            url('/hero/main.gif');
+          background-size: cover;
+          background-position: center top;
+          background-attachment: fixed;
+          background-repeat: no-repeat;
+        }
 
         /* ====== Header（本文幅に揃える） ====== */
         .xh-top{
