@@ -24,7 +24,19 @@ class FlaskServer:
         timeline_processor=None,
         mqtt_client=None
     ):
-        self.app = Flask(__name__, template_folder='../../templates', static_folder='../../static')
+        # 絶対パスでtemplates/staticディレクトリを指定
+        base_dir = Path(__file__).resolve().parent.parent.parent
+        template_dir = base_dir / 'templates'
+        static_dir = base_dir / 'static'
+        
+        logger.info(f"Flask template_folder: {template_dir}")
+        logger.info(f"Flask static_folder: {static_dir}")
+        
+        self.app = Flask(
+            __name__,
+            template_folder=str(template_dir),
+            static_folder=str(static_dir)
+        )
         CORS(self.app)
         
         self.device_manager = device_manager

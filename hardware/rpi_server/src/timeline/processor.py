@@ -83,6 +83,26 @@ class TimelineProcessor:
         Args:
             current_time: 現在時刻（秒）
         """
+        # シーク検出（時刻が1秒以上後退した場合、または大きく前進した場合）
+        time_diff = current_time - self.current_time
+        
+        if time_diff < -1.0:
+            # 巻き戻し
+            logger.info(
+                f"⏪ シーク検出（巻き戻し）: {self.current_time:.2f}s → {current_time:.2f}s, "
+                f"クールダウンをリセット"
+            )
+            self.effect_cooldowns.clear()
+            # 巻き戻した先のイベントを再実行できるようにlast_processed_timeもリセット
+            self.last_processed_time = current_time - 1.0
+        elif time_diff > 5.0:
+            # 大きく前進（シーク先送り）
+            logger.info(
+                f"⏩ シーク検出（先送り）: {self.current_time:.2f}s → {current_time:.2f}s, "
+                f"クールダウンをリセット"
+            )
+            self.effect_cooldowns.clear()
+        
         self.current_time = current_time
         
         if not self.is_playing:
@@ -164,9 +184,22 @@ class TimelineProcessor:
         """
         try:
             event_time = event.get("t", 0)
-            effect = event.get("effect", "unknown")
+            effect = event.get("effect", "")
             mode = event.get("mode", "")
             action = event.get("action", "start")
+            caption_text = event.get("text", "")
+            
+            # キャプションイベントの場合は専用ログ出力
+            if action == "caption":
+                logger.info(
+                    f"💬 キャプション: t={event_time}, text=\"{caption_text}\""
+                )
+                # キャプションはMQTTコマンドに変換しないのでここで終了
+                return
+            
+            # effectがない場合はunknownとする
+            if not effect:
+                effect = "unknown"
             
             # クールダウンチェック
             if effect in self.cooldown_durations:
@@ -179,7 +212,16 @@ class TimelineProcessor:
                     last_executed_time = self.effect_cooldowns.get(effect, -999.0)
                     time_since_last = self.current_time - last_executed_time
                     
-                    if time_since_last < cooldown_duration:
+                    # シーク等で時刻が巻き戻った場合はクールダウンをリセット
+                    if time_since_last < 0:
+                        logger.debug(
+                            f"⏪ 時刻巻き戻り検出: effect={effect}, "
+                            f"last={last_executed_time:.2f}s → current={self.current_time:.2f}s, "
+                            f"クールダウンリセット"
+                        )
+                        # クールダウンを解除（次の実行を許可）
+                        del self.effect_cooldowns[effect]
+                    elif time_since_last < cooldown_duration:
                         remaining = cooldown_duration - time_since_last
                         logger.info(
                             f"⏸️  イベントスキップ（クールダウン中）: t={event_time}, effect={effect}, "
