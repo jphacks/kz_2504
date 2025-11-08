@@ -13,68 +13,90 @@
   }
 }
 
-/* ========== エフェクトアイコン（CSSアイコン統一） ========== */
+/* ========== モダン丸トグルUI ========== */
 
-/* 行全体（バッジのみ） */
-.fx-effectRow {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
+/* エフェクトの並び */
+.fx-effGrid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
 }
 
-/* 漢字バッジ本体：完全な丸＋さらに大きめ */
+/* モダン丸トグル本体 */
 .fx-effectBadge {
-  width: 120px;     /* 2倍に拡大 */
-  height: 120px;
-  border-radius: 50%;  /* 真ん丸 */
+  --fx-color: #38bdf8; /* 各エフェクトで上書き */
+
+  width: 72px;              /* 約1.5倍サイズ */
+  height: 72px;
+  border-radius: 999px;     /* 真ん丸 */
+  border: 1px solid rgba(255, 255, 255, 0.18);
+
+  background:
+    radial-gradient(circle at 0% 0%, rgba(255, 255, 255, 0.18), transparent 55%),
+    radial-gradient(
+      circle at 100% 100%,
+      color-mix(in srgb, var(--fx-color) 70%, #020617 30%),
+      #020617
+    );
 
   display: inline-flex;
   align-items: center;
   justify-content: center;
+  position: relative;
   box-sizing: border-box;
 
-  font-size: 88px;  /* 文字もさらに2倍に大きく */
-  font-weight: 800; /* 太めゴシック */
-  font-family: system-ui, "游ゴシック体",
-    "Yu Gothic", "ヒラギノ角ゴ ProN W6", "Meiryo", sans-serif;
-  letter-spacing: 0.12em;
+  color: #f9fafb;
+  font-family: system-ui, "游ゴシック体", "Yu Gothic",
+    "ヒラギノ角ゴ ProN W6", "Meiryo", sans-serif;
+  font-weight: 800;         /* 太めゴシック */
+  font-size: 34px;          /* 漢字をかなり大きく */
+  letter-spacing: 0.18em;
+  text-indent: 0.18em;
 
-  color: #111;
-  background: #e5e7eb;
-  box-shadow: 0 3px 6px rgba(0, 0, 0, .3);
+  box-shadow: 0 8px 16px rgba(0, 0, 0, 0.45);
+  cursor: pointer;
+  transition:
+    transform 0.18s ease,
+    box-shadow 0.18s ease,
+    opacity 0.18s ease,
+    filter 0.18s ease,
+    border-color 0.18s ease;
 }
 
-/* 漢字バッジの色分け */
+/* ON 状態（activeの時） */
+.fx-effectBadge:not(.fx-effectBadge--off) {
+  transform: translateY(-2px);
+  border-color: color-mix(in srgb, var(--fx-color) 80%, #ffffff 20%);
+  box-shadow: 0 10px 24px color-mix(in srgb, var(--fx-color) 50%, #000000 50%);
+}
+
+/* OFF 状態 */
+.fx-effectBadge--off {
+  opacity: 0.4;
+  filter: grayscale(0.6);
+  box-shadow: none;
+  transform: translateY(0);
+}
+
+/* 種類ごとのテーマカラー */
 .fx-effectBadge--water {  /* 水 */
-  background: linear-gradient(135deg, #d4f1ff, #38bdf8);
-  color: #082f49;
+  --fx-color: #38bdf8;
 }
 
 .fx-effectBadge--wind {   /* 風 */
-  background: linear-gradient(135deg, #dcfce7, #4ade80);
-  color: #064e3b;
+  --fx-color: #4ade80;
 }
 
 .fx-effectBadge--light {  /* 光 */
-  background: linear-gradient(135deg, #fef9c3, #facc15);
-  color: #78350f;
+  --fx-color: #facc15;
 }
 
 .fx-effectBadge--shock {  /* 衝 */
-  background: linear-gradient(135deg, #fee2e2, #f97316);
-  color: #7f1d1d;
+  --fx-color: #f97316;
 }
 
 .fx-effectBadge--color {  /* 色 */
-  background: linear-gradient(135deg, #e0e7ff, #c4b5fd);
-  color: #312e81;
-}
-
-/* ON/OFF 状態 */
-.fx-effectBadge--off {
-  opacity: 0.4;
-  filter: grayscale(0.7);
-  box-shadow: none;
+  --fx-color: #a855f7;
 }
 
 /* ========== 旧CSSアイコン（削除予定） ========== */

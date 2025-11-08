@@ -12,10 +12,11 @@ const KANJI_MAP: Record<EffectKind, string> = {
 
 type EffectBadgeProps = {
   kind: EffectKind;
-  active?: boolean;  // ON/OFF
+  active?: boolean;           // ONならtrue
+  onClick?: () => void;       // トグルしたい場合に使う
 };
 
-export function EffectBadge({ kind, active = true }: EffectBadgeProps) {
+export function EffectBadge({ kind, active = true, onClick }: EffectBadgeProps) {
   const className = [
     "fx-effectBadge",
     `fx-effectBadge--${kind}`,
@@ -25,8 +26,8 @@ export function EffectBadge({ kind, active = true }: EffectBadgeProps) {
     .join(" ");
 
   return (
-    <span className={className}>
+    <button type="button" className={className} onClick={onClick}>
       {KANJI_MAP[kind]}
-    </span>
+    </button>
   );
 }
