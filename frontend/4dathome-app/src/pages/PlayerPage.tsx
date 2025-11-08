@@ -105,6 +105,9 @@ export default function PlayerPage() {
   const [controlsVisible, setControlsVisible] = useState(false);
   const hideTimerRef = useRef<number | null>(null);
 
+  // ★ エフェクトとキャプションの表示/非表示
+  const [effectsVisible, setEffectsVisible] = useState(true);
+
   // ★ ストップ信号を送信済みかどうかのフラグ
   const stopSentRef = useRef(false);
 
@@ -1034,6 +1037,15 @@ export default function PlayerPage() {
         .vp-circle:hover{ transform:translateY(-1px); background:rgba(0,0,0,.45); border-color:rgba(255,255,255,.35); }
         .vp-icon{ width:48%; height:48%; fill:#fff; display:block; }
 
+        .vp-square{ width:var(--hud-size); height:var(--hud-size); border-radius:8px; background:rgba(0,0,0,.35);
+          border:1px solid rgba(255,255,255,.2); display:grid; place-items:center; pointer-events:auto; cursor:pointer;
+          transition: transform .1s ease, background .2s ease, border-color .2s ease; }
+        .vp-square:hover{ transform:translateY(-1px); background:rgba(0,0,0,.45); border-color:rgba(255,255,255,.35); }
+
+        .vp-effect-toggle{ position:absolute; right:10px; bottom:60px; z-index:3; transition:opacity .3s ease; }
+        .vp-effect-toggle.visible{ opacity:1; }
+        .vp-effect-toggle.hidden{ opacity:0; pointer-events:none; }
+
   /* 中央テロップは廃止 */
 
         .vp-info{ position:absolute; right:10px; bottom:24px; z-index:3; display:flex; flex-direction:column; gap:6px; align-items:flex-end;
@@ -1047,7 +1059,7 @@ export default function PlayerPage() {
         <div className="vp-outer" onMouseMove={handleMouseMove}>
           
           {/* EffectStatusPanel を追加 */}
-          {contentId && <EffectStatusPanel contentId={contentId} currentTime={current} />}
+          {contentId && <EffectStatusPanel contentId={contentId} currentTime={current} visible={effectsVisible} />}
 
           <video
             ref={videoRef}
@@ -1099,6 +1111,15 @@ export default function PlayerPage() {
                 <svg className="vp-icon" viewBox="0 0 24 24"><path d="M12 5V2l5 5-5 5V9c-3.31 0-6 2.69-6 6 0 .34.03.67.08 1H4.06C4.02 15.67 4 15.34 4 15c0-4.42 3.58-8 8-8z"/></svg>
               </button>
             </div>
+          </div>
+
+          {/* エフェクト表示/非表示トグル（右下） */}
+          <div className={`vp-effect-toggle ${controlsVisible ? 'visible' : 'hidden'}`}>
+            <button className="vp-square" onClick={() => setEffectsVisible(!effectsVisible)} aria-label={effectsVisible ? "エフェクト非表示" : "エフェクト表示"} title={effectsVisible ? "エフェクト非表示" : "エフェクト表示"}>
+              {effectsVisible
+                ? <svg className="vp-icon" viewBox="0 0 24 24"><path d="M12 7c2.76 0 5 2.24 5 5 0 .65-.13 1.26-.36 1.83l2.92 2.92c1.51-1.26 2.7-2.89 3.43-4.75-1.73-4.39-6-7.5-11-7.5-1.4 0-2.74.25-3.98.7l2.16 2.16C10.74 7.13 11.35 7 12 7zM2 4.27l2.28 2.28.46.46C3.08 8.3 1.78 10.02 1 12c1.73 4.39 6 7.5 11 7.5 1.55 0 3.03-.3 4.38-.84l.42.42L19.73 22 21 20.73 3.27 3 2 4.27zM7.53 9.8l1.55 1.55c-.05.21-.08.43-.08.65 0 1.66 1.34 3 3 3 .22 0 .44-.03.65-.08l1.55 1.55c-.67.33-1.41.53-2.2.53-2.76 0-5-2.24-5-5 0-.79.2-1.53.53-2.2zm4.31-.78l3.15 3.15.02-.16c0-1.66-1.34-3-3-3l-.17.01z"/></svg>
+                : <svg className="vp-icon" viewBox="0 0 24 24"><path d="M12 4.5C7 4.5 2.73 7.61 1 12c1.73 4.39 6 7.5 11 7.5s9.27-3.11 11-7.5c-1.73-4.39-6-7.5-11-7.5zM12 17c-2.76 0-5-2.24-5-5s2.24-5 5-5 5 2.24 5 5-2.24 5-5 5zm0-8c-1.66 0-3 1.34-3 3s1.34 3 3 3 3-1.34 3-3-1.34-3-3-3z"/></svg>}
+            </button>
           </div>
 
           <div className={`vp-info ${controlsVisible ? 'visible' : 'hidden'}`}>

@@ -67,6 +67,7 @@ type ActiveEffectState = {
 type Props = {
   contentId: string;
   currentTime: number;
+  visible?: boolean;
 };
 
 // ========== モード別ビジュアル設定（将来のGIF対応用） ==========
@@ -88,7 +89,7 @@ const EFFECT_MODE_VISUALS: Partial<
 
 // ========== メインコンポーネント ==========
 
-export default function EffectStatusPanel({ contentId, currentTime }: Props) {
+export default function EffectStatusPanel({ contentId, currentTime, visible = true }: Props) {
   const [events, setEvents] = useState<TimelineEvent[]>([]);
 
   // JSONファイルの読み込み
@@ -223,6 +224,11 @@ export default function EffectStatusPanel({ contentId, currentTime }: Props) {
     { effect: "water" },
     { effect: "color" },
   ];
+
+  // visible が false の場合は何も表示しない
+  if (!visible) {
+    return null;
+  }
 
   return (
     <div className="effect-status-panel">
