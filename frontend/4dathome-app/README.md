@@ -12,11 +12,12 @@ Currently, two official plugins are available:
 Vite 形式のキーを使用します（Next.js の NEXT_PUBLIC_* は使用しません）。
 
 ```
-VITE_BACKEND_API_URL="https://fdx-home-backend-api-47te6uxkwa-an.a.run.app"
-VITE_BACKEND_WS_URL="wss://fdx-home-backend-api-47te6uxkwa-an.a.run.app"
+VITE_BACKEND_API_URL="https://your-backend-api.run.app"
+VITE_BACKEND_WS_URL="wss://your-backend-api.run.app"
 ```
 
-未設定の場合は上記のデフォルト URL にフォールバックします（`src/config/backend.ts`）。
+未設定の場合はデフォルト URL にフォールバックします（`src/config/backend.ts`）。
+本番環境のURLは `.env` ファイルに設定してください（Gitにコミットしないこと）。
 
 ## React Compiler
 
