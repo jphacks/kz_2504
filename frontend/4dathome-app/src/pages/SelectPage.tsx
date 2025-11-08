@@ -75,8 +75,19 @@ export default function SelectPage() {
     };
   }, [sections]);
 
-  // 動画IDを取得して準備画面へ遷移
-  const goPlayer = (id: string) => {
+  // 動画IDとメタデータを取得して準備画面へ遷移
+  const goPlayer = (id: string, title?: string, thumb?: string) => {
+    // 動画情報をsessionStorageに保存
+    const selectedVideo = {
+      id,
+      title: title || id.toUpperCase(),
+      thumbnailUrl: thumb || `/thumbs/${id}.jpeg`,
+    };
+    try {
+      sessionStorage.setItem("selectedVideo", JSON.stringify(selectedVideo));
+    } catch (e) {
+      console.error("Failed to save selectedVideo:", e);
+    }
     navigate(`/prepare?content=${encodeURIComponent(id)}`);
   };
 
@@ -230,8 +241,8 @@ export default function SelectPage() {
 
         <div className="xh-content-pad">
           <section className="xh-bleed" aria-label="Featured">
-            {/* 画像クリックで demo1 再生 */}
-            <div className="xh-hero" onClick={()=>goPlayer("main")} role="button" tabIndex={0}>
+            {/* 画像クリックで main 再生 */}
+            <div className="xh-hero" onClick={()=>goPlayer("main", "WILDCARD - 世界を揺らす、没入型ホームシネマ。", "/hero/main.gif")} role="button" tabIndex={0}>
               <img src="/hero/main.gif" alt="Featured"
                    onError={(e)=>{ (e.currentTarget as HTMLImageElement).style.display='none'; }} />
               <div className="xh-grad" aria-hidden="true"></div>
@@ -244,7 +255,7 @@ export default function SelectPage() {
 
               <div className="xh-play">
                 {/* △のみ（丸なし） */}
-                <button type="button" aria-label="再生" onClick={(e)=>{ e.stopPropagation(); goPlayer("main"); }}>
+                <button type="button" aria-label="再生" onClick={(e)=>{ e.stopPropagation(); goPlayer("main", "WILDCARD - 世界を揺らす、没入型ホームシネマ。", "/hero/main.gif"); }}>
                   <svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
                 </button>
               </div>
@@ -263,7 +274,7 @@ export default function SelectPage() {
                   <h2>{sec.title}</h2>
                   <div className="xh-grid">
                     {sec.items.map(it => (
-                      <button key={it.id} type="button" className="xh-tile" onClick={()=>goPlayer(it.id)} aria-label={`${sec.title} - ${it.title}`}>
+                      <button key={it.id} type="button" className="xh-tile" onClick={()=>goPlayer(it.id, it.title, it.thumb)} aria-label={`${sec.title} - ${it.title}`}>
                         <span className="xh-rank">{it.rank}</span>
                         <img
                           className="xh-thumb"
