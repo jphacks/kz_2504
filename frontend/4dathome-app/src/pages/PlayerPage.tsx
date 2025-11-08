@@ -3,6 +3,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useLocation } from "react-router-dom";
 import { BACKEND_API_URL, BACKEND_WS_URL } from "../config/backend";
 import { playbackApi } from "../services/endpoints";
+import EffectStatusPanel from "../components/EffectStatusPanel";
 
 
 type SyncState = "play" | "pause" | "seeking" | "seeked";
@@ -99,6 +100,10 @@ export default function PlayerPage() {
   const [connected, setConnected] = useState(false);
   const [wsError, setWsError] = useState<string | null>(null);
   const [connInfo, setConnInfo] = useState<string | null>(null);
+
+  // ★ コントロールUIの表示/非表示
+  const [controlsVisible, setControlsVisible] = useState(false);
+  const hideTimerRef = useRef<number | null>(null);
 
   // ★ ストップ信号を送信済みかどうかのフラグ
   const stopSentRef = useRef(false);
@@ -912,6 +917,33 @@ export default function PlayerPage() {
     connectWS();
   }, [sessionId]);
 
+  /* ====== 停止命令送信（ページ離脱時） ====== */
+  const sendPauseSync = () => {
+    const v = videoRef.current;
+    if (!v) return;
+    
+    const currentTime = v.currentTime || 0;
+    const duration = v.duration || 0;
+    
+    const msg: OutMsg = {
+      type: "sync",
+      state: "pause",
+      time: currentTime,
+      duration: duration,
+      ts: Date.now()
+    };
+    
+    // WebSocketが開いている場合のみ送信
+    if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
+      try {
+        wsRef.current.send(JSON.stringify(msg));
+        console.log("🛑 [ページ離脱] pause sync sent", { currentTime, duration });
+      } catch (e) {
+        console.warn("⚠️ [ページ離脱] pause sync failed", e);
+      }
+    }
+  };
+
   /* ====== WebSocket クリーンアップ ====== */
   useEffect(() => {
     // コンポーネントマウント時
@@ -920,6 +952,10 @@ export default function PlayerPage() {
     // コンポーネントアンマウント時にWebSocket接続をクリーンアップ
     return () => {
       console.log("[player-ws] cleanup on unmount");
+      
+      // ★ ページ離脱時に停止命令を送信
+      sendPauseSync();
+      
       isMountedRef.current = false; // アンマウントフラグを設定
       if (wsRef.current) {
         try {
@@ -930,8 +966,39 @@ export default function PlayerPage() {
         wsRef.current = null;
       }
       stopSyncLoop();
+      
+      // ★ hideTimer のクリーンアップ
+      if (hideTimerRef.current) {
+        window.clearTimeout(hideTimerRef.current);
+      }
     };
   }, []);
+
+  /* ====== beforeunload（タブクローズ・リロード時）の対応 ====== */
+  useEffect(() => {
+    const handleBeforeUnload = () => {
+      console.log("[beforeunload] sending pause sync");
+      sendPauseSync();
+    };
+
+    window.addEventListener("beforeunload", handleBeforeUnload);
+    return () => {
+      window.removeEventListener("beforeunload", handleBeforeUnload);
+    };
+  }, []);
+
+  /* ====== マウスムーブハンドラ（コントロール自動表示/非表示） ====== */
+  const handleMouseMove: React.MouseEventHandler<HTMLDivElement> = () => {
+    setControlsVisible(true);
+
+    if (hideTimerRef.current) {
+      window.clearTimeout(hideTimerRef.current);
+    }
+
+    hideTimerRef.current = window.setTimeout(() => {
+      setControlsVisible(false);
+    }, 2500); // 2.5秒後に非表示
+  };
 
   return (
     <div className="vp-root-wrapper">
@@ -943,6 +1010,7 @@ export default function PlayerPage() {
         }
         .vp{ position:fixed; inset:0; background:#000; color:#fff; font-family: system-ui,-apple-system,Segoe UI,Roboto,"Noto Sans JP",sans-serif; }
         .vp-outer{ position:relative; width:100%; height:100%; overflow:hidden; }
+        
         .vp-video{ position:absolute; inset:0; width:100%; height:100%; object-fit:contain; background:#000; display:block; }
 
         .vp-loader{ position:absolute; inset:0; display:grid; place-items:center; z-index:6; pointer-events:none; transition: opacity .18s ease; }
@@ -956,8 +1024,10 @@ export default function PlayerPage() {
         .vp-outer:hover .vp-bar, .vp-outer:hover .vp-fill,
         .vp-progress.dragging .vp-bar, .vp-progress.dragging .vp-fill{ height:6px; bottom:4px; }
 
-        .vp-hud{ position:absolute; inset:0; display:grid; grid-template-columns:1fr auto 1fr; align-items:center; gap:var(--hud-gap); z-index:3; opacity:0; transition:opacity .18s ease; pointer-events:none; }
-        .vp-outer:hover .vp-hud, .vp.touch .vp-hud{ opacity:1; }
+        .vp-hud{ position:absolute; inset:0; display:grid; grid-template-columns:1fr auto 1fr; align-items:center; gap:var(--hud-gap); z-index:3; pointer-events:none; transition:opacity .3s ease; }
+        .vp-hud.visible{ opacity:1; }
+        .vp-hud.hidden{ opacity:0; pointer-events:none; }
+        /* TODO: モバイル環境ではホバーできないため、@media (pointer: coarse) で常時表示にする対応が必要 */
         .vp-circle{ width:var(--hud-size); height:var(--hud-size); border-radius:999px; background:rgba(0,0,0,.35);
           border:1px solid rgba(255,255,255,.2); display:grid; place-items:center; pointer-events:auto; cursor:pointer;
           transition: transform .1s ease, background .2s ease, border-color .2s ease; margin-inline:auto; }
@@ -967,12 +1037,18 @@ export default function PlayerPage() {
   /* 中央テロップは廃止 */
 
         .vp-info{ position:absolute; right:10px; bottom:24px; z-index:3; display:flex; flex-direction:column; gap:6px; align-items:flex-end;
-          font-feature-settings:"tnum"; font-variant-numeric:tabular-nums; font-size:12px; color:#ddd; opacity:.9; }
+          font-feature-settings:"tnum"; font-variant-numeric:tabular-nums; font-size:12px; color:#ddd; transition:opacity .3s ease; }
+        .vp-info.visible{ opacity:.9; }
+        .vp-info.hidden{ opacity:0; pointer-events:none; }
         .vp-chip{ background:rgba(0,0,0,.35); padding:4px 6px; border-radius:6px; border:1px solid rgba(255,255,255,.15); }
       `}</style>
 
       <div className="vp" onTouchStart={(e)=>{ (e.currentTarget as HTMLDivElement).classList.add("touch"); }}>
-        <div className="vp-outer">
+        <div className="vp-outer" onMouseMove={handleMouseMove}>
+          
+          {/* EffectStatusPanel を追加 */}
+          {contentId && <EffectStatusPanel contentId={contentId} currentTime={current} />}
+
           <video
             ref={videoRef}
             className="vp-video"
@@ -1005,7 +1081,7 @@ export default function PlayerPage() {
             <div className="vp-fill" style={{ width: `${Math.max(0, Math.min(1, pct)) * 100}%` }} />
           </div>
 
-          <div className="vp-hud" role="group" aria-label="quick controls">
+          <div className={`vp-hud ${controlsVisible ? 'visible' : 'hidden'}`} role="group" aria-label="quick controls">
             <div style={{display:"grid", justifyItems:"start", paddingLeft:"min(4vw,24px)"}}>
               <button className="vp-circle" onClick={() => skip(-5)} aria-label="5秒戻す" title="5s戻す">
                 <svg className="vp-icon" viewBox="0 0 24 24"><path d="M12 5V2L7 7l5 5V9c3.31 0 6 2.69 6 6 0 .34-.03.67-.08 1h2.02c.04-.33.06-.66.06-1 0-4.42-3.58-8-8-8z"/></svg>
@@ -1025,7 +1101,7 @@ export default function PlayerPage() {
             </div>
           </div>
 
-          <div className="vp-info">
+          <div className={`vp-info ${controlsVisible ? 'visible' : 'hidden'}`}>
             <div className="vp-chip">
               {connected ? "WS: connected" : "WS: connecting..."}
               {wsError ? ` / ${wsError}` : ""}

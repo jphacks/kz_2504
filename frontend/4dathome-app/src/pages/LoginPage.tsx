@@ -4,6 +4,10 @@ import { useNavigate } from "react-router-dom";
 
 /** テスト用ログイン画面：ダミーログインで動画選択画面へ遷移 */
 export default function LoginPage() {
+  // debug: mount log
+  try {
+    console.log('🔐 LoginPage rendered. auth=', typeof window !== 'undefined' ? sessionStorage.getItem('auth') : null);
+  } catch {}
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -12,22 +16,14 @@ export default function LoginPage() {
 
   const handleLogin = (e: React.FormEvent) => {
     e.preventDefault();
-    const u = username.trim();
-    const p = password.trim();
+    // TODO: 将来的に実際のログイン処理を実装
+    setError("ログイン機能は現在実装中です");
+  };
 
-    if (!u || !p) {
-      setError("ユーザー名とパスワードを入力してください");
-      return;
-    }
-
-    setError(null);
-    setLoading(true);
-
-    // ダミーログイン：認証フラグを立て準備ページへ遷移
-    setTimeout(() => {
-      try { sessionStorage.setItem("auth", "1"); } catch {}
-      navigate("/prepare", { replace: true });
-    }, 300);
+  const handleGuestLogin = () => {
+    // ゲストとして動画選択画面へ遷移
+    try { sessionStorage.setItem("auth", "guest"); } catch {}
+    navigate("/select", { replace: true });
   };
 
   return (
@@ -150,25 +146,14 @@ export default function LoginPage() {
 
               {error && <div className="xh-err xh-fade xh-d3">⚠ {error}</div>}
 
-              <div className="xh-fade xh-d4">
-                <button type="submit" className="xh-btn xh-login" disabled={loading}>
-                  {loading ? "ログイン中..." : "ログイン"}
-                </button>
-              </div>
-
-              {/* デバッグ用：準備ページ/動画へ直接移動 */}
-              <div className="xh-fade xh-d5" style={{marginTop:"12px"}}>
-                <div style={{display:"flex",flexDirection:"column",gap:8}}>
-                  <button
-                    type="button"
-                    className="xh-btn xh-debug"
-                    onClick={() => { try{sessionStorage.setItem("auth","1");}catch{} navigate("/prepare?content=demo1", { replace:true }); }}
-                  >🔧 デバッグ：準備ページへ</button>
-                  <button
-                    type="button"
-                    className="xh-btn xh-debug"
-                    onClick={() => { try{sessionStorage.setItem("auth","1");}catch{} navigate("/player?content=demo1&session=demo1", { replace:true }); }}
-                  >🔧 デバッグ：動画へ直接移動</button>
+              <div className="xh-fade xh-d4" style={{display:"flex", flexDirection:"column", gap:"12px", alignItems:"center"}}>
+                <div style={{display:"flex", flexDirection:"row", gap:"16px", justifyContent:"center", width:"100%"}}>
+                  <button type="submit" className="xh-btn xh-login" disabled={loading}>
+                    {loading ? "ログイン中..." : "ログイン"}
+                  </button>
+                  <button type="button" className="xh-btn xh-login" onClick={handleGuestLogin}>
+                    ゲストで利用する
+                  </button>
                 </div>
               </div>
             </form>

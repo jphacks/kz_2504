@@ -9,6 +9,12 @@ export default function VideoPreparationPage() {
   const q = useMemo(() => new URLSearchParams(search), [search]);
   const navigate = useNavigate();
 
+  // 選択された動画ID（クエリから取得）
+  const contentId = q.get("content") || "demo1";
+  const videoTitle = contentId.toUpperCase(); // 簡易的にタイトル表示
+  
+  console.log('📝 VideoPreparationPage loaded with contentId:', contentId);
+
   const [sessionId, setSessionId] = useState("");
   const [deviceHubId, setDeviceHubId] = useState("");
   const [isDeviceConnecting, setIsDeviceConnecting] = useState(false);
@@ -102,8 +108,7 @@ export default function VideoPreparationPage() {
     const params = new URLSearchParams();
     params.set("session", (sessionId || "").trim());
     if (deviceHubId.trim()) params.set("hub", deviceHubId.trim());
-    const content = q.get("content") || "demo1";
-    if (content) params.set("content", content);
+    params.set("content", contentId); // クエリから取得した contentId を使用
 
     // 永続化
     try { sessionStorage.setItem("sessionId", (sessionId || "").trim()); } catch {}
@@ -139,9 +144,20 @@ export default function VideoPreparationPage() {
   const allReady = isDeviceConnected && isTimelineSent && isDevicesTested;
 
   return (
-    <div className="prep-wrapper" style={{minHeight:"100vh",background:"#0b0f1a",display:"grid",placeItems:"center",color:"#fff"}}>
-      <div className="prep-card" style={{width:"min(560px,92%)",background:"rgba(16,20,32,.9)",border:"1px solid rgba(255,255,255,.12)",borderRadius:14,padding:"clamp(18px,3.5vw,28px)"}}>
+    <div className="prep-wrapper" style={{minHeight:"100vh",background:"#0b0f1a",display:"grid",placeItems:"center",color:"#fff",padding:"20px 0"}}>
+      <div className="prep-card" style={{width:"min(640px,92%)",background:"rgba(16,20,32,.9)",border:"1px solid rgba(255,255,255,.12)",borderRadius:14,padding:"clamp(18px,3.5vw,28px)"}}>
         <h2 style={{fontWeight:800,fontSize:"clamp(18px,3.6vw,22px)",margin:"0 0 14px"}}>再生準備</h2>
+
+        {/* 選択中の動画プレビュー */}
+        <div style={{padding:"12px 0 14px",borderBottom:"1px solid rgba(255,255,255,.08)"}}>
+          <div className="prep-label" style={{fontSize:13,opacity:.9,marginBottom:6}}>選択中の動画</div>
+          <div style={{display:"flex",alignItems:"center",gap:12}}>
+            <div style={{width:80,height:45,background:"#1a1f2e",borderRadius:4,display:"grid",placeItems:"center",fontSize:10,color:"#666"}}>
+              {videoTitle}
+            </div>
+            <div style={{fontSize:14,fontWeight:600}}>{videoTitle}.mp4</div>
+          </div>
+        </div>
 
         <div style={{padding:"12px 0 14px",borderBottom:"1px solid rgba(255,255,255,.08)"}}>
           <div className="prep-label" style={{fontSize:13,opacity:.9,marginBottom:6}}>セッションID</div>
@@ -152,10 +168,10 @@ export default function VideoPreparationPage() {
         </div>
 
         <div style={{padding:"12px 0 14px",borderBottom:"1px solid rgba(255,255,255,.08)"}}>
-          <div className="prep-label" style={{fontSize:13,opacity:.9,marginBottom:6}}>デバイスハブID</div>
+          <div className="prep-label" style={{fontSize:13,opacity:.9,marginBottom:6}}>デバイスID（ハブID）</div>
           <div style={{display:"grid",gridTemplateColumns:"1fr auto",gap:10,alignItems:"center"}}>
             <input className="xh-input" placeholder="例: DH001" value={deviceHubId} onChange={(e)=>setDeviceHubId(e.target.value)} style={{width:"100%",height:"clamp(40px,6.6vw,48px)",background:"#fff",color:"#111",borderRadius:6,border:"2px solid #111",padding:"0 12px"}}/>
-            <button className="xh-btn xh-login" onClick={connectWS} disabled={isDeviceConnected || isDeviceConnecting} style={{height:"clamp(42px,7vw,48px)",borderRadius:8,fontWeight:700,background:"#fff",color:"#111"}}>{isDeviceConnecting?"接続中…":isDeviceConnected?"接続済み":"接続"}</button>
+            <button className="xh-btn xh-login" onClick={connectWS} disabled={isDeviceConnected || isDeviceConnecting} style={{height:"clamp(42px,7vw,48px)",borderRadius:8,fontWeight:700,background:"#fff",color:"#111",minWidth:120}}>{isDeviceConnecting?"接続中…":isDeviceConnected?"接続済み":"接続"}</button>
           </div>
           <div style={{marginTop:8,fontSize:12,opacity:.95,color:isDeviceConnected?"#79ff7a":"#fff"}}>{isDeviceConnected?"接続確認完了":(isDeviceConnecting?"接続確認中…":"未接続")}</div>
         </div>
@@ -164,11 +180,11 @@ export default function VideoPreparationPage() {
           <div className="prep-label" style={{fontSize:13,opacity:.9,marginBottom:6}}>タイムラインJSON送信</div>
           <div>
             {isTimelineSent ? (
-              <div style={{fontSize:12,color:"#79ff7a"}}>送信完了</div>
+              <div style={{fontSize:12,color:"#79ff7a"}}>✓ 送信完了</div>
             ) : (
               <TimelineUploadButton
                 sessionId={sessionId}
-                videoId={q.get("content") || 'demo1'}
+                videoId={contentId}
                 onComplete={onTimelineComplete}
                 onError={onTimelineError}
                 onUploadingChange={(u)=>setTimelineUploading(u)}
@@ -182,9 +198,9 @@ export default function VideoPreparationPage() {
           <div className="prep-label" style={{fontSize:13,opacity:.9,marginBottom:6}}>デバイス動作確認</div>
           <div>
             {isDevicesTested ? (
-              <div style={{fontSize:12,color:"#79ff7a"}}>確認完了</div>
+              <div style={{fontSize:12,color:"#79ff7a"}}>✓ 確認完了</div>
             ) : (
-              <button className="xh-btn xh-login" onClick={handleDeviceTest} disabled={!isTimelineSent || devicesTesting} style={{height:"clamp(42px,7vw,48px)",borderRadius:8,fontWeight:700,background:"#fff",color:"#111"}}>
+              <button className="xh-btn xh-login" onClick={handleDeviceTest} disabled={!isTimelineSent || devicesTesting} style={{height:"clamp(42px,7vw,48px)",borderRadius:8,fontWeight:700,background:"#fff",color:"#111",minWidth:160}}>
                 {devicesTesting?"テスト実行中…":"テスト実行"}
               </button>
             )}

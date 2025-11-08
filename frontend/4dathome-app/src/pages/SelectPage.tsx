@@ -1,12 +1,24 @@
 import { useMemo } from "react";
 import { useNavigate } from "react-router-dom";
-import { BACKEND_API_URL } from "../config/backend";
 
 /** Select：ヘッダー固定 / ヒーロー全幅 / グリッド */
 export default function SelectPage() {
+  // デモ用：認証ガード回避（auth=1を自動セット）
+  if (typeof window !== "undefined") {
+    try { sessionStorage.setItem("auth", "1"); } catch {}
+  }
   const navigate = useNavigate();
 
   const sections = useMemo(() => [
+    {
+      title: "今熱い！",
+      items: [
+        { id: "demo2", rank: 1, thumb: "/thumbs/demo2.jpeg", title: "Demo 1" },
+        { id: "demo3", rank: 2, thumb: "/thumbs/demo3.jpeg", title: "Demo 2" },
+        { id: "action-3", rank: 3, thumb: "/thumbs/action-3.jpeg", title: "Action 3" },
+        { id: "horror-1", rank: 4, thumb: "/thumbs/horror-1.jpeg", title: "Horror 1" },
+      ],
+    },
     {
       title: "アクション映画",
       items: [
@@ -27,7 +39,7 @@ export default function SelectPage() {
     },
   ], []);
 
-  // 動画選択時に準備画面へ遷移（コンテンツIDのみを渡す）
+  // 動画IDを取得して準備画面へ遷移
   const goPlayer = (id: string) => {
     navigate(`/prepare?content=${encodeURIComponent(id)}`);
   };
@@ -182,7 +194,7 @@ export default function SelectPage() {
 
         <div className="xh-content-pad">
           <section className="xh-bleed" aria-label="Featured">
-            {/* 画像クリックで demo1.mp4 再生 */}
+            {/* 画像クリックで demo1 再生 */}
             <div className="xh-hero" onClick={()=>goPlayer("demo1")} role="button" tabIndex={0}>
               <img src="/hero/main.gif" alt="Featured"
                    onError={(e)=>{ (e.currentTarget as HTMLImageElement).style.display='none'; }} />
@@ -215,13 +227,7 @@ export default function SelectPage() {
                         className="xh-thumb"
                         src={it.thumb}
                         alt={it.title}
-                        onError={(e)=>{
-                          const img = e.currentTarget as HTMLImageElement;
-                          img.onerror = null; // ループ防止
-                          img.src = "data:image/gif;base64,R0lGODlhAQABAIAAAP///wAAACH5BAEAAAAALAAAAAABAAEAAAICRAEAOw=="; // 1x1透明
-                          img.style.background = "#151515"; // プレースホルダー色
-                          img.alt = "No Image";
-                        }}
+                        onError={(e)=>{ (e.currentTarget as HTMLImageElement).replaceWith(Object.assign(document.createElement('div'),{className:'xh-ph',textContent:'No Image'})); }}
                       />
                       <div className="xh-grad" aria-hidden="true"></div>
                     </button>

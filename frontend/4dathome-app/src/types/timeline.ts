@@ -1,4 +1,31 @@
-export interface TimelineEvent {
+// 新しいタイムラインイベント形式（start/stop + caption対応）
+export type EffectType = "vibration" | "flash" | "wind" | "water" | "color";
+
+export type EffectEvent = {
+  t: number;
+  action: "start" | "stop";
+  effect: EffectType;
+  mode: string;
+};
+
+export type CaptionEvent = {
+  t: number;
+  action: "caption";
+  text: string;
+};
+
+export type TimelineEvent = EffectEvent | CaptionEvent;
+
+export type ActiveEffects = {
+  vibration: boolean;
+  flash: boolean;
+  wind: boolean;
+  water: boolean;
+  color: boolean;
+};
+
+// 旧形式（互換性のため残す）
+export interface LegacyTimelineEvent {
   t: number;           // 秒
   type: string;        // vibration / flash / wind / water / color など
   mode?: string;       // long / strong / heartbeat / strobe / burst / steady 等
@@ -8,7 +35,7 @@ export interface TimelineEvent {
 
 export interface TimelineUploadRequest {
   video_id: string;
-  timeline_data: { events: TimelineEvent[] };
+  timeline_data: { events: LegacyTimelineEvent[] };
 }
 
 export interface TimelineUploadResponse {
