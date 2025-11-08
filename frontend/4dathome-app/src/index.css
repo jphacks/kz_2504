@@ -12,3 +12,203 @@
            dark:bg-gray-800 dark:border-white/10 dark:hover:bg-gray-700;
   }
 }
+
+/* ========== エフェクトアイコン（CSSアイコン統一） ========== */
+
+/* 行全体（バッジのみ） */
+.fx-effectRow {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* 漢字バッジ本体：完全な丸＋さらに大きめ */
+.fx-effectBadge {
+  width: 120px;     /* 2倍に拡大 */
+  height: 120px;
+  border-radius: 50%;  /* 真ん丸 */
+
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+
+  font-size: 88px;  /* 文字もさらに2倍に大きく */
+  font-weight: 800; /* 太めゴシック */
+  font-family: system-ui, "游ゴシック体",
+    "Yu Gothic", "ヒラギノ角ゴ ProN W6", "Meiryo", sans-serif;
+  letter-spacing: 0.12em;
+
+  color: #111;
+  background: #e5e7eb;
+  box-shadow: 0 3px 6px rgba(0, 0, 0, .3);
+}
+
+/* 漢字バッジの色分け */
+.fx-effectBadge--water {  /* 水 */
+  background: linear-gradient(135deg, #d4f1ff, #38bdf8);
+  color: #082f49;
+}
+
+.fx-effectBadge--wind {   /* 風 */
+  background: linear-gradient(135deg, #dcfce7, #4ade80);
+  color: #064e3b;
+}
+
+.fx-effectBadge--light {  /* 光 */
+  background: linear-gradient(135deg, #fef9c3, #facc15);
+  color: #78350f;
+}
+
+.fx-effectBadge--shock {  /* 衝 */
+  background: linear-gradient(135deg, #fee2e2, #f97316);
+  color: #7f1d1d;
+}
+
+.fx-effectBadge--color {  /* 色 */
+  background: linear-gradient(135deg, #e0e7ff, #c4b5fd);
+  color: #312e81;
+}
+
+/* ON/OFF 状態 */
+.fx-effectBadge--off {
+  opacity: 0.4;
+  filter: grayscale(0.7);
+  box-shadow: none;
+}
+
+/* ========== 旧CSSアイコン（削除予定） ========== */
+
+/* ベース：小さい丸アイコン */
+.fx-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  border-radius: 999px;
+  position: relative;
+  overflow: hidden;
+  box-sizing: border-box;
+  transition:
+    opacity 0.15s ease,
+    transform 0.15s ease,
+    filter 0.15s ease,
+    box-shadow 0.15s ease;
+}
+
+/* ON / OFF 状態 */
+.fx-icon--on {
+  opacity: 1;
+  box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.4);
+}
+
+.fx-icon--off {
+  opacity: 0.35;
+  filter: grayscale(0.7);
+  box-shadow: none;
+}
+
+/* ホバー時ちょっとだけ浮く */
+.fx-icon.fx-icon--on:hover {
+  transform: translateY(-1px) scale(1.03);
+}
+
+/* 水：青系グラデ＋しずくっぽい形 */
+.fx-icon--water {
+  background: radial-gradient(circle at 30% 30%, #d9f3ff, #1d8ff0);
+}
+
+.fx-icon--water::after {
+  content: "";
+  position: absolute;
+  width: 55%;
+  height: 70%;
+  background: #e8f7ff;
+  border-radius: 50% 50% 60% 60%;
+  transform: rotate(45deg) translateY(-4%);
+  opacity: 0.85;
+}
+
+/* 風：輪郭と中のラインで"流れ"を表現 */
+.fx-icon--wind {
+  background: transparent;
+  border: 2px solid #4fd1c5;
+}
+
+.fx-icon--wind::before,
+.fx-icon--wind::after {
+  content: "";
+  position: absolute;
+  left: 20%;
+  right: 20%;
+  height: 2px;
+  border-radius: 999px;
+  background: #4fd1c5;
+}
+
+.fx-icon--wind::before {
+  top: 35%;
+}
+
+.fx-icon--wind::after {
+  bottom: 30%;
+  width: 60%;
+  right: 10%;
+  opacity: 0.8;
+}
+
+/* 振動：縦のバー 3 本でブルブル感 */
+.fx-icon--vibration {
+  background: radial-gradient(circle at 30% 30%, #ffe7c2, #f97316);
+}
+
+.fx-icon--vibration::before {
+  content: "";
+  position: absolute;
+  width: 3px;
+  height: 60%;
+  border-radius: 999px;
+  background: #ffffffdd;
+  box-shadow:
+    -4px 0 0 #ffffffaa,
+    4px 0 0 #ffffffaa;
+}
+
+/* 光（flash）：黄色い光源＋うっすら光の輪 */
+.fx-icon--flash {
+  background: radial-gradient(circle at 30% 30%, #fffbe6, #facc15);
+}
+
+.fx-icon--flash::before {
+  content: "";
+  position: absolute;
+  width: 55%;
+  height: 55%;
+  border-radius: 999px;
+  background: #ffffffcc;
+}
+
+.fx-icon--flash::after {
+  content: "";
+  position: absolute;
+  width: 120%;
+  height: 120%;
+  border-radius: 999px;
+  box-shadow: 0 0 6px 2px rgba(250, 204, 21, 0.6);
+  opacity: 0.7;
+}
+
+/* 色（color）：カラーパレット風 */
+.fx-icon--color {
+  background: linear-gradient(135deg, #ff6b6b 0%, #4ecdc4 50%, #ffe66d 100%);
+}
+
+.fx-icon--color::before {
+  content: "";
+  position: absolute;
+  width: 60%;
+  height: 60%;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.3);
+}

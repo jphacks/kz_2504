@@ -10,6 +10,7 @@
  */
 
 import { useEffect, useState } from "react";
+import { EffectBadge, type EffectKind } from "./EffectBadge";
 
 // ========== 型定義（4DX@HOME仕様準拠） ==========
 
@@ -199,38 +200,48 @@ export default function EffectStatusPanel({ contentId, currentTime }: Props) {
 
   // ========== UI レンダリング ==========
 
-  const effectItems: { effect: EffectType; label: string; emoji: string }[] = [
-    { effect: "vibration", label: "振動", emoji: "💥" },
-    { effect: "flash", label: "光", emoji: "⚡" },
-    { effect: "wind", label: "風", emoji: "💨" },
-    { effect: "water", label: "水", emoji: "💦" },
-    { effect: "color", label: "色", emoji: "🎨" },
+  // EffectType → EffectKind マッピング
+  const effectTypeToKind = (effect: EffectType): EffectKind => {
+    switch (effect) {
+      case "vibration":
+        return "shock";
+      case "flash":
+        return "light";
+      case "water":
+        return "water";
+      case "wind":
+        return "wind";
+      case "color":
+        return "color";
+    }
+  };
+
+  const effectItems: { effect: EffectType }[] = [
+    { effect: "vibration" },
+    { effect: "flash" },
+    { effect: "wind" },
+    { effect: "water" },
+    { effect: "color" },
   ];
 
   return (
     <div className="effect-status-panel">
       {/* 左側: エフェクトアイコン */}
       <div className="effect-icons">
-        {effectItems.map(({ effect, label, emoji }) => {
+        {effectItems.map(({ effect }) => {
           const isActive = activeEffects[effect].size > 0;
           const primaryMode = getPrimaryMode(effect, activeEffects);
-
-          // 将来的にここで GIF に差し替え
-          const visual = primaryMode
-            ? EFFECT_MODE_VISUALS[effect]?.[primaryMode]
-            : undefined;
+          const kind = effectTypeToKind(effect);
 
           return (
             <div
               key={effect}
-              className={`effect-icon ${isActive ? "active" : "inactive"}`}
+              className={`effect-item ${isActive ? "active" : "inactive"}`}
               data-effect={effect}
               data-mode={primaryMode ?? ""}
-              title={`${label}${primaryMode ? ` (${primaryMode})` : ""}`}
             >
-              {/* 将来: visual.gif があれば <img src={visual.gif} /> に置き換え */}
-              <span className="effect-emoji">{emoji}</span>
-              <span className="effect-label">{label}</span>
+              {/* 漢字バッジのみ（ラベル完全削除） */}
+              <EffectBadge kind={kind} active={isActive} />
             </div>
           );
         })}
@@ -262,47 +273,27 @@ export default function EffectStatusPanel({ contentId, currentTime }: Props) {
           align-items: flex-start;
         }
 
-        .effect-icon {
+        .effect-item {
           display: flex;
           align-items: center;
-          gap: 8px;
-          background: rgba(0, 0, 0, 0.6);
-          backdrop-filter: blur(4px);
-          border-radius: 8px;
-          padding: 8px 12px;
-          font-size: 14px;
-          font-weight: 600;
+          justify-content: center;
+          padding: 6px;
           transition: all 0.2s ease;
-          border: 2px solid transparent;
           pointer-events: auto;
         }
 
-        .effect-icon.active {
-          background: rgba(255, 0, 0, 0.8);
-          color: #fff;
-          border-color: rgba(255, 255, 255, 0.3);
-          box-shadow: 0 0 12px rgba(255, 0, 0, 0.6);
+        .effect-item.active {
+          transform: scale(1.05);
         }
 
-        .effect-icon.inactive {
-          color: rgba(255, 255, 255, 0.4);
-          background: rgba(0, 0, 0, 0.3);
-        }
-
-        .effect-emoji {
-          font-size: 20px;
-          line-height: 1;
-        }
-
-        .effect-label {
-          font-size: 12px;
-          line-height: 1;
+        .effect-item.inactive {
+          /* アイコン自体が薄くなるので追加スタイル不要 */
         }
 
         .caption-area-left {
           display: flex;
           align-items: flex-start;
-          max-width: 500px;
+          max-width: 800px;
         }
 
         .caption-card {
@@ -311,7 +302,7 @@ export default function EffectStatusPanel({ contentId, currentTime }: Props) {
           color: #fff;
           padding: 10px 14px;
           border-radius: 8px;
-          font-size: 13px;
+          font-size: 30px;
           line-height: 1.5;
           border: 1px solid rgba(255, 255, 255, 0.15);
           box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);

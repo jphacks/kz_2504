@@ -184,28 +184,33 @@ export default function HomePage() {
           </div>
         </div>
 
-        {/* ロゴ画像表示（全画面中央） */}
-        <div className="xh-logoBox" style={{margin:"0 auto", width:128, height:64, display:"flex", alignItems:"center", justifyContent:"center"}}>
-          <img
-            src="/logg.jpeg"
-            alt="Logo"
-            className="xh-logoImg"
-            style={{width:"100%", height:"100%", objectFit:"contain"}}
-            onError={e => { (e.currentTarget as HTMLImageElement).style.display = "none"; }}
-          />
-        </div>
+        {/* アクセス時に自動再生 → 終了でフェードアウトしてからアンマウント */}
+        {showVideo && (
+          <div className="xh-videoWrap" aria-hidden={!playing}>
+            <video
+              ref={videoRef}
+              className="xh-vid"
+              preload="auto"
+              playsInline
+              muted
+              autoPlay
+              controls={false}
+              disablePictureInPicture
+              controlsList="nodownload noplaybackrate nofullscreen noremoteplayback"
+              onPlay={() => setPlaying(true)}
+              onEnded={handleEnded}
+              onWaiting={handleWaitingOrStalled}
+              onStalled={handleWaitingOrStalled}
+              onError={handleError}
+            >
+              <source src="/logo.mp4" type="video/mp4" />
+              {/* 必要なら WebM も追加
+              <source src="/logo.webm" type="video/webm" />
+              */}
+            </video>
+          </div>
+        )}
       </div>
     </>
   );
 }
-
-  // 再生エラー時に原因を表示
-  function handleError(e: React.SyntheticEvent<HTMLVideoElement, Event>) {
-    const video = e.currentTarget;
-    const error = video.error;
-    if (error) {
-      console.error('logo.mp4再生エラー:', error.code, error.message || error);
-    } else {
-      console.error('logo.mp4再生エラー: 詳細不明');
-    }
-  }
