@@ -39,7 +39,7 @@ export default function HomePage() {
   const handleLogin = () => {
     if (busy) return;
     setBusy(true);
-    navigate("/session");
+    navigate("/login");
   };
 
   // 再生終了：まず不透明度を下げてからアンマウント

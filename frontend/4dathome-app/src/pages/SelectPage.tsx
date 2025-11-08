@@ -1,5 +1,6 @@
 import { useMemo } from "react";
 import { useNavigate } from "react-router-dom";
+import { BACKEND_API_URL } from "../config/backend";
 
 /** Select：ヘッダー固定 / ヒーロー全幅 / グリッド */
 export default function SelectPage() {
@@ -26,7 +27,10 @@ export default function SelectPage() {
     },
   ], []);
 
-  const goPlayer = (id: string) => navigate(`/player?content=${encodeURIComponent(id)}`);
+  // 動画選択時に準備画面へ遷移（コンテンツIDのみを渡す）
+  const goPlayer = (id: string) => {
+    navigate(`/prepare?content=${encodeURIComponent(id)}`);
+  };
 
   return (
     <>
@@ -178,8 +182,8 @@ export default function SelectPage() {
 
         <div className="xh-content-pad">
           <section className="xh-bleed" aria-label="Featured">
-            {/* 画像クリックで sample.mp4 再生 */}
-            <div className="xh-hero" onClick={()=>goPlayer("sample")} role="button" tabIndex={0}>
+            {/* 画像クリックで demo1.mp4 再生 */}
+            <div className="xh-hero" onClick={()=>goPlayer("demo1")} role="button" tabIndex={0}>
               <img src="/hero/main.gif" alt="Featured"
                    onError={(e)=>{ (e.currentTarget as HTMLImageElement).style.display='none'; }} />
               <div className="xh-grad" aria-hidden="true"></div>
@@ -192,7 +196,7 @@ export default function SelectPage() {
 
               <div className="xh-play">
                 {/* △のみ（丸なし） */}
-                <button type="button" aria-label="再生" onClick={(e)=>{ e.stopPropagation(); goPlayer("sample"); }}>
+                <button type="button" aria-label="再生" onClick={(e)=>{ e.stopPropagation(); goPlayer("demo1"); }}>
                   <svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
                 </button>
               </div>
@@ -211,7 +215,13 @@ export default function SelectPage() {
                         className="xh-thumb"
                         src={it.thumb}
                         alt={it.title}
-                        onError={(e)=>{ (e.currentTarget as HTMLImageElement).replaceWith(Object.assign(document.createElement('div'),{className:'xh-ph',textContent:'No Image'})); }}
+                        onError={(e)=>{
+                          const img = e.currentTarget as HTMLImageElement;
+                          img.onerror = null; // ループ防止
+                          img.src = "data:image/gif;base64,R0lGODlhAQABAIAAAP///wAAACH5BAEAAAAALAAAAAABAAEAAAICRAEAOw=="; // 1x1透明
+                          img.style.background = "#151515"; // プレースホルダー色
+                          img.alt = "No Image";
+                        }}
                       />
                       <div className="xh-grad" aria-hidden="true"></div>
                     </button>

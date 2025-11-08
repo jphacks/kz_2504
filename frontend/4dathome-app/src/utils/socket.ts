@@ -17,23 +17,42 @@ export class SessionSocket {
   connect() {
     // 例: wss://host/ws?session=XXXXX&role=web
     const url = `${WS_BASE}/ws?session=${encodeURIComponent(this.sessionId)}&role=web`;
+    console.log("[session-socket] connecting", { url });
     this.ws = new WebSocket(url);
-    this.ws.onopen = () => this.onOpen?.();
-    this.ws.onclose = () => this.onClose?.();
+    this.ws.onopen = () => {
+      console.log("[session-socket] open", { readyState: this.ws?.readyState });
+      this.onOpen?.();
+    };
+    this.ws.onclose = (ev) => {
+      console.log("[session-socket] close", { code: ev.code, reason: ev.reason, wasClean: ev.wasClean });
+      this.onClose?.();
+    };
     this.ws.onmessage = (e) => {
       try {
-        this.onMessage(JSON.parse(e.data));
+        const parsed = JSON.parse(e.data);
+        console.log("[session-socket] message", parsed);
+        this.onMessage(parsed);
       } catch (err) {
         console.error("WS parse error", err);
       }
+    };
+    this.ws.onerror = (err) => {
+      console.error("[session-socket] error", err);
     };
   }
 
   send(msg: WSOut) {
     if (this.ws?.readyState === WebSocket.OPEN) {
-      this.ws.send(JSON.stringify(msg));
+      const raw = JSON.stringify(msg);
+      console.log("[session-socket] send", msg);
+      this.ws.send(raw);
     }
   }
 
-  close() { this.ws?.close(); }
+  close() {
+    if (this.ws) {
+      console.log("[session-socket] manual close");
+      this.ws.close();
+    }
+  }
 }

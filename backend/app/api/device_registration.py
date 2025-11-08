@@ -11,6 +11,7 @@ import json
 import os
 import uuid
 import logging
+import asyncio
 from datetime import datetime, timedelta
 from pathlib import Path
 
@@ -24,6 +25,9 @@ from app.models.device import (
 
 # ログ設定
 logger = logging.getLogger(__name__)
+
+# デバイステスト応答を待つためのキュー
+device_test_responses: dict[str, asyncio.Queue] = {}
 
 # APIルーター作成
 router = APIRouter(
@@ -229,3 +233,113 @@ async def get_supported_capabilities():
             "WIND": "風機能"
         }
     }
+
+
+@router.post("/test")
+async def test_device(request: dict):
+    """
+    デバイス動作確認テスト
+    
+    フロントエンドからのデバイステストリクエストを受け取り、
+    接続されているデバイスハブ（Raspberry Pi）にテスト指示を送信します。
+    WebSocket経由でデバイスに送信し、デバイスからの応答を待ってから結果を返します。
+    """
+    
+    session_id = request.get('session_id', 'DH001')
+    test_type = request.get('test_type', 'basic')
+    
+    logger.info("=" * 60)
+    logger.info(f"🧪 [API] デバイステストリクエスト受信")
+    logger.info(f"   セッションID: {session_id}")
+    logger.info(f"   テストタイプ: {test_type}")
+    logger.info("=" * 60)
+    
+    try:
+        # WebSocket経由でデバイスにテスト指示を送信
+        from app.api.playback_control import ws_manager
+        
+        # 応答キューを作成
+        response_queue = asyncio.Queue()
+        device_test_responses[session_id] = response_queue
+        
+        test_message = {
+            'type': 'device_test',
+            'session_id': session_id,
+            'test_type': test_type,
+            'timestamp': datetime.now().isoformat()
+        }
+        
+        # デバイスへの送信（セッションIDに対応するWebSocket接続へ）
+        await ws_manager.send_to_session(session_id, test_message)
+        
+        logger.info(f"📤 [API] デバイステスト指示送信完了: session_id={session_id}")
+        logger.info(f"⏳ [API] デバイスからの応答を待機中...")
+        
+        # デバイスからの応答を待つ（タイムアウト5秒）
+        try:
+            device_response = await asyncio.wait_for(
+                response_queue.get(),
+                timeout=30.0  # Raspberry Pi通信を考慮して30秒に延長
+            )
+            
+            logger.info(f"✅ [API] デバイスから応答受信: {device_response}")
+            
+            # 応答キューをクリーンアップ
+            if session_id in device_test_responses:
+                del device_test_responses[session_id]
+            
+            # デバイスからの応答をそのまま返す
+            response_data = {
+                'status': 'success',
+                'message': 'Device test completed',
+                'session_id': session_id,
+                'test_type': test_type,
+                'device_response': device_response
+            }
+            
+            return response_data
+            
+        except asyncio.TimeoutError:
+            # タイムアウト時のクリーンアップ
+            if session_id in device_test_responses:
+                del device_test_responses[session_id]
+            
+            logger.warning(f"⏱️ [API] デバイス応答タイムアウト: session_id={session_id}")
+            raise HTTPException(
+                status_code=504,
+                detail={
+                    "error": "device_timeout",
+                    "message": "デバイスからの応答がタイムアウトしました"
+                }
+            )
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        # エラー時のクリーンアップ
+        if session_id in device_test_responses:
+            del device_test_responses[session_id]
+        
+        logger.error(f"❌ [API] デバイステスト送信エラー: {e}", exc_info=True)
+        raise HTTPException(
+            status_code=500,
+            detail={
+                "error": "device_test_failed",
+                "message": f"デバイステストの送信に失敗しました: {str(e)}"
+            }
+        )
+
+
+async def handle_device_test_result(session_id: str, result_data: dict):
+    """
+    デバイスからのテスト結果を処理する関数
+    
+    playback_control.pyのWebSocketエンドポイントから呼び出される
+    """
+    logger.info(f"📥 [API] デバイステスト結果受信: session_id={session_id}")
+    
+    if session_id in device_test_responses:
+        await device_test_responses[session_id].put(result_data)
+        logger.info(f"✅ [API] テスト結果をキューに追加: session_id={session_id}")
+    else:
+        logger.warning(f"⚠️  [API] 対応する応答キューが見つかりません: session_id={session_id}")

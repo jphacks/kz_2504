@@ -5,11 +5,13 @@ Preparation API - 準備処理REST APIエンドポイント
 """
 
 from datetime import datetime
-from typing import Dict, Optional, List
+from typing import Dict, Optional, List, Any
 import logging
+import json
+import time
 from fastapi import APIRouter, HTTPException, Depends, BackgroundTasks, WebSocket, WebSocketDisconnect
 from fastapi.responses import JSONResponse
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from app.services.preparation_service import preparation_service
 from app.models.preparation import (
@@ -29,6 +31,22 @@ class PreparationStartRequest(BaseModel):
     video_id: str
     device_id: str
     force_restart: bool = False
+
+class TimelineUploadRequest(BaseModel):
+    """タイムラインJSON送信リクエスト"""
+    video_id: str = Field(..., min_length=1, description="動画ID")
+    timeline_data: Dict[str, Any] = Field(..., description="タイムラインJSONデータ")
+
+class TimelineUploadResponse(BaseModel):
+    """タイムラインJSON送信レスポンス"""
+    success: bool
+    message: str
+    session_id: str
+    video_id: str
+    size_kb: float
+    events_count: int
+    devices_notified: int
+    transmission_time_ms: int
 
 class PreparationResponse(BaseModel):
     """準備処理レスポンス"""
@@ -425,6 +443,133 @@ async def get_sync_transmission_details(session_id: str):
             "preparation_status": sync_prep.preparation_status.value
         }
     }
+
+# タイムラインJSON送信エンドポイント（フロントエンドからの受信＆デバイスへ中継）
+@router.post("/upload-timeline/{session_id}", response_model=TimelineUploadResponse)
+async def upload_timeline_json(
+    session_id: str,
+    request: TimelineUploadRequest
+) -> TimelineUploadResponse:
+    """
+    フロントエンドからタイムラインJSONを受信してデバイスへ中継
+    
+    1000行のJSONでも1-3秒で処理完了（WebSocket一括送信）
+    
+    Args:
+        session_id: セッションID
+        request: タイムラインアップロードリクエスト
+        
+    Returns:
+        アップロード結果
+        
+    Raises:
+        HTTPException: JSONサイズ超過、送信失敗時
+    """
+    start_time = time.time()
+    
+    try:
+        video_id = request.video_id
+        timeline_data = request.timeline_data
+        
+        logger.info(f"[TIMELINE_UPLOAD] 受信開始: session={session_id}, video={video_id}")
+        
+        # 1. JSONサイズ検証（16MB制限）
+        json_str = json.dumps(timeline_data, ensure_ascii=False)
+        json_size_bytes = len(json_str.encode('utf-8'))
+        json_size_kb = json_size_bytes / 1024
+        
+        if json_size_kb > 16 * 1024:  # 16MB
+            raise HTTPException(
+                status_code=413,
+                detail=f"JSONサイズが大きすぎます: {json_size_kb:.1f}KB（上限: 16MB）"
+            )
+        
+        logger.info(f"[TIMELINE_UPLOAD] JSONサイズ: {json_size_kb:.2f}KB")
+        
+        # 2. 基本的なフォーマット検証
+        if 'events' not in timeline_data:
+            raise HTTPException(
+                status_code=400,
+                detail="タイムラインJSONに'events'フィールドが必要です"
+            )
+        
+        events = timeline_data.get('events', [])
+        events_count = len(events)
+        
+        if events_count == 0:
+            raise HTTPException(
+                status_code=400,
+                detail="タイムラインJSONにイベントが含まれていません"
+            )
+        
+        logger.info(f"[TIMELINE_UPLOAD] イベント数: {events_count}")
+        
+        # 3. 総再生時間計算
+        total_duration = 0.0
+        if events:
+            max_time = max(event.get('t', 0) for event in events)
+            total_duration = float(max_time)
+        
+        # 4. メタデータ作成
+        transmission_metadata = {
+            'video_id': video_id,
+            'total_duration': total_duration,
+            'events_count': events_count,
+            'file_size_kb': json_size_kb,
+            'transmission_timestamp': datetime.now().isoformat(),
+            'source': 'frontend_upload',
+            'format': 'timeline_json'
+        }
+        
+        # 5. デバイスへWebSocketで送信
+        bulk_data = {
+            'type': 'sync_data_bulk_transmission',
+            'session_id': session_id,
+            'video_id': video_id,
+            'transmission_metadata': transmission_metadata,
+            'sync_data': timeline_data
+        }
+        
+        # WebSocket経由でデバイスへ並列送信
+        from app.api.playback_control import ws_manager
+        
+        devices_notified = 0
+        if session_id in ws_manager.session_connections:
+            # デバイス接続数をカウント
+            for connection_id in ws_manager.session_connections[session_id]:
+                if connection_id.startswith("device_"):
+                    devices_notified += 1
+            
+            # 並列送信実行
+            await ws_manager.send_to_session(session_id, bulk_data)
+            logger.info(f"[TIMELINE_UPLOAD] デバイスへ送信完了: {devices_notified}台")
+        else:
+            logger.warning(f"[TIMELINE_UPLOAD] セッションにデバイス接続なし: {session_id}")
+        
+        # 6. 処理時間計算
+        elapsed_ms = int((time.time() - start_time) * 1000)
+        
+        logger.info(f"[TIMELINE_UPLOAD] 送信完了: {elapsed_ms}ms, {json_size_kb:.2f}KB, {events_count}イベント")
+        
+        return TimelineUploadResponse(
+            success=True,
+            message=f"タイムラインJSON送信完了（{devices_notified}台のデバイスへ通知）",
+            session_id=session_id,
+            video_id=video_id,
+            size_kb=round(json_size_kb, 2),
+            events_count=events_count,
+            devices_notified=devices_notified,
+            transmission_time_ms=elapsed_ms
+        )
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"[TIMELINE_UPLOAD] エラー: {e}", exc_info=True)
+        raise HTTPException(
+            status_code=500,
+            detail=f"タイムライン送信エラー: {str(e)}"
+        )
 
 # ヘルスチェック
 @router.get("/health")

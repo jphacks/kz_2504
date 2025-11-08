@@ -1,8 +1,9 @@
-// src/pages/PairingPage.tsx
+// src/pages/PairingPage.tsx (LoginPage として機能)
 import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { deviceApi } from "../services/endpoints";
 
-/** Pairing：背景フル / ヘッダーは左=長方形ロゴ・右=白塗りPNGアイコン2つ（丸囲み無し / Selectと同じ幅感） */
+/** デバイス認証画面（デバイスハブ製品コード入力: DH001, DH002など） */
 export default function PairingPage() {
   const [code, setCode] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -11,30 +12,27 @@ export default function PairingPage() {
   const wsRef = useRef<WebSocket | null>(null);
   const navigate = useNavigate();
 
-  const API_BASE = "https://fourdk-backend-333203798555.asia-northeast1.run.app";
-
-  // デバイス情報取得（GET /api/device/info/{product_code}）→ 成功で /selectpage
+  // デバイス情報取得（GET /api/device/info/{product_code}）→ 成功で /select へ遷移
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     const c = code.trim();
 
-    if (!c) { setError("コードを入力してください"); return; }
-    if (c.length > 6) { setError("コードは6文字以内で入力してください"); return; }
+    if (!c) { setError("デバイスハブIDを入力してください"); return; }
+    if (c.length > 6) { setError("デバイスハブIDは6文字以内で入力してください"); return; }
 
     setError(null);
     setLoading(true);
 
     try {
-      const res = await fetch(`${API_BASE}/api/device/info/${encodeURIComponent(c)}`);
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      const data = await res.json().catch(() => ({}));
+      const data = await deviceApi.getInfo(c);
 
-      // 必要情報を保存（後段で利用）
-      sessionStorage.setItem("productCode", c);
+  // デバイスハブIDを保存（重要: sessionIdとは別管理）
+      sessionStorage.setItem("deviceHubId", c);
       if (data?.device_id) sessionStorage.setItem("deviceId", String(data.device_id));
       sessionStorage.setItem("deviceInfo", JSON.stringify(data));
 
-      navigate("/selectpage", { replace: true });
+      // 動画選択画面へ遷移（変更: /selectpage → /select）
+      navigate("/select", { replace: true });
     } catch (err) {
       console.error(err);
       setError("デバイスが見つからないか、サーバーに接続できません");
@@ -93,6 +91,7 @@ export default function PairingPage() {
         .xh-input{ width:100%; height:clamp(40px,6.6vw,48px); background:#fff; color:#111; border-radius:6px; border:2px solid #111; padding:0 12px; font-size:clamp(14px,3.2vw,18px); box-shadow:0 2px 0 rgba(0,0,0,.35); }
         .xh-btn{ margin-top:14px; min-width:160px; height:clamp(42px,7vw,48px); border:none; border-radius:8px; font-weight:700; cursor:pointer; }
         .xh-connect{ background:#fff; color:#111; }
+        .xh-debug{ background:#4a90e2; color:#fff; font-size:clamp(13px,2.8vw,15px); }
         .xh-err{ margin-top:8px; color:#ffe08a; }
 
         @keyframes xh-fadeUp {
@@ -104,6 +103,7 @@ export default function PairingPage() {
         .xh-d1{ animation-delay: .09s; }
         .xh-d2{ animation-delay: .16s; }
         .xh-d3{ animation-delay: .23s; }
+        .xh-d4{ animation-delay: .30s; }
         @media (prefers-reduced-motion: reduce) { .xh-fade{ animation:none !important; opacity:1 !important; transform:none !important; filter:none !important; } }
       `}</style>
 
@@ -135,14 +135,14 @@ export default function PairingPage() {
           <div />
           <div className="xh-center">
             <form onSubmit={handleSubmit} aria-labelledby="pairingTitle">
-              <h1 id="pairingTitle" className="xh-title xh-fade xh-d0">デバイスのIDを入力してください</h1>
+              <h1 id="pairingTitle" className="xh-title xh-fade xh-d0">デバイスハブIDを入力してください</h1>
 
               <div className="xh-field xh-fade xh-d1">
                 <input
                   className="xh-input"
                   value={code}
                   onChange={(e)=>setCode(e.target.value)}
-                  placeholder="デバイスID（6文字以内）"
+                  placeholder="デバイスハブID（例: DH001）"
                   inputMode="text"
                   autoComplete="one-time-code"
                   maxLength={6}
@@ -156,6 +156,17 @@ export default function PairingPage() {
                   {loading ? "接続中..." : "接続"}
                 </button>
               </div>
+
+              {/* デバッグ用：動画に直接飛ぶボタン */}
+              <div className="xh-fade xh-d4" style={{marginTop:"12px"}}>
+                <button 
+                  type="button" 
+                  className="xh-btn xh-debug" 
+                  onClick={() => navigate("/player?content=sample")}
+                >
+                  🔧 デバッグ：動画へ直接移動
+                </button>
+              </div>
             </form>
           </div>
         </main>
@@ -163,3 +174,5 @@ export default function PairingPage() {
     </>
   );
 }
+
+// ✅ updated for 4DX@HOME spec
