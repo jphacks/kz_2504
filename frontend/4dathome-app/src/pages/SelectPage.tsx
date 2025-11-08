@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useMemo, useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 
 /** Select：ヘッダー固定 / ヒーロー全幅 / グリッド */
@@ -8,6 +8,7 @@ export default function SelectPage() {
     try { sessionStorage.setItem("auth", "1"); } catch {}
   }
   const navigate = useNavigate();
+  const [isHotSectionVisible, setHotSectionVisible] = useState(false);
 
   const sections = useMemo(() => [
     {
@@ -38,6 +39,41 @@ export default function SelectPage() {
       ],
     },
   ], []);
+
+  // 「今熱い！」セクションのサムネイル画像を事前チェック
+  useEffect(() => {
+    const hotSection = sections.find(sec => sec.title === "今熱い！");
+    if (!hotSection || !hotSection.items.length) {
+      setHotSectionVisible(false);
+      return;
+    }
+
+    const thumbnails = hotSection.items.map(item => item.thumb);
+    let cancelled = false;
+    let remaining = thumbnails.length;
+    let hasError = false;
+
+    thumbnails.forEach((url) => {
+      const img = new Image();
+      img.onload = () => {
+        remaining -= 1;
+        if (!cancelled && remaining === 0 && !hasError) {
+          setHotSectionVisible(true);
+        }
+      };
+      img.onerror = () => {
+        if (!cancelled) {
+          hasError = true;
+          setHotSectionVisible(false);
+        }
+      };
+      img.src = url;
+    });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [sections]);
 
   // 動画IDを取得して準備画面へ遷移
   const goPlayer = (id: string) => {
@@ -215,27 +251,34 @@ export default function SelectPage() {
             </div>
           </section>
 
-          {sections.map(sec => (
-            <section key={sec.title} className="xh-section">
-              <div className="xh-container">
-                <h2>{sec.title}</h2>
-                <div className="xh-grid">
-                  {sec.items.map(it => (
-                    <button key={it.id} type="button" className="xh-tile" onClick={()=>goPlayer(it.id)} aria-label={`${sec.title} - ${it.title}`}>
-                      <span className="xh-rank">{it.rank}</span>
-                      <img
-                        className="xh-thumb"
-                        src={it.thumb}
-                        alt={it.title}
-                        onError={(e)=>{ (e.currentTarget as HTMLImageElement).replaceWith(Object.assign(document.createElement('div'),{className:'xh-ph',textContent:'No Image'})); }}
-                      />
-                      <div className="xh-grad" aria-hidden="true"></div>
-                    </button>
-                  ))}
+          {sections.map(sec => {
+            // 「今熱い！」セクションは画像が全て正常に読み込めた場合のみ表示
+            if (sec.title === "今熱い！" && !isHotSectionVisible) {
+              return null;
+            }
+            
+            return (
+              <section key={sec.title} className="xh-section">
+                <div className="xh-container">
+                  <h2>{sec.title}</h2>
+                  <div className="xh-grid">
+                    {sec.items.map(it => (
+                      <button key={it.id} type="button" className="xh-tile" onClick={()=>goPlayer(it.id)} aria-label={`${sec.title} - ${it.title}`}>
+                        <span className="xh-rank">{it.rank}</span>
+                        <img
+                          className="xh-thumb"
+                          src={it.thumb}
+                          alt={it.title}
+                          onError={(e)=>{ (e.currentTarget as HTMLImageElement).replaceWith(Object.assign(document.createElement('div'),{className:'xh-ph',textContent:'No Image'})); }}
+                        />
+                        <div className="xh-grad" aria-hidden="true"></div>
+                      </button>
+                    ))}
+                  </div>
                 </div>
-              </div>
-            </section>
-          ))}
+              </section>
+            );
+          })}
         </div>
       </div>
     </>

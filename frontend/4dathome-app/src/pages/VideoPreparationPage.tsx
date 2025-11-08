@@ -1,8 +1,85 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { BACKEND_WS_URL } from "../config/backend";
-import TimelineUploadButton from "../components/TimelineUploadButton";
 import { deviceApi } from "../services/endpoints";
+
+type StepKey = "session" | "device" | "videoLoad" | "timeline" | "deviceTest";
+type StepStatus = "idle" | "loading" | "done";
+
+interface PrepareStepItemProps {
+  label: string;
+  status: StepStatus;
+  onClick: () => void;
+  disabled?: boolean;
+}
+
+function PrepareStepItem({ label, status, onClick, disabled }: PrepareStepItemProps) {
+  return (
+    <button
+      onClick={onClick}
+      disabled={disabled || status === "done"}
+      style={{
+        width: "100%",
+        display: "grid",
+        gridTemplateColumns: "1fr auto",
+        alignItems: "center",
+        gap: 12,
+        padding: "14px 16px",
+        background: "rgba(255,255,255,0.04)",
+        border: "1px solid rgba(255,255,255,0.08)",
+        borderRadius: 8,
+        color: "#fff",
+        fontSize: 15,
+        fontWeight: 600,
+        cursor: disabled || status === "done" ? "not-allowed" : "pointer",
+        transition: "all 0.2s ease",
+        opacity: disabled ? 0.5 : 1,
+      }}
+    >
+      <span style={{ textAlign: "left" }}>{label}</span>
+      <StatusIndicator status={status} />
+    </button>
+  );
+}
+
+function StatusIndicator({ status }: { status: StepStatus }) {
+  if (status === "idle") {
+    return <div style={{ width: 20, height: 20, borderRadius: "50%", background: "#ff4444" }} />;
+  }
+  if (status === "loading") {
+    return (
+      <div
+        style={{
+          width: 20,
+          height: 20,
+          border: "3px solid #4ade80",
+          borderTopColor: "transparent",
+          borderRadius: "50%",
+          animation: "spin 0.8s linear infinite",
+        }}
+      />
+    );
+  }
+  // done
+  return (
+    <div
+      style={{
+        width: 20,
+        height: 20,
+        borderRadius: "50%",
+        background: "#4ade80",
+        display: "grid",
+        placeItems: "center",
+        fontSize: 12,
+        fontWeight: 900,
+        color: "#000",
+      }}
+    >
+      ✓
+    </div>
+  );
+}
+
 
 export default function VideoPreparationPage() {
   const { search } = useLocation();
@@ -11,214 +88,294 @@ export default function VideoPreparationPage() {
 
   // 選択された動画ID（クエリから取得）
   const contentId = q.get("content") || "demo1";
-  const videoTitle = contentId.toUpperCase(); // 簡易的にタイトル表示
+  const videoTitle = contentId.toUpperCase();
   
   console.log('📝 VideoPreparationPage loaded with contentId:', contentId);
 
   const [sessionId, setSessionId] = useState("");
   const [deviceHubId, setDeviceHubId] = useState("");
-  const [isDeviceConnecting, setIsDeviceConnecting] = useState(false);
-  const [isDeviceConnected, setIsDeviceConnected] = useState(false);
-  const [isTimelineSent, setIsTimelineSent] = useState(false);
-  const [timelineUploading, setTimelineUploading] = useState(false);
-  const [devicesTesting, setDevicesTesting] = useState(false);
-  const [isDevicesTested, setIsDevicesTested] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  // 5つのステップの状態管理
+  const [steps, setSteps] = useState<Record<StepKey, StepStatus>>({
+    session: "idle",
+    device: "idle",
+    videoLoad: "idle",
+    timeline: "idle",
+    deviceTest: "idle",
+  });
+
   const wsRef = useRef<WebSocket | null>(null);
-  const connInfoRef = useRef<string | null>(null);
 
-  // セッションIDやハブIDは手動入力のみ（URLクエリから自動入力しない）
+  // ステップ実行のヘルパー
+  const handleStep = async (key: StepKey, action: () => Promise<void>) => {
+    setSteps((s) => ({ ...s, [key]: "loading" }));
+    setError(null);
+    try {
+      await action();
+      setSteps((s) => ({ ...s, [key]: "done" }));
+    } catch (e: any) {
+      setSteps((s) => ({ ...s, [key]: "idle" }));
+      setError(e?.message || String(e));
+    }
+  };
 
-  const waitWsHandshake = (timeoutMs = 5000): Promise<boolean> => {
-    return new Promise<boolean>((resolve) => {
-      if (connInfoRef.current) return resolve(true);
-      const ws = wsRef.current;
-      let settled = false;
-      const done = (ok: boolean) => {
-        if (settled) return; settled = true;
-        try { ws?.removeEventListener("message", onMsg); } catch {}
-        try { ws?.removeEventListener("open", onOpen); } catch {}
-        try { ws?.removeEventListener("close", onClose); } catch {}
-        clearTimeout(timer);
-        resolve(ok);
-      };
-      const onMsg = (ev: MessageEvent) => {
-        try {
-          const j = JSON.parse((ev as any).data);
-          if (j?.type === "connection_established") {
-            connInfoRef.current = j.connection_id;
-            done(true);
-          }
-        } catch {}
-      };
-      const onOpen = () => setTimeout(() => !settled && done(true), 400);
-      const onClose = () => !settled && done(false);
-      const timer = setTimeout(() => done(false), timeoutMs);
-      wsRef.current?.addEventListener("message", onMsg);
-      wsRef.current?.addEventListener("open", onOpen);
-      wsRef.current?.addEventListener("close", onClose);
+  // 1. セッションID
+  const handleSessionId = async () => {
+    await handleStep("session", async () => {
+      if (!sessionId.trim()) throw new Error("セッションIDを入力してください");
+      sessionStorage.setItem("sessionId", sessionId.trim());
+      await new Promise((resolve) => setTimeout(resolve, 500));
     });
   };
 
-  const connectWS = () => {
-    try {
-      const sid = (sessionId || "").trim();
-      const hub = (deviceHubId || "").trim();
-      if (!sid) { setError("セッションIDを入力してください"); return; }
+  // 2. デバイスID（WebSocket接続）
+  const handleDeviceId = async () => {
+    await handleStep("device", async () => {
+      const sid = sessionId.trim();
+      const hub = deviceHubId.trim();
+      if (!sid) throw new Error("先にセッションIDを設定してください");
+
       const url = hub
         ? `${BACKEND_WS_URL}/api/playback/ws/sync/${encodeURIComponent(sid)}?hub=${encodeURIComponent(hub)}`
         : `${BACKEND_WS_URL}/api/playback/ws/sync/${encodeURIComponent(sid)}`;
 
-      if (wsRef.current) { try { wsRef.current.close(); } catch {} wsRef.current = null; }
+      if (wsRef.current) {
+        try {
+          wsRef.current.close();
+        } catch {}
+        wsRef.current = null;
+      }
+
       const ws = new WebSocket(url);
       wsRef.current = ws;
 
-      setIsDeviceConnecting(true);
-
-      ws.onopen = () => {
-        if (hub && ws.readyState === WebSocket.OPEN) {
-          try { ws.send(JSON.stringify({ type: "identify", hub_id: hub })); } catch {}
-        }
-        setTimeout(() => {
-          if (!isDeviceConnected) setIsDeviceConnected(true);
-          setIsDeviceConnecting(false);
-        }, 600);
-      };
-      ws.onmessage = (ev) => {
-        try {
-          const j = JSON.parse(ev.data);
-          if (j?.type === "connection_established") {
-            connInfoRef.current = j.connection_id;
-            setIsDeviceConnected(true);
-            setIsDeviceConnecting(false);
+      await new Promise<void>((resolve, reject) => {
+        const timeout = setTimeout(() => reject(new Error("接続タイムアウト")), 5000);
+        ws.onopen = () => {
+          if (hub && ws.readyState === WebSocket.OPEN) {
+            try {
+              ws.send(JSON.stringify({ type: "identify", hub_id: hub }));
+            } catch {}
           }
-        } catch {}
-      };
-      ws.onerror = () => { setError("WebSocket error"); };
-      ws.onclose = () => { /* no-op */ };
-    } catch (e: any) {
-      setError(`接続エラー: ${e?.message || String(e)}`);
-      setIsDeviceConnecting(false);
-    }
+          clearTimeout(timeout);
+          setTimeout(resolve, 600);
+        };
+        ws.onerror = () => {
+          clearTimeout(timeout);
+          reject(new Error("WebSocket接続エラー"));
+        };
+      });
+
+      if (hub) sessionStorage.setItem("deviceHubId", hub);
+    });
   };
 
-  const handleStart = () => {
-    // ここまで完了後、playerへ遷移
-    const params = new URLSearchParams();
-    params.set("session", (sessionId || "").trim());
-    if (deviceHubId.trim()) params.set("hub", deviceHubId.trim());
-    params.set("content", contentId); // クエリから取得した contentId を使用
+  // 3. 動画読み込み（ダミー）
+  const handleVideoLoad = async () => {
+    await handleStep("videoLoad", async () => {
+      await new Promise((resolve) => setTimeout(resolve, 800));
+    });
+  };
 
-    // 永続化
-    try { sessionStorage.setItem("sessionId", (sessionId || "").trim()); } catch {}
-    try { if (deviceHubId) sessionStorage.setItem("deviceHubId", deviceHubId.trim()); } catch {}
+  // 4. タイムライン送信（ダミー）
+  const handleTimeline = async () => {
+    await handleStep("timeline", async () => {
+      if (!sessionId.trim()) throw new Error("先にセッションIDを設定してください");
+      // 実際のタイムライン送信処理をここに実装
+      await new Promise((resolve) => setTimeout(resolve, 1000));
+    });
+  };
+
+  // 5. デバイス動作確認
+  const handleDeviceTest = async () => {
+    await handleStep("deviceTest", async () => {
+      if (!sessionId.trim()) throw new Error("セッションIDが設定されていません");
+      if (steps.timeline !== "done") throw new Error("先にタイムラインを送信してください");
+      if (steps.device !== "done") throw new Error("先にデバイスを接続してください");
+
+      const result = await deviceApi.test("basic", sessionId);
+      if (result?.status?.toLowerCase?.() !== "success") {
+        throw new Error(result?.message || `status: ${result?.status}`);
+      }
+    });
+  };
+
+  // 全ステップ完了チェック
+  const allReady = Object.values(steps).every((s) => s === "done");
+
+  const handleStart = () => {
+    const params = new URLSearchParams();
+    params.set("session", sessionId.trim());
+    if (deviceHubId.trim()) params.set("hub", deviceHubId.trim());
+    params.set("content", contentId);
 
     navigate(`/player?${params.toString()}`);
   };
 
-  const onTimelineComplete = () => setIsTimelineSent(true);
-  const onTimelineError = (e: Error) => setError(`タイムライン送信に失敗しました: ${e.message || String(e)}`);
-
-  const handleDeviceTest = async () => {
-    if (!sessionId) { setError("セッションIDが設定されていません"); return; }
-    if (!isTimelineSent) { setError("先にタイムラインを送信してください"); return; }
-    if (!isDeviceConnected) { setError("先にデバイスを接続してください"); return; }
-    setError(null);
-    setDevicesTesting(true);
-    try {
-      const result = await deviceApi.test("basic", sessionId);
-      if (result?.status?.toLowerCase?.() === "success") {
-        setIsDevicesTested(true);
-      } else {
-        throw new Error(result?.message || `status: ${result?.status}`);
-      }
-    } catch (e: any) {
-      setError(`デバイステスト失敗: ${e?.message || String(e)}`);
-      setIsDevicesTested(false);
-    } finally {
-      setDevicesTesting(false);
-    }
-  };
-
-  const allReady = isDeviceConnected && isTimelineSent && isDevicesTested;
-
   return (
-    <div className="prep-wrapper" style={{minHeight:"100vh",background:"#0b0f1a",display:"grid",placeItems:"center",color:"#fff",padding:"20px 0"}}>
-      <div className="prep-card" style={{width:"min(640px,92%)",background:"rgba(16,20,32,.9)",border:"1px solid rgba(255,255,255,.12)",borderRadius:14,padding:"clamp(18px,3.5vw,28px)"}}>
-        <h2 style={{fontWeight:800,fontSize:"clamp(18px,3.6vw,22px)",margin:"0 0 14px"}}>再生準備</h2>
+    <>
+      <style>{`
+        @keyframes spin {
+          to { transform: rotate(360deg); }
+        }
+      `}</style>
+      
+      <div
+        style={{
+          minHeight: "100vh",
+          background: "#0b0f1a",
+          display: "grid",
+          placeItems: "center",
+          color: "#fff",
+          padding: "20px 0",
+        }}
+      >
+        <div
+          style={{
+            width: "min(640px, 92%)",
+            background: "rgba(16,20,32,0.9)",
+            border: "1px solid rgba(255,255,255,0.12)",
+            borderRadius: 14,
+            padding: "clamp(18px, 3.5vw, 28px)",
+          }}
+        >
+          <h2
+            style={{
+              fontWeight: 800,
+              fontSize: "clamp(18px, 3.6vw, 22px)",
+              margin: "0 0 20px",
+            }}
+          >
+            再生準備
+          </h2>
 
-        {/* 選択中の動画プレビュー */}
-        <div style={{padding:"12px 0 14px",borderBottom:"1px solid rgba(255,255,255,.08)"}}>
-          <div className="prep-label" style={{fontSize:13,opacity:.9,marginBottom:6}}>選択中の動画</div>
-          <div style={{display:"flex",alignItems:"center",gap:12}}>
-            <div style={{width:80,height:45,background:"#1a1f2e",borderRadius:4,display:"grid",placeItems:"center",fontSize:10,color:"#666"}}>
-              {videoTitle}
+          {/* 選択中の動画 */}
+          <div
+            style={{
+              padding: "12px 0 14px",
+              borderBottom: "1px solid rgba(255,255,255,0.08)",
+              marginBottom: 14,
+            }}
+          >
+            <div style={{ fontSize: 13, opacity: 0.9, marginBottom: 6 }}>選択中の動画</div>
+            <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+              <div
+                style={{
+                  width: 80,
+                  height: 45,
+                  background: "#1a1f2e",
+                  borderRadius: 4,
+                  display: "grid",
+                  placeItems: "center",
+                  fontSize: 10,
+                  color: "#666",
+                }}
+              >
+                {videoTitle}
+              </div>
+              <div style={{ fontSize: 14, fontWeight: 600 }}>{videoTitle}.mp4</div>
             </div>
-            <div style={{fontSize:14,fontWeight:600}}>{videoTitle}.mp4</div>
           </div>
-        </div>
 
-        <div style={{padding:"12px 0 14px",borderBottom:"1px solid rgba(255,255,255,.08)"}}>
-          <div className="prep-label" style={{fontSize:13,opacity:.9,marginBottom:6}}>セッションID</div>
-          <div style={{display:"grid",gridTemplateColumns:"1fr auto",gap:10,alignItems:"center"}}>
-            <input className="xh-input" placeholder="例: session01" value={sessionId} onChange={(e)=>setSessionId(e.target.value)} style={{width:"100%",height:"clamp(40px,6.6vw,48px)",background:"#fff",color:"#111",borderRadius:6,border:"2px solid #111",padding:"0 12px"}}/>
-            <button className="xh-btn xh-login" onClick={()=>{ if(!sessionId.trim()){setError("セッションIDを入力してください");return;} setError(null); try{sessionStorage.setItem("sessionId",sessionId.trim());}catch{} }} style={{height:"clamp(42px,7vw,48px)",borderRadius:8,fontWeight:700,background:"#fff",color:"#111"}}>適用</button>
+          {/* 入力フィールド */}
+          <div style={{ marginBottom: 20 }}>
+            <div style={{ fontSize: 13, opacity: 0.9, marginBottom: 6 }}>セッションID</div>
+            <input
+              placeholder="例: session01"
+              value={sessionId}
+              onChange={(e) => setSessionId(e.target.value)}
+              style={{
+                width: "100%",
+                height: "clamp(40px, 6.6vw, 48px)",
+                background: "#fff",
+                color: "#111",
+                borderRadius: 6,
+                border: "2px solid #111",
+                padding: "0 12px",
+                fontSize: 15,
+              }}
+            />
           </div>
-        </div>
 
-        <div style={{padding:"12px 0 14px",borderBottom:"1px solid rgba(255,255,255,.08)"}}>
-          <div className="prep-label" style={{fontSize:13,opacity:.9,marginBottom:6}}>デバイスID（ハブID）</div>
-          <div style={{display:"grid",gridTemplateColumns:"1fr auto",gap:10,alignItems:"center"}}>
-            <input className="xh-input" placeholder="例: DH001" value={deviceHubId} onChange={(e)=>setDeviceHubId(e.target.value)} style={{width:"100%",height:"clamp(40px,6.6vw,48px)",background:"#fff",color:"#111",borderRadius:6,border:"2px solid #111",padding:"0 12px"}}/>
-            <button className="xh-btn xh-login" onClick={connectWS} disabled={isDeviceConnected || isDeviceConnecting} style={{height:"clamp(42px,7vw,48px)",borderRadius:8,fontWeight:700,background:"#fff",color:"#111",minWidth:120}}>{isDeviceConnecting?"接続中…":isDeviceConnected?"接続済み":"接続"}</button>
+          <div style={{ marginBottom: 20 }}>
+            <div style={{ fontSize: 13, opacity: 0.9, marginBottom: 6 }}>デバイスID（ハブID）</div>
+            <input
+              placeholder="例: DH001"
+              value={deviceHubId}
+              onChange={(e) => setDeviceHubId(e.target.value)}
+              style={{
+                width: "100%",
+                height: "clamp(40px, 6.6vw, 48px)",
+                background: "#fff",
+                color: "#111",
+                borderRadius: 6,
+                border: "2px solid #111",
+                padding: "0 12px",
+                fontSize: 15,
+              }}
+            />
           </div>
-          <div style={{marginTop:8,fontSize:12,opacity:.95,color:isDeviceConnected?"#79ff7a":"#fff"}}>{isDeviceConnected?"接続確認完了":(isDeviceConnecting?"接続確認中…":"未接続")}</div>
-        </div>
 
-        <div style={{padding:"12px 0 14px",borderBottom:"1px solid rgba(255,255,255,.08)"}}>
-          <div className="prep-label" style={{fontSize:13,opacity:.9,marginBottom:6}}>タイムラインJSON送信</div>
-          <div>
-            {isTimelineSent ? (
-              <div style={{fontSize:12,color:"#79ff7a"}}>✓ 送信完了</div>
-            ) : (
-              <TimelineUploadButton
-                sessionId={sessionId}
-                videoId={contentId}
-                onComplete={onTimelineComplete}
-                onError={onTimelineError}
-                onUploadingChange={(u)=>setTimelineUploading(u)}
-                className="xh-btn xh-login"
-              />
-            )}
+          {/* ステップボタン */}
+          <div style={{ display: "grid", gap: 10, marginBottom: 20 }}>
+            <PrepareStepItem label="1. セッションID" status={steps.session} onClick={handleSessionId} />
+            <PrepareStepItem label="2. デバイスID" status={steps.device} onClick={handleDeviceId} />
+            <PrepareStepItem label="3. 動画読み込み" status={steps.videoLoad} onClick={handleVideoLoad} />
+            <PrepareStepItem label="4. タイムライン送信" status={steps.timeline} onClick={handleTimeline} />
+            <PrepareStepItem label="5. デバイス動作確認" status={steps.deviceTest} onClick={handleDeviceTest} />
           </div>
-        </div>
 
-        <div style={{padding:"12px 0 14px",borderBottom:"1px solid rgba(255,255,255,.08)"}}>
-          <div className="prep-label" style={{fontSize:13,opacity:.9,marginBottom:6}}>デバイス動作確認</div>
-          <div>
-            {isDevicesTested ? (
-              <div style={{fontSize:12,color:"#79ff7a"}}>✓ 確認完了</div>
-            ) : (
-              <button className="xh-btn xh-login" onClick={handleDeviceTest} disabled={!isTimelineSent || devicesTesting} style={{height:"clamp(42px,7vw,48px)",borderRadius:8,fontWeight:700,background:"#fff",color:"#111",minWidth:160}}>
-                {devicesTesting?"テスト実行中…":"テスト実行"}
-              </button>
-            )}
-          </div>
-        </div>
+          {/* エラー表示 */}
+          {error && (
+            <div style={{ marginBottom: 14, fontSize: 12, color: "#ff9f9f" }}>⚠ {error}</div>
+          )}
 
-        {error && <div style={{marginTop:8,fontSize:12,color:"#ff9f9f"}}>⚠ {error}</div>}
-
-        <div style={{padding:"12px 0 0"}}>
-          <div className="prep-label" style={{fontSize:13,opacity:.9,marginBottom:6}}>準備完了後の開始</div>
-          <button className="xh-btn xh-login" onClick={handleStart} disabled={!allReady} style={{width:"100%",height:"clamp(42px,7vw,48px)",borderRadius:8,fontWeight:700,background:"#fff",color:"#111",marginBottom:10}}>
-            再生を開始する
+          {/* 再生開始ボタン */}
+          <button
+            onClick={handleStart}
+            disabled={!allReady}
+            style={{
+              width: "100%",
+              height: "clamp(46px, 7vw, 52px)",
+              borderRadius: 8,
+              fontWeight: 700,
+              fontSize: 16,
+              background: allReady ? "#4ade80" : "#333",
+              color: allReady ? "#000" : "#666",
+              border: "none",
+              cursor: allReady ? "pointer" : "not-allowed",
+              transition: "all 0.2s ease",
+              opacity: allReady ? 1 : 0.5,
+              marginBottom: 12,
+            }}
+          >
+            動画を再生する
           </button>
-          <button className="xh-btn" onClick={handleStart} style={{width:"100%",height:"clamp(38px,6vw,42px)",borderRadius:8,fontWeight:600,background:"rgba(74,144,226,0.2)",color:"#4a90e2",border:"1px solid #4a90e2"}}>
+
+          {/* テスト用: 準備スキップして再生画面へ */}
+          <button
+            onClick={() => {
+              const params = new URLSearchParams();
+              params.set("session", sessionId.trim());
+              if (deviceHubId.trim()) params.set("hub", deviceHubId.trim());
+              params.set("content", contentId);
+              navigate(`/player?${params.toString()}`);
+            }}
+            style={{
+              width: "100%",
+              height: "clamp(38px, 6vw, 42px)",
+              borderRadius: 8,
+              fontWeight: 600,
+              background: "rgba(74,144,226,0.2)",
+              color: "#4a90e2",
+              border: "1px solid #4a90e2",
+            }}
+          >
             テスト: 準備をスキップして再生画面へ
           </button>
         </div>
       </div>
-    </div>
+    </>
   );
 }
