@@ -10,9 +10,9 @@ import ProtectedRoute from "./components/ProtectedRoute";
 export default function App() {
   return (
     <Routes>
-      {/* 1. ログイン画面 */}
-      <Route path="/" element={<LoginPage />} />
-      <Route path="/login" element={<LoginPage />} />
+  {/* 1. 初期表示はHomePage（動画再生） */}
+  <Route path="/" element={<HomePage />} />
+  <Route path="/login" element={<LoginPage />} />
       
   {/* 2. 動画選択画面 */}
   <Route path="/select" element={<SelectPage />} />

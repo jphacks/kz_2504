@@ -172,11 +172,14 @@ export default function HomePage() {
             </button>
             <button
               className="xh-btn xh-btn--inverted"
-              onClick={() => navigate("/selectpage")}
+              onClick={() => {
+                try { sessionStorage.setItem("auth", "guest"); } catch {}
+                navigate("/selectpage");
+              }}
               disabled={busy}
               aria-disabled={busy}
             >
-              REGISTER
+              GUEST
             </button>
           </div>
         </div>
@@ -211,3 +214,14 @@ export default function HomePage() {
     </>
   );
 }
+
+  // 再生エラー時に原因を表示
+  function handleError(e: React.SyntheticEvent<HTMLVideoElement, Event>) {
+    const video = e.currentTarget;
+    const error = video.error;
+    if (error) {
+      console.error('logo.mp4再生エラー:', error.code, error.message || error);
+    } else {
+      console.error('logo.mp4再生エラー: 詳細不明');
+    }
+  }
