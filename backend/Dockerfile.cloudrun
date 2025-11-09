@@ -32,15 +32,10 @@ ENV HOST=0.0.0.0
 # Cloud Run用ポート
 EXPOSE 8080
 
-# ヘルスチェック（Cloud Run用）
+# ヘルスチェック（Cloud Run用）。$PORT を使うように修正しました。
 HEALTHCHECK --interval=60s --timeout=10s --start-period=10s --retries=2 \
-    CMD curl -f http://localhost:8080/api/health || exit 1
+    CMD curl -f http://localhost:$PORT/api/version || exit 1
 
-# プロダクション起動コマンド
-CMD exec uvicorn app.main:app \
-    --host $HOST \
-    --port $PORT \
-    --workers 1 \
-    --log-level info \
-    --access-log \
-    --no-use-colors
+# Entrypoint: JSON 配列で sh -c を使い、環境変数を展開して exec でプロセスを置換します。
+# これによりシグナルが正しく伝搬し、環境変数 ($PORT / $HOST) を動的に使えます。
+ENTRYPOINT ["sh", "-c", "exec uvicorn app.main:app --host ${HOST} --port ${PORT} --workers 1 --log-level info --access-log --no-use-colors"]

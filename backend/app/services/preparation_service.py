@@ -51,6 +51,21 @@ MOCK_VIDEO_INFO = {
 
 logger = logging.getLogger(__name__)
 
+# デバッグ用モックデータ
+MOCK_VIDEO_INFO = {
+    "demo1": {
+        "duration": 120.0,
+        "video_info": {"file_name": "demo1.mp4", "file_size_mb": 50.0}
+    }
+}
+
+MOCK_DEVICE_INFO = {
+    "test_device_premium": {
+        "device_name": "Premium Test Device",
+        "capabilities": ["VIBRATION", "WATER", "WIND", "FLASH", "COLOR"]
+    }
+}
+
 class PreparationService:
     """準備処理管理サービス"""
     
@@ -79,6 +94,12 @@ class PreparationService:
             準備処理状態
         """
         logger.info(f"準備処理開始: session={session_id}, video={video_id}, device={device_id}")
+        
+        # デバッグモードチェック
+        from app.config.settings import settings
+        if settings.should_skip_preparation():
+            logger.info(f"デバッグモード: 準備処理スキップ - {session_id}")
+            return await self._create_debug_ready_state(session_id, video_id, device_id)
         
         # 既存の準備処理確認
         if session_id in self.active_preparations and not force_restart:
@@ -610,8 +631,9 @@ class PreparationService:
     async def _transmit_sync_data_to_device(self, device_id: str, processed_data: Dict[str, Any], session_id: str) -> Dict[str, Any]:
         """デバイスハブへの同期データ送信"""
         try:
-            # デバイスハブのWebSocket URL構築 (実際の実装ではsettingsから取得)
-            device_hub_ws_url = f"ws://localhost:8002/device-hub/sync/{device_id}"
+            # 本番環境対応のWebSocket URL使用
+            from app.config.settings import settings
+            device_hub_ws_url = settings.get_device_websocket_url(session_id)
             
             # 送信用データ準備
             transmission_payload = {
@@ -628,8 +650,8 @@ class PreparationService:
             
             logger.info(f"デバイスハブへ同期データ送信開始: {device_id}, サイズ: {payload_size_kb:.1f}KB")
             
-            # 実際のWebSocket送信（今回はMock実装）
-            success = await self._mock_websocket_transmission(device_hub_ws_url, transmission_payload)
+            # マイコンへの実際のWebSocket送信
+            success = await self._production_websocket_transmission(session_id, device_id, transmission_payload)
             
             if success:
                 return {
@@ -670,10 +692,13 @@ class PreparationService:
             connect_timeout = 5.0  # 接続タイムアウト
             close_timeout = 3.0    # 切断タイムアウト
             
-            # SSL証明書検証を無効化（開発環境用）
+            # 本番環境では適切なSSL証明書検証を実行
             ssl_context = ssl.create_default_context()
-            ssl_context.check_hostname = False
-            ssl_context.verify_mode = ssl.CERT_NONE
+            # ssl_context.check_hostname = True  # デフォルト値（明示的設定不要）
+            # ssl_context.verify_mode = ssl.CERT_REQUIRED  # デフォルト値（明示的設定不要）
+            
+            # 本番環境のCloud Run証明書は自動的に信頼される
+            logger.info("本番環境SSL証明書検証: 有効")
             
             logger.info(f"デバイスハブWebSocket接続試行: {ws_url}")
             
@@ -725,9 +750,68 @@ class PreparationService:
         except Exception as e:
             logger.error(f"WebSocket送信エラー: {e}")
             return False
+
+    async def _production_websocket_transmission(self, session_id: str, device_id: str, payload: Dict[str, Any]) -> bool:
+        """本番環境WebSocket送信実装（マイコン統合用）"""
+        try:
+            # マイコンが準備処理APIから同期データを事前送信する新しいフロー
+            from app.api.playback_control import ws_manager
+            
+            # セッション内のデバイス接続を確認
+            device_connections = await self._get_device_connections(session_id)
+            
+            if not device_connections:
+                logger.warning(f"セッション {session_id} にアクティブなデバイス接続がありません")
+                return False
+            
+            # アクティブなマイコンに同期データ送信
+            success_count = 0
+            for connection_id in device_connections:
+                if connection_id.startswith("device_"):
+                    websocket = ws_manager.active_connections.get(connection_id)
+                    if websocket:
+                        try:
+                            # sync_data_bulk_transmission メッセージとして送信
+                            bulk_message = {
+                                "type": "sync_data_bulk_transmission",
+                                "session_id": session_id,
+                                "video_id": payload.get("sync_data", {}).get("video_id", "demo1"),
+                                "transmission_metadata": payload.get("metadata", {}),
+                                "sync_data": payload.get("sync_data", {})
+                            }
+                            
+                            await websocket.send_text(json.dumps(bulk_message))
+                            success_count += 1
+                            logger.info(f"マイコンへ同期データ送信成功: {connection_id}")
+                            
+                        except Exception as e:
+                            logger.error(f"マイコン送信エラー ({connection_id}): {e}")
+            
+            return success_count > 0
+            
+        except Exception as e:
+            logger.error(f"本番WebSocket送信エラー: {e}")
+            return False
+
+    async def _get_device_connections(self, session_id: str) -> List[str]:
+        """セッション内のマイコン接続一覧取得"""
+        try:
+            from app.api.playback_control import ws_manager
+            
+            device_connections = []
+            if session_id in ws_manager.session_connections:
+                for connection_id in ws_manager.session_connections[session_id]:
+                    if connection_id.startswith("device_"):
+                        if connection_id in ws_manager.active_connections:
+                            device_connections.append(connection_id)
+            
+            return device_connections
+        except Exception as e:
+            logger.error(f"デバイス接続取得エラー: {e}")
+            return []
     
     async def _notify_progress(
-        self, session_id: str, component: str, progress: int, 
+        self, session_id: str, component: str, progress: int,
         status: PreparationStatus, message: str
     ):
         """進捗通知"""
@@ -747,5 +831,79 @@ class PreparationService:
                 except Exception as e:
                     logger.error(f"進捗コールバックエラー: {e}")
 
-# グローバルインスタンス
+    async def _create_debug_ready_state(
+        self, session_id: str, video_id: str, device_id: str
+    ) -> PreparationState:
+        """デバッグ用即座Ready状態作成"""
+        logger.info(f"デバッグモード: 即座Ready状態作成 - {session_id}")
+        
+        # モック動画情報
+        video = MOCK_VIDEO_INFO.get(video_id, {
+            "duration": 120.0,
+            "video_info": {"file_name": f"{video_id}.mp4", "file_size_mb": 50.0}
+        })
+        
+        # モックデバイス情報
+        device_info = MOCK_DEVICE_INFO.get("test_device_premium", {
+            "device_name": "Debug Device",
+            "capabilities": ["VIBRATION", "WATER", "WIND", "FLASH", "COLOR"]
+        })
+        
+        # Ready状態で初期化
+        prep_state = PreparationState(
+            session_id=session_id,
+            video_id=video_id,
+            device_id=device_id,
+            overall_status=PreparationStatus.COMPLETED,
+            overall_progress=100,
+            ready_for_playback=True,
+            started_at=datetime.now(),
+            video_preparation=VideoPreparationInfo(
+                video_url=f"/api/videos/{video_id}",
+                thumbnail_url=f"/api/videos/{video_id}/thumbnail",
+                duration_seconds=video["duration"],
+                file_size_mb=video["video_info"]["file_size_mb"],
+                preload_progress=100,
+                preparation_status=PreparationStatus.COMPLETED
+            ),
+            sync_data_preparation=SyncDataPreparationInfo(
+                sync_data_url=f"/assets/sync-data/{video_id}.json",
+                file_size_kb=30.0,
+                effects_count=150,
+                required_actuators=[ActuatorType.VIBRATION, ActuatorType.WATER, ActuatorType.WIND],
+                download_progress=100,
+                parsing_progress=100,
+                preparation_status=PreparationStatus.COMPLETED,
+                transmission_result=SyncDataTransmissionResult(
+                    success=True,
+                    transmitted_at=datetime.now(),
+                    file_size_kb=30.0,
+                    checksum="debug123",
+                    response_time_ms=10
+                )
+            ),
+            device_communication=DeviceCommunicationInfo(
+                device_id=device_id,
+                device_name=device_info["device_name"],
+                connection_status=PreparationStatus.COMPLETED,
+                websocket_connected=True,
+                last_ping_ms=5,
+                supported_actuators=[ActuatorType(cap) for cap in device_info["capabilities"]
+                                   if cap in [act.value for act in ActuatorType]],
+                actuator_tests={
+                    ActuatorType.VIBRATION: ActuatorTestResult(
+                        status=ActuatorTestStatus.PASSED,
+                        tested_at=datetime.now(),
+                        response_time_ms=15
+                    )
+                }
+            ),
+            completed_at=datetime.now()
+        )
+        
+        # アクティブ準備処理に追加
+        self.active_preparations[session_id] = prep_state
+        
+        logger.info(f"デバッグモード: Ready状態作成完了 - {session_id}")
+        return prep_state# グローバルインスタンス
 preparation_service = PreparationService()

@@ -2,8 +2,9 @@ import WebSocket from 'ws';
 import fs from 'node:fs/promises';
 import path from 'node:path';
 
-const DEFAULT_API = 'https://fdx-home-backend-api-47te6uxkwa-an.a.run.app';
-const DEFAULT_WS  = 'wss://fdx-home-backend-api-47te6uxkwa-an.a.run.app';
+// デフォルトURLはプレースホルダー（実際のURLは環境変数で指定）
+const DEFAULT_API = 'https://your-backend-api.run.app';
+const DEFAULT_WS  = 'wss://your-backend-api.run.app';
 
 const API_BASE = process.env.VITE_BACKEND_API_URL || DEFAULT_API;
 const WS_BASE  = process.env.VITE_BACKEND_WS_URL || DEFAULT_WS;

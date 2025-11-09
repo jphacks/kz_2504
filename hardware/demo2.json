@@ -1,0 +1,871 @@
+{
+  "events": [
+    {
+      "t": 0.0,
+      "action": "caption",
+      "text": "巨大なロボットと怪獣が対峙しているシーン。周囲には水が広がり、緊張感が漂っている。"
+    },
+    {
+      "t": 0.0,
+      "action": "shot",
+      "effect": "water",
+      "mode": "burst"
+    },
+    {
+      "t": 0.0,
+      "action": "start",
+      "effect": "vibration",
+      "mode": "heartbeat"
+    },
+    {
+      "t": 0.0,
+      "action": "start",
+      "effect": "color",
+      "mode": "blue"
+    },
+    {
+      "t": 0.5,
+      "action": "caption",
+      "text": "ロボットと怪獣が対峙する瞬間。水面が揺れ、戦闘の予感が高まる。"
+    },
+    {
+      "t": 0.5,
+      "action": "shot",
+      "effect": "water",
+      "mode": "burst"
+    },
+    {
+      "t": 1.0,
+      "action": "caption",
+      "text": "ロボットの顔がクローズアップされ、緊張感が増す。目の部分が青く光っている。"
+    },
+    {
+      "t": 1.5,
+      "action": "caption",
+      "text": "怪獣の顔がクローズアップされ、鋭い目つきと恐ろしい牙が印象的。炎が見えそうな雰囲気を醸し出している。"
+    },
+    {
+      "t": 1.5,
+      "action": "stop",
+      "effect": "color",
+      "mode": "blue"
+    },
+    {
+      "t": 1.5,
+      "action": "start",
+      "effect": "flash",
+      "mode": "steady"
+    },
+    {
+      "t": 1.5,
+      "action": "start",
+      "effect": "color",
+      "mode": "red"
+    },
+    {
+      "t": 1.5,
+      "action": "start",
+      "effect": "vibration",
+      "mode": "long"
+    },
+    {
+      "t": 2.0,
+      "action": "caption",
+      "text": "怪獣の顔がさらに近づき、迫力が増している。周囲の雰囲気が緊迫している。"
+    },
+    {
+      "t": 2.5,
+      "action": "caption",
+      "text": "ロボットが何かを抱えているシーン。周囲の状況が戦闘に向かっていることを示唆している。"
+    },
+    {
+      "t": 2.5,
+      "action": "stop",
+      "effect": "color",
+      "mode": "red"
+    },
+    {
+      "t": 2.5,
+      "action": "stop",
+      "effect": "vibration",
+      "mode": "heartbeat"
+    },
+    {
+      "t": 2.5,
+      "action": "stop",
+      "effect": "vibration",
+      "mode": "long"
+    },
+    {
+      "t": 3.0,
+      "action": "caption",
+      "text": "ロボットと怪獣が激しく対峙している。水面が波立ち、戦闘の開始を予感させる。"
+    },
+    {
+      "t": 3.0,
+      "action": "shot",
+      "effect": "water",
+      "mode": "burst"
+    },
+    {
+      "t": 3.0,
+      "action": "stop",
+      "effect": "flash",
+      "mode": "steady"
+    },
+    {
+      "t": 3.0,
+      "action": "start",
+      "effect": "color",
+      "mode": "blue"
+    },
+    {
+      "t": 3.5,
+      "action": "caption",
+      "text": "ロボットの拳が怪獣に当たる瞬間。火花が散り、衝突の迫力が伝わる。"
+    },
+    {
+      "t": 3.5,
+      "action": "stop",
+      "effect": "color",
+      "mode": "blue"
+    },
+    {
+      "t": 3.5,
+      "action": "start",
+      "effect": "flash",
+      "mode": "burst"
+    },
+    {
+      "t": 3.5,
+      "action": "start",
+      "effect": "vibration",
+      "mode": "strong"
+    },
+    {
+      "t": 3.5,
+      "action": "start",
+      "effect": "color",
+      "mode": "red"
+    },
+    {
+      "t": 4.0,
+      "action": "caption",
+      "text": "ロボットの拳が怪獣に当たる瞬間。火花が飛び散り、衝撃が感じられる。"
+    },
+    {
+      "t": 4.5,
+      "action": "caption",
+      "text": "戦闘の準備をしている兵士が映し出され、緊張感が漂う。背景にはネオンが輝いている。"
+    },
+    {
+      "t": 4.5,
+      "action": "stop",
+      "effect": "flash",
+      "mode": "burst"
+    },
+    {
+      "t": 4.5,
+      "action": "stop",
+      "effect": "vibration",
+      "mode": "strong"
+    },
+    {
+      "t": 4.5,
+      "action": "stop",
+      "effect": "color",
+      "mode": "red"
+    },
+    {
+      "t": 4.5,
+      "action": "start",
+      "effect": "vibration",
+      "mode": "heartbeat"
+    },
+    {
+      "t": 5.0,
+      "action": "caption",
+      "text": "戦士が素早く動き、赤い光の剣を振るうシーン。動きの速さが強調されている。"
+    },
+    {
+      "t": 5.0,
+      "action": "start",
+      "effect": "color",
+      "mode": "red"
+    },
+    {
+      "t": 5.5,
+      "action": "caption",
+      "text": "水たまりに映る街の景色。静かな雰囲気が漂い、次の動きへの期待感が高まる。"
+    },
+    {
+      "t": 5.5,
+      "action": "shot",
+      "effect": "water",
+      "mode": "burst"
+    },
+    {
+      "t": 5.5,
+      "action": "stop",
+      "effect": "color",
+      "mode": "red"
+    },
+    {
+      "t": 5.5,
+      "action": "start",
+      "effect": "color",
+      "mode": "blue"
+    },
+    {
+      "t": 6.0,
+      "action": "caption",
+      "text": "空中で赤い光を放つ靴が映し出され、何か大きな動きが始まる予感を感じさせる。"
+    },
+    {
+      "t": 6.0,
+      "action": "start",
+      "effect": "color",
+      "mode": "red"
+    },
+    {
+      "t": 6.5,
+      "action": "caption",
+      "text": "戦士が空中で剣を振りかざし、周囲の景色が広がる。戦闘のクライマックスが近づいている。"
+    },
+    {
+      "t": 6.5,
+      "action": "stop",
+      "effect": "color",
+      "mode": "red"
+    },
+    {
+      "t": 7.0,
+      "action": "caption",
+      "text": "水面に映る影が見え、静けさの中に潜む緊張感が漂っている。"
+    },
+    {
+      "t": 7.0,
+      "action": "shot",
+      "effect": "water",
+      "mode": "burst"
+    },
+    {
+      "t": 7.5,
+      "action": "caption",
+      "text": "戦闘機に乗っており、激しい戦闘の準備をしている。周囲には暗い雲が広がり、緊張感が漂っている。"
+    },
+    {
+      "t": 7.5,
+      "action": "stop",
+      "effect": "color",
+      "mode": "blue"
+    },
+    {
+      "t": 7.5,
+      "action": "start",
+      "effect": "vibration",
+      "mode": "long"
+    },
+    {
+      "t": 8.0,
+      "action": "caption",
+      "text": "戦闘機に乗っており、赤い光の剣を振りかざして敵に向かって攻撃を仕掛けている。背景では炎が見える。"
+    },
+    {
+      "t": 8.0,
+      "action": "stop",
+      "effect": "vibration",
+      "mode": "heartbeat"
+    },
+    {
+      "t": 8.0,
+      "action": "start",
+      "effect": "flash",
+      "mode": "steady"
+    },
+    {
+      "t": 8.0,
+      "action": "start",
+      "effect": "color",
+      "mode": "red"
+    },
+    {
+      "t": 8.5,
+      "action": "caption",
+      "text": "船の窓から外を見ており、雷が光る中、遠くに大きな船が見える。波が高く、緊迫した状況が感じられる。"
+    },
+    {
+      "t": 8.5,
+      "action": "shot",
+      "effect": "water",
+      "mode": "burst"
+    },
+    {
+      "t": 8.5,
+      "action": "start",
+      "effect": "flash",
+      "mode": "strobe"
+    },
+    {
+      "t": 9.0,
+      "action": "caption",
+      "text": "船の中で、男が驚いた表情をしている。周囲には仲間たちがいて、何か重要なことが起こっている様子。"
+    },
+    {
+      "t": 9.0,
+      "action": "stop",
+      "effect": "color",
+      "mode": "red"
+    },
+    {
+      "t": 9.0,
+      "action": "stop",
+      "effect": "flash",
+      "mode": "strobe"
+    },
+    {
+      "t": 9.5,
+      "action": "caption",
+      "text": "船の中で、男が叫んでいる。彼の表情からは緊迫感と指揮を取る決意が感じられる。"
+    },
+    {
+      "t": 9.5,
+      "action": "shot",
+      "effect": "water",
+      "mode": "burst"
+    },
+    {
+      "t": 9.5,
+      "action": "stop",
+      "effect": "flash",
+      "mode": "steady"
+    },
+    {
+      "t": 9.5,
+      "action": "start",
+      "effect": "vibration",
+      "mode": "strong"
+    },
+    {
+      "t": 9.5,
+      "action": "start",
+      "effect": "wind",
+      "mode": "burst"
+    },
+    {
+      "t": 10.0,
+      "action": "caption",
+      "text": "船の中で、男が火花を散らしながら大砲の準備をしている。周囲は雨が降り、緊張感が高まっている。"
+    },
+    {
+      "t": 10.0,
+      "action": "shot",
+      "effect": "water",
+      "mode": "burst"
+    },
+    {
+      "t": 10.0,
+      "action": "start",
+      "effect": "flash",
+      "mode": "burst"
+    },
+    {
+      "t": 10.0,
+      "action": "start",
+      "effect": "color",
+      "mode": "red"
+    },
+    {
+      "t": 10.0,
+      "action": "start",
+      "effect": "vibration",
+      "mode": "heartbeat"
+    },
+    {
+      "t": 10.5,
+      "action": "caption",
+      "text": "船の中で、火花が散っている。大砲の準備が進められ、戦闘の気配が漂っている。"
+    },
+    {
+      "t": 10.5,
+      "action": "stop",
+      "effect": "wind",
+      "mode": "burst"
+    },
+    {
+      "t": 11.0,
+      "action": "caption",
+      "text": "大砲の弾が空中を飛んでいる。周囲には激しい雨と波が立っており、緊迫した状況が続いている。"
+    },
+    {
+      "t": 11.0,
+      "action": "shot",
+      "effect": "water",
+      "mode": "burst"
+    },
+    {
+      "t": 11.0,
+      "action": "stop",
+      "effect": "flash",
+      "mode": "burst"
+    },
+    {
+      "t": 11.0,
+      "action": "stop",
+      "effect": "vibration",
+      "mode": "long"
+    },
+    {
+      "t": 11.0,
+      "action": "stop",
+      "effect": "vibration",
+      "mode": "strong"
+    },
+    {
+      "t": 11.0,
+      "action": "stop",
+      "effect": "color",
+      "mode": "red"
+    },
+    {
+      "t": 11.0,
+      "action": "start",
+      "effect": "color",
+      "mode": "blue"
+    },
+    {
+      "t": 11.5,
+      "action": "caption",
+      "text": "船が波を切り裂きながら進んでいる。水しぶきが上がり、迫力のあるシーンが展開されている。"
+    },
+    {
+      "t": 11.5,
+      "action": "shot",
+      "effect": "water",
+      "mode": "burst"
+    },
+    {
+      "t": 11.5,
+      "action": "start",
+      "effect": "vibration",
+      "mode": "long"
+    },
+    {
+      "t": 12.0,
+      "action": "caption",
+      "text": "船が大きな水しぶきを上げて進んでいる。周囲には暗い雲が広がり、緊張感が漂っている。"
+    },
+    {
+      "t": 12.0,
+      "action": "shot",
+      "effect": "water",
+      "mode": "burst"
+    },
+    {
+      "t": 12.5,
+      "action": "caption",
+      "text": "船の中で、男たちが大砲を操作している。周囲は雨が降り、緊迫した状況が続いている。"
+    },
+    {
+      "t": 12.5,
+      "action": "shot",
+      "effect": "water",
+      "mode": "burst"
+    },
+    {
+      "t": 12.5,
+      "action": "stop",
+      "effect": "vibration",
+      "mode": "heartbeat"
+    },
+    {
+      "t": 12.5,
+      "action": "stop",
+      "effect": "color",
+      "mode": "blue"
+    },
+    {
+      "t": 13.0,
+      "action": "caption",
+      "text": "大砲が発射され、火花が散っている。周囲には緊張感が漂い、戦闘の準備が整っている。"
+    },
+    {
+      "t": 13.0,
+      "action": "stop",
+      "effect": "vibration",
+      "mode": "long"
+    },
+    {
+      "t": 13.0,
+      "action": "start",
+      "effect": "flash",
+      "mode": "burst"
+    },
+    {
+      "t": 13.0,
+      "action": "start",
+      "effect": "vibration",
+      "mode": "strong"
+    },
+    {
+      "t": 13.0,
+      "action": "start",
+      "effect": "vibration",
+      "mode": "heartbeat"
+    },
+    {
+      "t": 13.0,
+      "action": "start",
+      "effect": "color",
+      "mode": "red"
+    },
+    {
+      "t": 13.5,
+      "action": "caption",
+      "text": "ランプが揺れている。周囲は薄暗く、緊迫した状況が続いている。"
+    },
+    {
+      "t": 13.5,
+      "action": "stop",
+      "effect": "flash",
+      "mode": "burst"
+    },
+    {
+      "t": 14.0,
+      "action": "caption",
+      "text": "男が大砲を操作している。周囲には仲間たちがいて、戦闘の準備が進められている。"
+    },
+    {
+      "t": 14.0,
+      "action": "stop",
+      "effect": "vibration",
+      "mode": "strong"
+    },
+    {
+      "t": 14.0,
+      "action": "stop",
+      "effect": "color",
+      "mode": "red"
+    },
+    {
+      "t": 14.5,
+      "action": "caption",
+      "text": "男が大砲を押している。周囲には仲間たちがいて、緊迫した状況が続いている。"
+    },
+    {
+      "t": 15.0,
+      "action": "caption",
+      "text": "キャノンを操作している人物が映っており、戦闘の準備をしている。周囲には緊張感が漂っている。"
+    },
+    {
+      "t": 15.5,
+      "action": "caption",
+      "text": "二機の戦闘機が空を飛び、エンジンからの排気が鮮やかに描かれている。飛行中のスピード感が感じられる。"
+    },
+    {
+      "t": 15.5,
+      "action": "stop",
+      "effect": "vibration",
+      "mode": "heartbeat"
+    },
+    {
+      "t": 15.5,
+      "action": "start",
+      "effect": "wind",
+      "mode": "long"
+    },
+    {
+      "t": 15.5,
+      "action": "start",
+      "effect": "vibration",
+      "mode": "long"
+    },
+    {
+      "t": 15.5,
+      "action": "start",
+      "effect": "color",
+      "mode": "blue"
+    },
+    {
+      "t": 16.0,
+      "action": "caption",
+      "text": "操縦桿を握る手が映し出され、緊張感が高まる。戦闘機の操縦をしていることが伝わる。"
+    },
+    {
+      "t": 16.0,
+      "action": "start",
+      "effect": "vibration",
+      "mode": "heartbeat"
+    },
+    {
+      "t": 16.5,
+      "action": "caption",
+      "text": "戦闘機の側面が映り、空を飛ぶ姿が美しい。エンジンの排気が力強く噴出している。"
+    },
+    {
+      "t": 16.5,
+      "action": "stop",
+      "effect": "vibration",
+      "mode": "long"
+    },
+    {
+      "t": 17.0,
+      "action": "caption",
+      "text": "戦闘機が空を飛びながら急旋回している。スピード感と迫力が感じられる。"
+    },
+    {
+      "t": 17.0,
+      "action": "start",
+      "effect": "vibration",
+      "mode": "long"
+    },
+    {
+      "t": 17.5,
+      "action": "caption",
+      "text": "戦闘機が急降下している瞬間が捉えられている。動きの激しさが強調されている。"
+    },
+    {
+      "t": 17.5,
+      "action": "stop",
+      "effect": "wind",
+      "mode": "long"
+    },
+    {
+      "t": 17.5,
+      "action": "stop",
+      "effect": "color",
+      "mode": "blue"
+    },
+    {
+      "t": 18.0,
+      "action": "caption",
+      "text": "戦闘機が空中で急旋回し、排気が後ろに流れている。スリリングな瞬間が演出されている。"
+    },
+    {
+      "t": 18.0,
+      "action": "stop",
+      "effect": "vibration",
+      "mode": "long"
+    },
+    {
+      "t": 18.0,
+      "action": "start",
+      "effect": "color",
+      "mode": "blue"
+    },
+    {
+      "t": 18.5,
+      "action": "caption",
+      "text": "排気の流れが近くで映し出され、戦闘機の動きが強調されている。緊迫感が漂う。"
+    },
+    {
+      "t": 18.5,
+      "action": "stop",
+      "effect": "vibration",
+      "mode": "heartbeat"
+    },
+    {
+      "t": 18.5,
+      "action": "start",
+      "effect": "vibration",
+      "mode": "long"
+    },
+    {
+      "t": 19.0,
+      "action": "caption",
+      "text": "空を見上げる視点から、戦闘機が飛び去る様子が描かれている。美しい空の色合いが印象的。"
+    },
+    {
+      "t": 19.5,
+      "action": "caption",
+      "text": "雲海が広がる美しい空の景色が映し出されている。静けさと壮大さが感じられる。"
+    },
+    {
+      "t": 19.5,
+      "action": "stop",
+      "effect": "vibration",
+      "mode": "long"
+    },
+    {
+      "t": 20.0,
+      "action": "caption",
+      "text": "雲の上からの視点で、空の色合いが変わる様子が描かれている。幻想的な雰囲気が漂う。"
+    },
+    {
+      "t": 20.5,
+      "action": "caption",
+      "text": "高度計のディスプレイが映し出され、飛行の状況が示されている。緊張感が高まる。"
+    },
+    {
+      "t": 20.5,
+      "action": "stop",
+      "effect": "color",
+      "mode": "blue"
+    },
+    {
+      "t": 20.5,
+      "action": "start",
+      "effect": "vibration",
+      "mode": "heartbeat"
+    },
+    {
+      "t": 21.0,
+      "action": "caption",
+      "text": "暗い森の中に恐竜が現れ、迫力ある姿が映し出されている。緊張感が漂う。"
+    },
+    {
+      "t": 21.0,
+      "action": "start",
+      "effect": "color",
+      "mode": "green"
+    },
+    {
+      "t": 21.5,
+      "action": "caption",
+      "text": "恐竜が近づいてくる様子が捉えられ、観客に迫る恐怖感が伝わる。"
+    },
+    {
+      "t": 22.0,
+      "action": "caption",
+      "text": "恐竜がさらに近づき、周囲の物体との対比でその大きさが強調されている。"
+    },
+    {
+      "t": 22.0,
+      "action": "stop",
+      "effect": "color",
+      "mode": "green"
+    },
+    {
+      "t": 22.5,
+      "action": "caption",
+      "text": "恐竜が近づいてきており、緊迫感が漂っている。周囲は暗く、木々が背景に見える。"
+    },
+    {
+      "t": 23.0,
+      "action": "caption",
+      "text": "恐竜がさらに近づき、迫力ある姿が強調されている。周囲の環境が不気味さを増している。"
+    },
+    {
+      "t": 23.0,
+      "action": "start",
+      "effect": "vibration",
+      "mode": "heartbeat"
+    },
+    {
+      "t": 23.5,
+      "action": "caption",
+      "text": "恐竜の表情がより明確に見え、威圧感が増している。周囲の障害物が恐竜の大きさを際立たせている。"
+    },
+    {
+      "t": 24.0,
+      "action": "caption",
+      "text": "恐竜がこちらを見つめており、緊張感が高まっている。背景の暗さが恐怖感を演出している。"
+    },
+    {
+      "t": 24.5,
+      "action": "caption",
+      "text": "恐竜の顔がさらに近づき、恐怖の瞬間が迫っている。周囲の障害物が恐竜の存在感を強調している。"
+    },
+    {
+      "t": 25.0,
+      "action": "caption",
+      "text": "恐竜がこちらに向かって吠えようとしている瞬間。迫力あるシーンが展開されている。"
+    },
+    {
+      "t": 25.5,
+      "action": "caption",
+      "text": "恐竜が吠え、口が大きく開いている。周囲に緊張感が漂い、恐怖が増している。"
+    },
+    {
+      "t": 25.5,
+      "action": "start",
+      "effect": "vibration",
+      "mode": "strong"
+    },
+    {
+      "t": 25.5,
+      "action": "shot",
+      "effect": "water",
+      "mode": "burst"
+    },
+    {
+      "t": 25.5,
+      "action": "start",
+      "effect": "wind",
+      "mode": "long"
+    },
+    {
+      "t": 26.0,
+      "action": "caption",
+      "text": "恐竜の口が開いたまま、迫力のあるシーンが続いている。周囲の暗さが恐怖感を引き立てている。"
+    },
+    {
+      "t": 26.5,
+      "action": "caption",
+      "text": "恐竜の口が開いたまま、さらに近づいてきている。緊迫した瞬間が続いている。"
+    },
+    {
+      "t": 26.5,
+      "action": "stop",
+      "effect": "vibration",
+      "mode": "strong"
+    },
+    {
+      "t": 26.5,
+      "action": "stop",
+      "effect": "wind",
+      "mode": "long"
+    },
+    {
+      "t": 27.0,
+      "action": "caption",
+      "text": "4DX体験のロゴが表示され、体感型エンターテインメントの始まりを告げている。"
+    },
+    {
+      "t": 27.5,
+      "action": "caption",
+      "text": "4DX体験のロゴが強調され、視覚的なインパクトを与えている。"
+    },
+    {
+      "t": 28.0,
+      "action": "caption",
+      "text": "4DX体験のロゴが表示され、期待感が高まる。"
+    },
+    {
+      "t": 28.5,
+      "action": "stop",
+      "effect": "vibration",
+      "mode": "heartbeat"
+    },
+    {
+      "t": 28.5,
+      "action": "caption",
+      "text": "4DX体験のロゴが再び表示され、視覚的な印象を強めている。"
+    },
+    {
+      "t": 29.0,
+      "action": "caption",
+      "text": "4DX体験のロゴが最後に表示され、体感型エンターテインメントの締めくくりを示している。"
+    },
+    {
+      "t": 29.5,
+      "action": "caption",
+      "text": "4DX体験のロゴが消え、体験が終了したことを示している。"
+    },
+    {
+      "t": 30.0,
+      "action": "caption",
+      "text": "4DX体験のロゴが表示され、視覚的にインパクトを与えている。"
+    },
+    {
+      "t": 30.5,
+      "action": "caption",
+      "text": "ロゴが少し変化し、視覚的な興味を引く演出が行われている。"
+    },
+    {
+      "t": 31.0,
+      "action": "caption",
+      "text": "画面が完全に黒くなり、次のシーンへの期待感が高まっている。"
+    }
+  ]
+}
