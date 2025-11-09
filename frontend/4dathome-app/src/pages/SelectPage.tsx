@@ -14,10 +14,7 @@ export default function SelectPage() {
     {
       title: "今熱い！",
       items: [
-        { id: "demo2", rank: 1, thumb: "/thumbs/demo2.jpeg", title: "Demo 1" },
-        { id: "demo3", rank: 2, thumb: "/thumbs/demo3.jpeg", title: "Demo 2" },
-        { id: "action-3", rank: 3, thumb: "/thumbs/action-3.jpeg", title: "Action 3" },
-        { id: "horror-1", rank: 4, thumb: "/thumbs/horror-1.jpeg", title: "Horror 1" },
+        { id: "demo2", rank: 1, thumb: "/thumbs/demo2.jpeg", title: "Demo 2" },
       ],
     },
     {
