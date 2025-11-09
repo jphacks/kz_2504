@@ -26,3 +26,8 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+frontend/4dathome-app/public/video/*.mp4
+frontend/4dathome-app/public/video/*.mp4
+[frontend/4dathome-app/public/video/demo*.mp4]
+[frontend/4dathome-app/public/thumbs/demo*.jpeg]
+[frontend/4dathome-app/public/json/demo*.json]

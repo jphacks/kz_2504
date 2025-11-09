@@ -59,7 +59,7 @@ export default function PairingPage() {
         }
 
         .xh-root{ position: fixed; inset:0; color:#fff; }
-        .xh-bg{ position:absolute; inset:0; background:url('/PairingPage.jpeg') center/cover no-repeat fixed; }
+        .xh-bg{ position:absolute; inset:0; background:url('/public/assets/hero/main.jpg') center/cover no-repeat fixed; }
         .xh-shade{ position:absolute; inset:0; background: radial-gradient(80% 70% at 50% 30%, transparent 0%, rgba(0,0,0,.35) 60%, rgba(0,0,0,.55) 100%); }
 
         .xh-top{

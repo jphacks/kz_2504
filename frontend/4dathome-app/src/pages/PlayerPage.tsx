@@ -1,8 +1,9 @@
 // src/pages/PlayerPage.tsx
 import { useEffect, useMemo, useRef, useState } from "react";
-import { useLocation } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import { BACKEND_API_URL, BACKEND_WS_URL } from "../config/backend";
 import { playbackApi } from "../services/endpoints";
+import EffectStatusPanel from "../components/EffectStatusPanel";
 
 
 type SyncState = "play" | "pause" | "seeking" | "seeked";
@@ -43,6 +44,7 @@ const SEEK_SYNC_INTERVAL_MS = Number(import.meta.env.VITE_SEEK_SYNC_INTERVAL_MS)
 
 export default function PlayerPage() {
   const { search } = useLocation();
+  const navigate = useNavigate();
   const q = useMemo(() => new URLSearchParams(search), [search]);
 
   const contentId = q.get("content");
@@ -99,6 +101,16 @@ export default function PlayerPage() {
   const [connected, setConnected] = useState(false);
   const [wsError, setWsError] = useState<string | null>(null);
   const [connInfo, setConnInfo] = useState<string | null>(null);
+
+  // ★ コントロールUIの表示/非表示
+  const [controlsVisible, setControlsVisible] = useState(false);
+  const hideTimerRef = useRef<number | null>(null);
+
+  // ★ エフェクトとキャプションの表示/非表示
+  const [effectsVisible, setEffectsVisible] = useState(true);
+
+  // ★ 動画終了フラグ
+  const [videoEnded, setVideoEnded] = useState(false);
 
   // ★ ストップ信号を送信済みかどうかのフラグ
   const stopSentRef = useRef(false);
@@ -912,6 +924,33 @@ export default function PlayerPage() {
     connectWS();
   }, [sessionId]);
 
+  /* ====== 停止命令送信（ページ離脱時） ====== */
+  const sendPauseSync = () => {
+    const v = videoRef.current;
+    if (!v) return;
+    
+    const currentTime = v.currentTime || 0;
+    const duration = v.duration || 0;
+    
+    const msg: OutMsg = {
+      type: "sync",
+      state: "pause",
+      time: currentTime,
+      duration: duration,
+      ts: Date.now()
+    };
+    
+    // WebSocketが開いている場合のみ送信
+    if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
+      try {
+        wsRef.current.send(JSON.stringify(msg));
+        console.log("🛑 [ページ離脱] pause sync sent", { currentTime, duration });
+      } catch (e) {
+        console.warn("⚠️ [ページ離脱] pause sync failed", e);
+      }
+    }
+  };
+
   /* ====== WebSocket クリーンアップ ====== */
   useEffect(() => {
     // コンポーネントマウント時
@@ -920,6 +959,10 @@ export default function PlayerPage() {
     // コンポーネントアンマウント時にWebSocket接続をクリーンアップ
     return () => {
       console.log("[player-ws] cleanup on unmount");
+      
+      // ★ ページ離脱時に停止命令を送信
+      sendPauseSync();
+      
       isMountedRef.current = false; // アンマウントフラグを設定
       if (wsRef.current) {
         try {
@@ -930,8 +973,39 @@ export default function PlayerPage() {
         wsRef.current = null;
       }
       stopSyncLoop();
+      
+      // ★ hideTimer のクリーンアップ
+      if (hideTimerRef.current) {
+        window.clearTimeout(hideTimerRef.current);
+      }
     };
   }, []);
+
+  /* ====== beforeunload（タブクローズ・リロード時）の対応 ====== */
+  useEffect(() => {
+    const handleBeforeUnload = () => {
+      console.log("[beforeunload] sending pause sync");
+      sendPauseSync();
+    };
+
+    window.addEventListener("beforeunload", handleBeforeUnload);
+    return () => {
+      window.removeEventListener("beforeunload", handleBeforeUnload);
+    };
+  }, []);
+
+  /* ====== マウスムーブハンドラ（コントロール自動表示/非表示） ====== */
+  const handleMouseMove: React.MouseEventHandler<HTMLDivElement> = () => {
+    setControlsVisible(true);
+
+    if (hideTimerRef.current) {
+      window.clearTimeout(hideTimerRef.current);
+    }
+
+    hideTimerRef.current = window.setTimeout(() => {
+      setControlsVisible(false);
+    }, 2500); // 2.5秒後に非表示
+  };
 
   return (
     <div className="vp-root-wrapper">
@@ -943,6 +1017,7 @@ export default function PlayerPage() {
         }
         .vp{ position:fixed; inset:0; background:#000; color:#fff; font-family: system-ui,-apple-system,Segoe UI,Roboto,"Noto Sans JP",sans-serif; }
         .vp-outer{ position:relative; width:100%; height:100%; overflow:hidden; }
+        
         .vp-video{ position:absolute; inset:0; width:100%; height:100%; object-fit:contain; background:#000; display:block; }
 
         .vp-loader{ position:absolute; inset:0; display:grid; place-items:center; z-index:6; pointer-events:none; transition: opacity .18s ease; }
@@ -956,23 +1031,69 @@ export default function PlayerPage() {
         .vp-outer:hover .vp-bar, .vp-outer:hover .vp-fill,
         .vp-progress.dragging .vp-bar, .vp-progress.dragging .vp-fill{ height:6px; bottom:4px; }
 
-        .vp-hud{ position:absolute; inset:0; display:grid; grid-template-columns:1fr auto 1fr; align-items:center; gap:var(--hud-gap); z-index:3; opacity:0; transition:opacity .18s ease; pointer-events:none; }
-        .vp-outer:hover .vp-hud, .vp.touch .vp-hud{ opacity:1; }
+        .vp-hud{ position:absolute; inset:0; display:grid; grid-template-columns:1fr auto 1fr; align-items:center; gap:var(--hud-gap); z-index:3; pointer-events:none; transition:opacity .3s ease; }
+        .vp-hud.visible{ opacity:1; }
+        .vp-hud.hidden{ opacity:0; pointer-events:none; }
+        /* TODO: モバイル環境ではホバーできないため、@media (pointer: coarse) で常時表示にする対応が必要 */
         .vp-circle{ width:var(--hud-size); height:var(--hud-size); border-radius:999px; background:rgba(0,0,0,.35);
           border:1px solid rgba(255,255,255,.2); display:grid; place-items:center; pointer-events:auto; cursor:pointer;
           transition: transform .1s ease, background .2s ease, border-color .2s ease; margin-inline:auto; }
         .vp-circle:hover{ transform:translateY(-1px); background:rgba(0,0,0,.45); border-color:rgba(255,255,255,.35); }
         .vp-icon{ width:48%; height:48%; fill:#fff; display:block; }
 
+        .vp-square{ width:var(--hud-size); height:var(--hud-size); border-radius:8px; background:rgba(0,0,0,.35);
+          border:1px solid rgba(255,255,255,.2); display:grid; place-items:center; pointer-events:auto; cursor:pointer;
+          transition: transform .1s ease, background .2s ease, border-color .2s ease; }
+        .vp-square:hover{ transform:translateY(-1px); background:rgba(0,0,0,.45); border-color:rgba(255,255,255,.35); }
+
+        .vp-effect-toggle{ position:absolute; right:10px; bottom:60px; z-index:3; transition:opacity .3s ease; }
+        .vp-effect-toggle.visible{ opacity:1; }
+        .vp-effect-toggle.hidden{ opacity:0; pointer-events:none; }
+
+        /* 動画終了オーバーレイ */
+        .vp-ended-overlay{ position:absolute; inset:0; z-index:20; background:rgba(0,0,0,0.85); 
+          display:grid; place-items:center; animation:fadeIn .3s ease; }
+        @keyframes fadeIn { from { opacity:0; } to { opacity:1; } }
+        
+        .vp-ended-content{ text-align:center; padding:2rem; }
+        .vp-ended-title{ font-size:clamp(24px, 5vw, 36px); font-weight:700; margin-bottom:1.5rem; color:#fff; }
+        
+        .vp-ended-button{ 
+          padding:14px 32px; 
+          font-size:clamp(16px, 3vw, 18px); 
+          font-weight:600;
+          color:#fff; 
+          background:var(--yt-red); 
+          border:none; 
+          border-radius:8px; 
+          cursor:pointer;
+          transition: transform .15s ease, background .2s ease, box-shadow .2s ease;
+          box-shadow: 0 4px 12px rgba(255,0,0,0.3);
+        }
+        .vp-ended-button:hover{ 
+          transform:translateY(-2px); 
+          background:#e60000;
+          box-shadow: 0 6px 16px rgba(255,0,0,0.4);
+        }
+        .vp-ended-button:active{ 
+          transform:translateY(0); 
+        }
+
   /* 中央テロップは廃止 */
 
         .vp-info{ position:absolute; right:10px; bottom:24px; z-index:3; display:flex; flex-direction:column; gap:6px; align-items:flex-end;
-          font-feature-settings:"tnum"; font-variant-numeric:tabular-nums; font-size:12px; color:#ddd; opacity:.9; }
+          font-feature-settings:"tnum"; font-variant-numeric:tabular-nums; font-size:12px; color:#ddd; transition:opacity .3s ease; }
+        .vp-info.visible{ opacity:.9; }
+        .vp-info.hidden{ opacity:0; pointer-events:none; }
         .vp-chip{ background:rgba(0,0,0,.35); padding:4px 6px; border-radius:6px; border:1px solid rgba(255,255,255,.15); }
       `}</style>
 
       <div className="vp" onTouchStart={(e)=>{ (e.currentTarget as HTMLDivElement).classList.add("touch"); }}>
-        <div className="vp-outer">
+        <div className="vp-outer" onMouseMove={handleMouseMove}>
+          
+          {/* EffectStatusPanel を追加 */}
+          {contentId && <EffectStatusPanel contentId={contentId} currentTime={current} visible={effectsVisible} />}
+
           <video
             ref={videoRef}
             className="vp-video"
@@ -986,6 +1107,7 @@ export default function PlayerPage() {
             onWaiting={() => setBuffering(true)}
             onPlaying={() => setBuffering(false)}
             onCanPlay={() => setBuffering(false)}
+            onEnded={() => setVideoEnded(true)}
             onError={() => { /* 中央テロップは出さない */ }}
           />
 
@@ -1005,7 +1127,7 @@ export default function PlayerPage() {
             <div className="vp-fill" style={{ width: `${Math.max(0, Math.min(1, pct)) * 100}%` }} />
           </div>
 
-          <div className="vp-hud" role="group" aria-label="quick controls">
+          <div className={`vp-hud ${controlsVisible ? 'visible' : 'hidden'}`} role="group" aria-label="quick controls">
             <div style={{display:"grid", justifyItems:"start", paddingLeft:"min(4vw,24px)"}}>
               <button className="vp-circle" onClick={() => skip(-5)} aria-label="5秒戻す" title="5s戻す">
                 <svg className="vp-icon" viewBox="0 0 24 24"><path d="M12 5V2L7 7l5 5V9c3.31 0 6 2.69 6 6 0 .34-.03.67-.08 1h2.02c.04-.33.06-.66.06-1 0-4.42-3.58-8-8-8z"/></svg>
@@ -1025,7 +1147,16 @@ export default function PlayerPage() {
             </div>
           </div>
 
-          <div className="vp-info">
+          {/* エフェクト表示/非表示トグル（右下） */}
+          <div className={`vp-effect-toggle ${controlsVisible ? 'visible' : 'hidden'}`}>
+            <button className="vp-square" onClick={() => setEffectsVisible(!effectsVisible)} aria-label={effectsVisible ? "エフェクト非表示" : "エフェクト表示"} title={effectsVisible ? "エフェクト非表示" : "エフェクト表示"}>
+              {effectsVisible
+                ? <svg className="vp-icon" viewBox="0 0 24 24"><path d="M12 7c2.76 0 5 2.24 5 5 0 .65-.13 1.26-.36 1.83l2.92 2.92c1.51-1.26 2.7-2.89 3.43-4.75-1.73-4.39-6-7.5-11-7.5-1.4 0-2.74.25-3.98.7l2.16 2.16C10.74 7.13 11.35 7 12 7zM2 4.27l2.28 2.28.46.46C3.08 8.3 1.78 10.02 1 12c1.73 4.39 6 7.5 11 7.5 1.55 0 3.03-.3 4.38-.84l.42.42L19.73 22 21 20.73 3.27 3 2 4.27zM7.53 9.8l1.55 1.55c-.05.21-.08.43-.08.65 0 1.66 1.34 3 3 3 .22 0 .44-.03.65-.08l1.55 1.55c-.67.33-1.41.53-2.2.53-2.76 0-5-2.24-5-5 0-.79.2-1.53.53-2.2zm4.31-.78l3.15 3.15.02-.16c0-1.66-1.34-3-3-3l-.17.01z"/></svg>
+                : <svg className="vp-icon" viewBox="0 0 24 24"><path d="M12 4.5C7 4.5 2.73 7.61 1 12c1.73 4.39 6 7.5 11 7.5s9.27-3.11 11-7.5c-1.73-4.39-6-7.5-11-7.5zM12 17c-2.76 0-5-2.24-5-5s2.24-5 5-5 5 2.24 5 5-2.24 5-5 5zm0-8c-1.66 0-3 1.34-3 3s1.34 3 3 3 3-1.34 3-3-1.34-3-3-3z"/></svg>}
+            </button>
+          </div>
+
+          <div className={`vp-info ${controlsVisible ? 'visible' : 'hidden'}`}>
             <div className="vp-chip">
               {connected ? "WS: connected" : "WS: connecting..."}
               {wsError ? ` / ${wsError}` : ""}
@@ -1034,6 +1165,21 @@ export default function PlayerPage() {
             </div>
             <div className="vp-chip">{fmt(current)} / {fmt(duration)}</div>
           </div>
+
+          {/* 動画終了オーバーレイ */}
+          {videoEnded && (
+            <div className="vp-ended-overlay">
+              <div className="vp-ended-content">
+                <div className="vp-ended-title">動画が終了しました</div>
+                <button 
+                  className="vp-ended-button" 
+                  onClick={() => navigate('/select')}
+                >
+                  その他の素晴らしい体験に出逢う
+                </button>
+              </div>
+            </div>
+          )}
         </div>
       </div>
     </div>

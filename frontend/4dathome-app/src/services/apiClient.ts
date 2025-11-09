@@ -15,13 +15,20 @@ async function handle<T>(res: Response): Promise<T> {
     try {
       if (isJson) {
         const j = await res.json();
-        msg = j?.message || j?.error || msg;
+        msg += j?.detail
+          ? `: ${j.detail}`
+          : j?.message
+          ? `: ${j.message}`
+          : j?.error
+          ? `: ${j.error}`
+          : "";
       } else {
-        msg = await res.text();
+        msg += `: ${await res.text()}`;
       }
-    } catch {
-      // noop
+    } catch (e) {
+      console.warn("[apiClient] JSON parse failed:", e);
     }
+    console.error("[apiClient] request failed:", msg);
     throw new Error(msg);
   }
   return (isJson ? res.json() : (res.text() as any)) as Promise<T>;

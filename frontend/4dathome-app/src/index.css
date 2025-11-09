@@ -12,3 +12,225 @@
            dark:bg-gray-800 dark:border-white/10 dark:hover:bg-gray-700;
   }
 }
+
+/* ========== モダン丸トグルUI ========== */
+
+/* エフェクトの並び */
+.fx-effGrid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+}
+
+/* モダン丸トグル本体 */
+.fx-effectBadge {
+  --fx-color: #38bdf8; /* 各エフェクトで上書き */
+
+  width: 72px;              /* 約1.5倍サイズ */
+  height: 72px;
+  border-radius: 999px;     /* 真ん丸 */
+  border: 1px solid rgba(255, 255, 255, 0.18);
+
+  background:
+    radial-gradient(circle at 0% 0%, rgba(255, 255, 255, 0.18), transparent 55%),
+    radial-gradient(
+      circle at 100% 100%,
+      color-mix(in srgb, var(--fx-color) 70%, #020617 30%),
+      #020617
+    );
+
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  box-sizing: border-box;
+
+  color: #f9fafb;
+  font-family: system-ui, "游ゴシック体", "Yu Gothic",
+    "ヒラギノ角ゴ ProN W6", "Meiryo", sans-serif;
+  font-weight: 800;         /* 太めゴシック */
+  font-size: 34px;          /* 漢字をかなり大きく */
+  letter-spacing: 0.18em;
+  text-indent: 0.18em;
+
+  box-shadow: 0 8px 16px rgba(0, 0, 0, 0.45);
+  cursor: pointer;
+  transition:
+    transform 0.18s ease,
+    box-shadow 0.18s ease,
+    opacity 0.18s ease,
+    filter 0.18s ease,
+    border-color 0.18s ease;
+}
+
+/* ON 状態（activeの時） */
+.fx-effectBadge:not(.fx-effectBadge--off) {
+  transform: translateY(-2px);
+  border-color: color-mix(in srgb, var(--fx-color) 80%, #ffffff 20%);
+  box-shadow: 0 10px 24px color-mix(in srgb, var(--fx-color) 50%, #000000 50%);
+}
+
+/* OFF 状態 */
+.fx-effectBadge--off {
+  opacity: 0.4;
+  filter: grayscale(0.6);
+  box-shadow: none;
+  transform: translateY(0);
+}
+
+/* 種類ごとのテーマカラー */
+.fx-effectBadge--water {  /* 水 */
+  --fx-color: #38bdf8;
+}
+
+.fx-effectBadge--wind {   /* 風 */
+  --fx-color: #4ade80;
+}
+
+.fx-effectBadge--light {  /* 光 */
+  --fx-color: #facc15;
+}
+
+.fx-effectBadge--shock {  /* 衝 */
+  --fx-color: #f97316;
+}
+
+.fx-effectBadge--color {  /* 色 */
+  --fx-color: #a855f7;
+}
+
+/* ========== 旧CSSアイコン（削除予定） ========== */
+
+/* ベース：小さい丸アイコン */
+.fx-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  border-radius: 999px;
+  position: relative;
+  overflow: hidden;
+  box-sizing: border-box;
+  transition:
+    opacity 0.15s ease,
+    transform 0.15s ease,
+    filter 0.15s ease,
+    box-shadow 0.15s ease;
+}
+
+/* ON / OFF 状態 */
+.fx-icon--on {
+  opacity: 1;
+  box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.4);
+}
+
+.fx-icon--off {
+  opacity: 0.35;
+  filter: grayscale(0.7);
+  box-shadow: none;
+}
+
+/* ホバー時ちょっとだけ浮く */
+.fx-icon.fx-icon--on:hover {
+  transform: translateY(-1px) scale(1.03);
+}
+
+/* 水：青系グラデ＋しずくっぽい形 */
+.fx-icon--water {
+  background: radial-gradient(circle at 30% 30%, #d9f3ff, #1d8ff0);
+}
+
+.fx-icon--water::after {
+  content: "";
+  position: absolute;
+  width: 55%;
+  height: 70%;
+  background: #e8f7ff;
+  border-radius: 50% 50% 60% 60%;
+  transform: rotate(45deg) translateY(-4%);
+  opacity: 0.85;
+}
+
+/* 風：輪郭と中のラインで"流れ"を表現 */
+.fx-icon--wind {
+  background: transparent;
+  border: 2px solid #4fd1c5;
+}
+
+.fx-icon--wind::before,
+.fx-icon--wind::after {
+  content: "";
+  position: absolute;
+  left: 20%;
+  right: 20%;
+  height: 2px;
+  border-radius: 999px;
+  background: #4fd1c5;
+}
+
+.fx-icon--wind::before {
+  top: 35%;
+}
+
+.fx-icon--wind::after {
+  bottom: 30%;
+  width: 60%;
+  right: 10%;
+  opacity: 0.8;
+}
+
+/* 振動：縦のバー 3 本でブルブル感 */
+.fx-icon--vibration {
+  background: radial-gradient(circle at 30% 30%, #ffe7c2, #f97316);
+}
+
+.fx-icon--vibration::before {
+  content: "";
+  position: absolute;
+  width: 3px;
+  height: 60%;
+  border-radius: 999px;
+  background: #ffffffdd;
+  box-shadow:
+    -4px 0 0 #ffffffaa,
+    4px 0 0 #ffffffaa;
+}
+
+/* 光（flash）：黄色い光源＋うっすら光の輪 */
+.fx-icon--flash {
+  background: radial-gradient(circle at 30% 30%, #fffbe6, #facc15);
+}
+
+.fx-icon--flash::before {
+  content: "";
+  position: absolute;
+  width: 55%;
+  height: 55%;
+  border-radius: 999px;
+  background: #ffffffcc;
+}
+
+.fx-icon--flash::after {
+  content: "";
+  position: absolute;
+  width: 120%;
+  height: 120%;
+  border-radius: 999px;
+  box-shadow: 0 0 6px 2px rgba(250, 204, 21, 0.6);
+  opacity: 0.7;
+}
+
+/* 色（color）：カラーパレット風 */
+.fx-icon--color {
+  background: linear-gradient(135deg, #ff6b6b 0%, #4ecdc4 50%, #ffe66d 100%);
+}
+
+.fx-icon--color::before {
+  content: "";
+  position: absolute;
+  width: 60%;
+  height: 60%;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.3);
+}

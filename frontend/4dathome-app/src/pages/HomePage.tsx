@@ -1,39 +1,14 @@
 // src/pages/HomePage.tsx
 import { useNavigate } from "react-router-dom";
-import { useEffect, useRef, useState } from "react";
+import { useRef, useState } from "react";
 
 export default function HomePage() {
   const navigate = useNavigate();
 
   const [busy, setBusy] = useState(false);          // 連打防止（ボタン用）
-  const [playing, setPlaying] = useState(true);     // アクセス時に自動再生表示
+  const [playing, setPlaying] = useState(true);     // アクセス時に動画前面表示
   const [showVideo, setShowVideo] = useState(true); // マウント制御（フェード後に外す）
   const videoRef = useRef<HTMLVideoElement | null>(null);
-
-  // アクセス直後に自動再生（muted + playsInline なのでモバイルでもOK）
-  useEffect(() => {
-    if (!playing || !showVideo) return;
-    const playAfterMount = () => {
-      const v = videoRef.current;
-      if (!v) return;
-      try {
-        v.currentTime = 0;
-        const p = v.play();
-        if (p && typeof p.then === "function") {
-          p.catch(() => {
-            // 自動再生失敗時は静かにフェードアウト（遷移はしない仕様）
-            setPlaying(false);
-            setTimeout(() => setShowVideo(false), 500);
-          });
-        }
-      } catch {
-        setPlaying(false);
-        setTimeout(() => setShowVideo(false), 500);
-      }
-    };
-    const id = requestAnimationFrame(playAfterMount);
-    return () => cancelAnimationFrame(id);
-  }, [playing, showVideo]);
 
   // LOG IN は即遷移（動画は関与しない）
   const handleLogin = () => {
@@ -48,16 +23,24 @@ export default function HomePage() {
     setTimeout(() => setShowVideo(false), 200); // CSSのtransition時間に合わせて外す
   };
 
+  // 停止・待ち状態になったとき、再度 play を試みる（無音なので大抵OK）
   const handleWaitingOrStalled = () => {
     const v = videoRef.current;
     if (!v) return;
     try {
       const p = v.play();
-      if (p && typeof p.then === "function") p.catch(() => {});
-    } catch {}
+      if (p && typeof p.then === "function") {
+        p.catch((err) => {
+          console.warn("[home video] recover play failed", err);
+        });
+      }
+    } catch (err) {
+      console.warn("[home video] recover play threw", err);
+    }
   };
 
-  const handleError = () => {
+  const handleError = (e: React.SyntheticEvent<HTMLVideoElement, Event>) => {
+    console.error("[home video] error", e);
     // エラー時も静かにフェードアウトして非表示
     setPlaying(false);
     setTimeout(() => setShowVideo(false), 500);
@@ -189,11 +172,14 @@ export default function HomePage() {
             </button>
             <button
               className="xh-btn xh-btn--inverted"
-              onClick={()=>navigate("/selectpage")}
+              onClick={() => {
+                try { sessionStorage.setItem("auth", "guest"); } catch {}
+                navigate("/selectpage");
+              }}
               disabled={busy}
               aria-disabled={busy}
             >
-              REGISTER
+              GUEST
             </button>
           </div>
         </div>
@@ -207,16 +193,20 @@ export default function HomePage() {
               preload="auto"
               playsInline
               muted
+              autoPlay
               controls={false}
               disablePictureInPicture
               controlsList="nodownload noplaybackrate nofullscreen noremoteplayback"
+              onPlay={() => setPlaying(true)}
               onEnded={handleEnded}
               onWaiting={handleWaitingOrStalled}
               onStalled={handleWaitingOrStalled}
               onError={handleError}
             >
               <source src="/logo.mp4" type="video/mp4" />
-              {/* <source src="/logo.webm" type="video/webm" /> */}
+              {/* 必要なら WebM も追加
+              <source src="/logo.webm" type="video/webm" />
+              */}
             </video>
           </div>
         )}

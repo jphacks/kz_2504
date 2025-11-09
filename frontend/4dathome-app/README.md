@@ -1,4 +1,3 @@
-# React + TypeScript + Vite
 
 フロントエンドは Vite + React + TypeScript で構成されています。バックエンドやデバイスハブとの通信は環境変数から URL を取得します。
 

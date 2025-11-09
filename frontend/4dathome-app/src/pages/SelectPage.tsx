@@ -1,12 +1,22 @@
-import { useMemo } from "react";
+import { useMemo, useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { BACKEND_API_URL } from "../config/backend";
 
 /** Select：ヘッダー固定 / ヒーロー全幅 / グリッド */
 export default function SelectPage() {
+  // デモ用：認証ガード回避（auth=1を自動セット）
+  if (typeof window !== "undefined") {
+    try { sessionStorage.setItem("auth", "1"); } catch {}
+  }
   const navigate = useNavigate();
+  const [isHotSectionVisible, setHotSectionVisible] = useState(false);
 
   const sections = useMemo(() => [
+    {
+      title: "今熱い！",
+      items: [
+        { id: "demo2", rank: 1, thumb: "/thumbs/demo2.jpeg", title: "Demo 2" },
+      ],
+    },
     {
       title: "アクション映画",
       items: [
@@ -27,8 +37,54 @@ export default function SelectPage() {
     },
   ], []);
 
-  // 動画選択時に準備画面へ遷移（コンテンツIDのみを渡す）
-  const goPlayer = (id: string) => {
+  // 「今熱い！」セクションのサムネイル画像を事前チェック
+  useEffect(() => {
+    const hotSection = sections.find(sec => sec.title === "今熱い！");
+    if (!hotSection || !hotSection.items.length) {
+      setHotSectionVisible(false);
+      return;
+    }
+
+    const thumbnails = hotSection.items.map(item => item.thumb);
+    let cancelled = false;
+    let remaining = thumbnails.length;
+    let hasError = false;
+
+    thumbnails.forEach((url) => {
+      const img = new Image();
+      img.onload = () => {
+        remaining -= 1;
+        if (!cancelled && remaining === 0 && !hasError) {
+          setHotSectionVisible(true);
+        }
+      };
+      img.onerror = () => {
+        if (!cancelled) {
+          hasError = true;
+          setHotSectionVisible(false);
+        }
+      };
+      img.src = url;
+    });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [sections]);
+
+  // 動画IDとメタデータを取得して準備画面へ遷移
+  const goPlayer = (id: string, title?: string, thumb?: string) => {
+    // 動画情報をsessionStorageに保存
+    const selectedVideo = {
+      id,
+      title: title || id.toUpperCase(),
+      thumbnailUrl: thumb || `/thumbs/${id}.jpeg`,
+    };
+    try {
+      sessionStorage.setItem("selectedVideo", JSON.stringify(selectedVideo));
+    } catch (e) {
+      console.error("Failed to save selectedVideo:", e);
+    }
     navigate(`/prepare?content=${encodeURIComponent(id)}`);
   };
 
@@ -49,7 +105,19 @@ export default function SelectPage() {
           --xh-text:#f2f2f2;
         }
         html, body, #root { background:#0e1324; }
-        .xh-pg{ min-height:100vh; color:var(--xh-text); font-family: system-ui,-apple-system,Segoe UI,Roboto,"Noto Sans JP",sans-serif; }
+        .xh-pg{ 
+          min-height:100vh; 
+          color:var(--xh-text); 
+          font-family: system-ui,-apple-system,Segoe UI,Roboto,"Noto Sans JP",sans-serif;
+          /* 背景画像を追加 */
+          background-image: 
+            linear-gradient(to bottom, rgba(14, 19, 36, 0.85), rgba(14, 19, 36, 0.95)),
+            url('/hero/main.gif');
+          background-size: cover;
+          background-position: center top;
+          background-attachment: fixed;
+          background-repeat: no-repeat;
+        }
 
         /* ====== Header（本文幅に揃える） ====== */
         .xh-top{
@@ -182,8 +250,8 @@ export default function SelectPage() {
 
         <div className="xh-content-pad">
           <section className="xh-bleed" aria-label="Featured">
-            {/* 画像クリックで demo1.mp4 再生 */}
-            <div className="xh-hero" onClick={()=>goPlayer("demo1")} role="button" tabIndex={0}>
+            {/* 画像クリックで main 再生 */}
+            <div className="xh-hero" onClick={()=>goPlayer("main", "WILDCARD - 世界を揺らす、没入型ホームシネマ。", "/hero/main.gif")} role="button" tabIndex={0}>
               <img src="/hero/main.gif" alt="Featured"
                    onError={(e)=>{ (e.currentTarget as HTMLImageElement).style.display='none'; }} />
               <div className="xh-grad" aria-hidden="true"></div>
@@ -196,40 +264,41 @@ export default function SelectPage() {
 
               <div className="xh-play">
                 {/* △のみ（丸なし） */}
-                <button type="button" aria-label="再生" onClick={(e)=>{ e.stopPropagation(); goPlayer("demo1"); }}>
+                <button type="button" aria-label="再生" onClick={(e)=>{ e.stopPropagation(); goPlayer("main", "WILDCARD - 世界を揺らす、没入型ホームシネマ。", "/hero/main.gif"); }}>
                   <svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
                 </button>
               </div>
             </div>
           </section>
 
-          {sections.map(sec => (
-            <section key={sec.title} className="xh-section">
-              <div className="xh-container">
-                <h2>{sec.title}</h2>
-                <div className="xh-grid">
-                  {sec.items.map(it => (
-                    <button key={it.id} type="button" className="xh-tile" onClick={()=>goPlayer(it.id)} aria-label={`${sec.title} - ${it.title}`}>
-                      <span className="xh-rank">{it.rank}</span>
-                      <img
-                        className="xh-thumb"
-                        src={it.thumb}
-                        alt={it.title}
-                        onError={(e)=>{
-                          const img = e.currentTarget as HTMLImageElement;
-                          img.onerror = null; // ループ防止
-                          img.src = "data:image/gif;base64,R0lGODlhAQABAIAAAP///wAAACH5BAEAAAAALAAAAAABAAEAAAICRAEAOw=="; // 1x1透明
-                          img.style.background = "#151515"; // プレースホルダー色
-                          img.alt = "No Image";
-                        }}
-                      />
-                      <div className="xh-grad" aria-hidden="true"></div>
-                    </button>
-                  ))}
+          {sections.map(sec => {
+            // 「今熱い！」セクションは画像が全て正常に読み込めた場合のみ表示
+            if (sec.title === "今熱い！" && !isHotSectionVisible) {
+              return null;
+            }
+            
+            return (
+              <section key={sec.title} className="xh-section">
+                <div className="xh-container">
+                  <h2>{sec.title}</h2>
+                  <div className="xh-grid">
+                    {sec.items.map(it => (
+                      <button key={it.id} type="button" className="xh-tile" onClick={()=>goPlayer(it.id, it.title, it.thumb)} aria-label={`${sec.title} - ${it.title}`}>
+                        <span className="xh-rank">{it.rank}</span>
+                        <img
+                          className="xh-thumb"
+                          src={it.thumb}
+                          alt={it.title}
+                          onError={(e)=>{ (e.currentTarget as HTMLImageElement).replaceWith(Object.assign(document.createElement('div'),{className:'xh-ph',textContent:'No Image'})); }}
+                        />
+                        <div className="xh-grad" aria-hidden="true"></div>
+                      </button>
+                    ))}
+                  </div>
                 </div>
-              </div>
-            </section>
-          ))}
+              </section>
+            );
+          })}
         </div>
       </div>
     </>
