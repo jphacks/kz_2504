@@ -62,6 +62,7 @@ api_keys.txt
 *.pem
 *.p12
 *.pfx
+env-vars.yaml
 
 # デプロイ情報・機密URL情報（backend-report全体を除外）
 docs/backend-report/
