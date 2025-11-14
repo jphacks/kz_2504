@@ -1,17 +1,60 @@
 # 4DX@HOME システム仕様書
 
+> **最終更新**: 2024年11月14日  
+> **バージョン**: 2.0.0 (Award Day Updated Version)
+
 ## はじめに
 
-4DX@HOMEは、AI動画解析とリアルタイム同期技術により、スマートフォンでの動画視聴に物理フィードバックを追加する革新的なシステムです。本仕様書では、システムを構成する3つの主要コンポーネントの技術仕様を詳細に説明します。
+4DX@HOMEは、AI動画解析とリアルタイム同期技術により、動画視聴に物理フィードバックを追加する革新的なシステムです。本仕様書では、**AwardDay（2024年11月）時点の最新実装**に基づき、システムを構成する3つの主要コンポーネントの技術仕様を詳細に説明します。
+
+### 🆕 AwardDay版での主な変更点
+
+- ✅ **Cloud Runデプロイ**: Google Cloud Runへの本番デプロイ完了
+- ✅ **3層アーキテクチャ**: Frontend ↔ Cloud Run API ↔ Raspberry Pi
+- ✅ **ストップ処理機能**: 緊急停止・安全制御機能追加
+- ✅ **デバイステスト機能**: 5デバイス動作確認機能追加
+- ✅ **詳細ログシステム**: 全通信のトレース記録機能
+
+### 📚 HackDay版仕様書について
+
+HackDay 2025（2024年10月11-12日）時点の旧仕様書は、`archive/hackday-2025/` ディレクトリに保存されています。
+
+---
 
 ## システム概要
 
-### アーキテクチャ図
-```
-[フロントエンド] ←→ [バックエンド] ←→ [ハードウェア]
-    React           FastAPI         Raspberry Pi
-   WebSocket        WebSocket         Arduino
-   TypeScript         Python           C++
+### アーキテクチャ図（最新版）
+
+```mermaid
+graph TB
+    subgraph "フロントエンド層"
+        Frontend[React 18.3.1 Frontend<br/>https://kz-2504.onrender.com]
+        DebugFrontend[Debug Frontend<br/>localhost:5173]
+    end
+    
+    subgraph "バックエンド層 (Cloud Run)"
+        CloudRun[FastAPI Backend<br/>Google Cloud Run<br/>asia-northeast1]
+    end
+    
+    subgraph "デバイス層"
+        RaspberryPi[Raspberry Pi Server<br/>WebSocket Client]
+        DebugHardware[Debug Hardware<br/>Simulator]
+    end
+    
+    subgraph "物理デバイス"
+        Arduino1[Arduino #1<br/>光・風]
+        Arduino2[Arduino #2<br/>水]
+        ESP[ESP-12E<br/>振動]
+    end
+    
+    Frontend -->|HTTPS/WSS| CloudRun
+    DebugFrontend -->|HTTPS/WSS| CloudRun
+    CloudRun -->|WebSocket| RaspberryPi
+    CloudRun -->|WebSocket| DebugHardware
+    
+    RaspberryPi -->|Serial| Arduino1
+    RaspberryPi -->|Serial| Arduino2
+    RaspberryPi -->|MQTT| ESP
 ```
 
 ### 主要機能
@@ -172,6 +215,22 @@ journalctl -u 4dx-home.service -f
 
 ---
 
-**更新日**: 2025年10月12日  
-**バージョン**: 1.0.0  
+## 📚 ドキュメント更新履歴
+
+### HackDay 2025（2024年10月11-12日）
+- 初回仕様書作成
+- 基本システムアーキテクチャ文書化
+
+### AwardDay 2024（2024年11月14日）
+- **⚠️ HackDay時点の仕様書であることを明記**
+- 最新実装へのリンクを各仕様書に追加
+- アーカイブディレクトリ準備: `archive/hackday-2025/`
+
+**注意**: 現在の仕様書はHackDay時点の内容です。最新の実装状況については、各仕様書冒頭のリンクを参照してください。
+
+---
+
+**初版作成日**: 2024年10月11日  
+**最終更新日**: 2024年11月14日  
+**バージョン**: 1.0.0 (HackDay Version)  
 **対象**: 開発チーム・技術仕様確認

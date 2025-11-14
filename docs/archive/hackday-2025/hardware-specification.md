@@ -1,5 +1,13 @@
 # 4DX@HOME ハードウェア仕様書
 
+> **⚠️ HackDay 2025時点の仕様書**  
+> この文書はJPHacks2025 HackDay（2024年10月11-12日）時点の仕様です。  
+> 最新の実装については以下を参照してください：
+> - **最新ハードウェア実装**: `hardware/rpi_server/`（Cloud Run統合版）
+> - **デバイスハブサーバー**: Raspberry Pi Server with WebSocket
+> - **デバッグ環境**: `debug_hardware/`（PC上シミュレーター）
+> - **アーキテクチャ詳細**: `debug_hardware/ARCHITECTURE.md`
+
 ## 概要
 
 4DX@HOMEのハードウェアシステムは、Raspberry Piを中心としたデバイスハブと、Arduino制御のアクチュエーターで構成されます。リアルタイム通信により動画と同期した物理フィードバック（振動、光、風、水、香り）を提供し、没入型エンターテインメント体験を実現します。

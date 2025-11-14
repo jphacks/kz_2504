@@ -1,5 +1,13 @@
 # 4DX@HOME バックエンド仕様書
 
+> **⚠️ HackDay 2025時点の仕様書**  
+> この文書はJPHacks2025 HackDay（2024年10月11-12日）時点の仕様です。  
+> 最新の実装については以下を参照してください：
+> - **最新バックエンド実装**: `backend/app/`
+> - **Cloud Runデプロイガイド**: `backend/DEPLOYMENT_GUIDE.md`
+> - **詳細設計資料**: `docs/backend-report/`
+> - **最新アーキテクチャ**: 3層構成（Frontend ↔ Cloud Run API ↔ Raspberry Pi）
+
 ## 概要
 
 4DX@HOMEのバックエンドは、FastAPIベースのWebサーバーで、デバイス管理、動画管理、リアルタイム同期制御を提供します。WebSocketを使用したリアルタイム通信により、フロントエンドとハードウェアデバイス間の高精度同期を実現します。

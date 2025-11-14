@@ -1,5 +1,9 @@
 # 4DX@HOME 開発写真・画像集
 
+> **📸 HackDay 2025時点の画像集**  
+> この画像集はJPHacks2025 HackDay（2024年10月11-12日）時点の開発状況を示しています。  
+> AwardDay以降の最新画像がある場合は、随時追加してください。
+
 <img src="../assets/images/4DX＠HOME.png" alt="4DX@HOME" width="800">
 
 ---

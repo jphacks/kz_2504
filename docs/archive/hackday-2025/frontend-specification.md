@@ -1,5 +1,13 @@
 # 4DX@HOME フロントエンド仕様書
 
+> **⚠️ HackDay 2025時点の仕様書**  
+> この文書はJPHacks2025 HackDay（2024年10月11-12日）時点の仕様です。  
+> 最新の実装については以下を参照してください：
+> - **最新フロントエンド実装**: `frontend/4dathome-app/`
+> - **本番デプロイ**: https://kz-2504.onrender.com (Render)
+> - **デバッグ環境**: `debug_frontend/`（Cloud Run API連携テスト用）
+> - **本番フロー仕様**: `debug_frontend/PRODUCTION_FLOW_SETUP.md`
+
 ## 1. 概要
 
 4DX@HOME の Web フロントエンドは、動画の再生状態・時刻情報をリアルタイムに送信し、バックエンド経由で物理デバイスへ同期させることを目的としています。直感的な UI と軽量なクライアント構成（Vite）を採用しています。
