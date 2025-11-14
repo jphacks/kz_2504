@@ -1,0 +1,986 @@
+# 4DX@HOME ハードウェア仕様書 (AwardDay版)
+
+**バージョン**: 2.0.0  
+**作成日**: 2025年11月14日  
+**対象イベント**: JPHACKS2025 AwardDay (2024年11月9日開催)  
+**システム**: Cloud Run統合 Raspberry Pi Hub
+
+---
+
+## 概要
+
+4DX@HOME ハードウェアシステムは、Raspberry Pi 3 Model Bをデバイスハブとし、Cloud Run APIとWebSocket通信することで、動画再生に同期した5種類の4Dエフェクト（振動・光・風・水・色彩）を提供します。Raspberry PiはMQTT経由でESP-12Eマイコンを制御し、各種アクチュエーターを駆動します。
+
+### システム全体構成
+
+```mermaid
+graph TB
+    subgraph "クラウド"
+        CloudRun[Cloud Run API<br/>FastAPI Server<br/>asia-northeast1]
+    end
+    
+    subgraph "ローカルネットワーク"
+        RaspberryPi[Raspberry Pi 3 Model B<br/>Device Hub Server<br/>Python 3.9+]
+        
+        subgraph "MQTT Broker"
+            Broker[Mosquitto MQTT Broker<br/>172.18.28.55:1883]
+        end
+        
+        subgraph "ESP-12E Devices"
+            ESP1[ESP-12E #1<br/>Wind Control]
+            ESP2[ESP-12E #2<br/>Flash/Light Control]
+            ESP3[ESP-12E #3<br/>LED Color Control]
+            ESP4[ESP-12E #4<br/>Motor1 Control]
+            ESP5[ESP-12E #5<br/>Motor2 Control]
+        end
+        
+        subgraph "Actuators"
+            Fan[DC Fan 12V<br/>風エフェクト]
+            Flash[High-Brightness LED<br/>フラッシュエフェクト]
+            RGB[RGB LED<br/>色彩エフェクト]
+            Motor1[Vibration Motor 1<br/>振動エフェクト]
+            Motor2[Vibration Motor 2<br/>振動エフェクト]
+        end
+    end
+    
+    CloudRun -->|WebSocket<br/>wss://...| RaspberryPi
+    RaspberryPi -->|MQTT Publish| Broker
+    Broker -->|MQTT Subscribe| ESP1
+    Broker -->|MQTT Subscribe| ESP2
+    Broker -->|MQTT Subscribe| ESP3
+    Broker -->|MQTT Subscribe| ESP4
+    Broker -->|MQTT Subscribe| ESP5
+    
+    ESP1 --> Fan
+    ESP2 --> Flash
+    ESP3 --> RGB
+    ESP4 --> Motor1
+    ESP5 --> Motor2
+```
+
+---
+
+## 技術スタック
+
+### Raspberry Pi Server
+
+#### ハードウェア
+- **Raspberry Pi 3 Model B**
+  - CPU: ARM Cortex-A53 (4コア 1.2GHz)
+  - RAM: 1GB
+  - Storage: microSD 32GB以上 (Class 10推奨)
+  - Wi-Fi: 802.11n
+  - Ethernet: 10/100 Mbps
+
+#### OS・環境
+- **Raspberry Pi OS** (Debian 11 Bullseye)
+- **Python** 3.9+
+- **systemd** サービス管理
+
+#### 依存ライブラリ
+```txt
+Flask==3.0.0                 # Webサーバー
+websocket-client==1.7.0      # WebSocket通信
+paho-mqtt==1.6.1            # MQTT通信
+python-dotenv==1.0.0        # 環境変数管理
+coloredlogs==15.0.1         # カラーログ出力
+asyncio                      # 非同期処理
+```
+
+### ESP-12E Devices
+
+#### ハードウェア
+- **ESP-12E** (ESP8266ベース)
+  - CPU: Tensilica L106 32-bit (80MHz)
+  - RAM: 50KB
+  - Flash: 4MB
+  - Wi-Fi: 802.11 b/g/n
+  - GPIO: 11ピン使用可能
+
+#### 開発環境
+- **Arduino IDE** 1.8.19+
+- **ESP8266 Arduino Core** 3.0.2+
+
+#### 依存ライブラリ
+```cpp
+#include <ESP8266WiFi.h>     // Wi-Fi接続
+#include <PubSubClient.h>    // MQTTクライアント
+```
+
+---
+
+## システム構成
+
+### デバイスハブ (Raspberry Pi)
+
+#### ディレクトリ構造
+
+```
+hardware/rpi_server/
+├── main.py                     # メインアプリケーション
+├── config.py                   # 設定管理
+├── requirements.txt            # Python依存関係
+├── .env.example                # 環境変数テンプレート
+├── .env                        # 環境変数 (実ファイル)
+│
+├── src/
+│   ├── api/
+│   │   ├── websocket_client.py      # Cloud Run WebSocketクライアント
+│   │   └── message_handler.py       # WebSocketメッセージハンドラー
+│   │
+│   ├── mqtt/
+│   │   ├── broker.py                # MQTTブローカークライアント
+│   │   ├── event_mapper.py          # イベント→MQTTコマンド変換
+│   │   └── device_manager.py        # デバイス管理
+│   │
+│   ├── timeline/
+│   │   ├── processor.py             # タイムライン処理エンジン
+│   │   └── cache_manager.py         # タイムラインキャッシュ
+│   │
+│   ├── server/
+│   │   └── app.py                   # Flask監視サーバー
+│   │
+│   └── utils/
+│       ├── logger.py                # ロガー設定
+│       ├── timing.py                # タイムスタンプ処理
+│       └── communication_logger.py  # 通信ログ記録
+│
+├── data/
+│   ├── communication_logs/          # 通信ログファイル
+│   └── timeline_cache/              # タイムラインキャッシュ
+│
+├── templates/
+│   └── index.html                   # 監視ダッシュボード
+│
+└── static/
+    ├── css/
+    └── js/
+```
+
+#### 環境変数 (.env)
+
+```env
+# === デバイス情報 ===
+DEVICE_HUB_ID=FDX001
+DEVICE_HUB_NAME=TestHub-001
+SESSION_ID=demo1
+
+# === サーバー設定 ===
+FLASK_HOST=0.0.0.0
+FLASK_PORT=5000
+FLASK_DEBUG=False
+
+# === Cloud Run接続 ===
+CLOUD_RUN_API_URL=https://fdx-home-backend-api-xxxxxxxxxxxx.asia-northeast1.run.app
+CLOUD_RUN_WS_URL=wss://fdx-home-backend-api-xxxxxxxxxxxx.asia-northeast1.run.app
+
+# === MQTT設定 ===
+MQTT_BROKER_HOST=172.18.28.55
+MQTT_BROKER_PORT=1883
+MQTT_CLIENT_ID=raspberrypi_controller
+MQTT_KEEPALIVE=60
+MQTT_QOS=1
+
+# === ログ設定 ===
+LOG_LEVEL=DEBUG
+LOG_FILE=data/communication_logs/device_hub.log
+COMMUNICATION_LOG_FILE=data/communication_logs/api_communication.log
+ENABLE_DETAILED_LOGGING=true
+
+# === 同期精度 ===
+SYNC_TOLERANCE_MS=100
+TIME_LOOKUP_BUFFER_MS=50
+```
+
+---
+
+## 通信プロトコル
+
+### 1. WebSocket通信 (Raspberry Pi ↔ Cloud Run API)
+
+#### 接続先
+
+```
+wss://fdx-home-backend-api-xxxxxxxxxxxx.asia-northeast1.run.app/api/playback/ws/device/{session_id}
+```
+
+#### メッセージタイプ
+
+##### デバイス接続通知 (Raspberry Pi → Server)
+
+```json
+{
+  "type": "device_connected",
+  "device_hub_id": "FDX001",
+  "session_id": "demo1",
+  "timestamp": "2025-11-14T12:00:00Z"
+}
+```
+
+##### タイムライン受信 (Server → Raspberry Pi)
+
+```json
+{
+  "type": "timeline",
+  "session_id": "demo1",
+  "timeline": {
+    "video_id": "demo1",
+    "duration": 120.0,
+    "events": [
+      {
+        "t": 15.5,
+        "action": "start",
+        "effect": "vibration",
+        "mode": "strong",
+        "intensity": 0.8
+      },
+      {
+        "t": 17.0,
+        "action": "stop",
+        "effect": "vibration"
+      }
+    ]
+  }
+}
+```
+
+##### 動画同期 (Server → Raspberry Pi)
+
+```json
+{
+  "type": "video_sync",
+  "session_id": "demo1",
+  "current_time": 45.2,
+  "state": "play",
+  "timestamp": "2025-11-14T12:00:00Z"
+}
+```
+
+##### ストップ信号 (Server → Raspberry Pi) **[NEW - AwardDay]**
+
+```json
+{
+  "type": "stop_signal",
+  "session_id": "demo1",
+  "timestamp": 1731571200.000,
+  "message": "stop_all_actuators",
+  "action": "stop_all",
+  "source": "websocket"
+}
+```
+
+##### デバイステスト (Server → Raspberry Pi)
+
+```json
+{
+  "type": "device_test",
+  "session_id": "demo1",
+  "test_type": "basic"
+}
+```
+
+##### デバイステスト結果 (Raspberry Pi → Server)
+
+```json
+{
+  "type": "device_test_result",
+  "session_id": "demo1",
+  "success": true,
+  "results": {
+    "VIBRATION": "OK",
+    "WIND": "OK",
+    "WATER": "OK",
+    "FLASH": "OK",
+    "COLOR": "OK"
+  }
+}
+```
+
+---
+
+### 2. MQTT通信 (Raspberry Pi ↔ ESP-12E Devices)
+
+#### MQTTトピック構成
+
+| エフェクト | MQTTトピック | ペイロード例 | 説明 |
+|---------|------------|----------|------|
+| **Wind** | `/4dx/wind` | `ON` / `OFF` | 風エフェクト開始/停止 |
+| **Flash/Light** | `/4dx/light` | `ON` / `OFF` / `FLASH 15` | フラッシュ・ライト制御 |
+| **LED Color** | `/4dx/color` | `RED` / `GREEN` / `BLUE` / `OFF` | LED色指定 |
+| **Motor1** | `/4dx/motor1/control` | `ON` / `OFF` / `HEART` | 振動モーター1制御 |
+| **Motor2** | `/4dx/motor2/control` | `ON` / `OFF` / `HEART` | 振動モーター2制御 |
+
+#### MQTT設定
+
+```python
+MQTT_BROKER_HOST = "172.18.28.55"
+MQTT_BROKER_PORT = 1883
+MQTT_CLIENT_ID = "raspberrypi_controller"
+MQTT_QOS = 1  # At least once
+MQTT_KEEPALIVE = 60
+```
+
+---
+
+## タイムライン処理
+
+### イベント構造
+
+```json
+{
+  "t": 15.5,           // タイムスタンプ (秒)
+  "action": "start",   // "start" | "stop" | "shot"
+  "effect": "vibration", // エフェクトタイプ
+  "mode": "strong",    // モード
+  "intensity": 0.8     // 強度 (0.0-1.0)
+}
+```
+
+### エフェクトタイプ一覧
+
+| エフェクト | 説明 | モード例 |
+|---------|------|---------|
+| `vibration` | 振動 | `strong`, `weak`, `heart` |
+| `wind` | 風 | `burst`, `long` |
+| `water` | 水 | `splash` |
+| `flash` | フラッシュ | `strobe`, `burst` |
+| `color` | 色彩 | `red`, `green`, `blue`, `orange` |
+
+### タイムライン処理ロジック
+
+```python
+class TimelineProcessor:
+    """タイムライン処理エンジン"""
+    
+    def __init__(self, on_event_callback):
+        self.events = []
+        self.current_time = 0.0
+        self.is_playing = False
+        self.on_event_callback = on_event_callback
+        self.tolerance_ms = 100  # ±100ms許容
+    
+    def load_timeline(self, timeline_data: dict):
+        """タイムラインJSONを読み込み"""
+        self.events = timeline_data.get("events", [])
+        logger.info(f"タイムライン読み込み完了: {len(self.events)}イベント")
+    
+    def update_time(self, current_time: float):
+        """現在時刻を更新し、該当イベントを検索"""
+        self.current_time = current_time
+        
+        # 時刻範囲内のイベントを検索 (±100ms)
+        tolerance_sec = self.tolerance_ms / 1000.0
+        start_time = current_time - tolerance_sec
+        end_time = current_time + tolerance_sec
+        
+        matching_events = [
+            event for event in self.events
+            if start_time <= event["t"] <= end_time
+        ]
+        
+        # イベント発火
+        for event in matching_events:
+            self.on_event_callback(event)
+            logger.debug(f"イベント発火: t={event['t']}, effect={event['effect']}")
+    
+    def stop_playback(self):
+        """再生停止"""
+        self.is_playing = False
+        logger.info("タイムライン再生停止")
+```
+
+---
+
+## イベント→MQTTマッピング
+
+### EventToMQTTMapper クラス
+
+```python
+class EventToMQTTMapper:
+    """タイムラインイベントをMQTTコマンドに変換"""
+    
+    @classmethod
+    def map_event_to_mqtt(cls, event: Dict) -> List[Tuple[str, str]]:
+        """イベント→MQTTコマンド変換
+        
+        Returns:
+            [(topic, payload), ...] のリスト
+        """
+        effect = event.get("effect", "").lower()
+        action = event.get("action", "start")
+        mode = event.get("mode", "default")
+        
+        commands = []
+        
+        # Wind エフェクト
+        if effect == "wind":
+            if action == "start":
+                commands.append(("/4dx/wind", "ON"))
+            elif action == "stop":
+                commands.append(("/4dx/wind", "OFF"))
+        
+        # Flash エフェクト
+        elif effect == "flash":
+            if action == "start":
+                if mode == "strobe":
+                    commands.append(("/4dx/light", "FLASH 15"))
+                elif mode == "burst":
+                    commands.append(("/4dx/light", "FLASH 10"))
+                else:
+                    commands.append(("/4dx/light", "ON"))
+            elif action == "stop":
+                commands.append(("/4dx/light", "OFF"))
+        
+        # Vibration エフェクト
+        elif effect == "vibration":
+            if action == "start":
+                if mode == "heart":
+                    commands.append(("/4dx/motor1/control", "HEART"))
+                    commands.append(("/4dx/motor2/control", "HEART"))
+                else:
+                    commands.append(("/4dx/motor1/control", "ON"))
+                    commands.append(("/4dx/motor2/control", "ON"))
+            elif action == "stop":
+                commands.append(("/4dx/motor1/control", "OFF"))
+                commands.append(("/4dx/motor2/control", "OFF"))
+        
+        # Color エフェクト
+        elif effect == "color":
+            color = mode.upper()  # "RED", "GREEN", "BLUE", etc.
+            commands.append(("/4dx/color", color))
+        
+        return commands
+    
+    @classmethod
+    def get_stop_all_commands(cls) -> List[Tuple[str, str]]:
+        """全アクチュエータ停止コマンド生成 [NEW - AwardDay]
+        
+        一時停止・動画終了時に呼び出される
+        """
+        stop_commands = [
+            ("/4dx/wind", "OFF"),
+            ("/4dx/light", "OFF"),
+            ("/4dx/color", "RED"),  # 完全OFFにはせず赤に戻す
+            ("/4dx/motor1/control", "OFF"),
+            ("/4dx/motor2/control", "OFF"),
+        ]
+        
+        logger.info(f"🛑 全停止MQTTコマンド生成: {len(stop_commands)}件")
+        
+        return stop_commands
+```
+
+---
+
+## ESP-12E プログラム例
+
+### Wind Control (ESP-12E #1)
+
+```cpp
+#include <ESP8266WiFi.h>
+#include <PubSubClient.h>
+
+// Wi-Fi設定
+const char* ssid = "YOUR_WIFI_SSID";
+const char* password = "YOUR_WIFI_PASSWORD";
+
+// MQTT設定
+const char* mqtt_server = "172.18.28.55";
+const int mqtt_port = 1883;
+const char* mqtt_topic = "/4dx/wind";
+
+// GPIO設定
+const int FAN_PIN = 5; // D1ピン
+
+WiFiClient espClient;
+PubSubClient client(espClient);
+
+void setup() {
+  Serial.begin(115200);
+  pinMode(FAN_PIN, OUTPUT);
+  digitalWrite(FAN_PIN, LOW);
+  
+  // Wi-Fi接続
+  WiFi.begin(ssid, password);
+  while (WiFi.status() != WL_CONNECTED) {
+    delay(500);
+    Serial.print(".");
+  }
+  Serial.println("\nWi-Fi接続成功");
+  
+  // MQTT接続
+  client.setServer(mqtt_server, mqtt_port);
+  client.setCallback(callback);
+  
+  reconnect();
+}
+
+void callback(char* topic, byte* payload, unsigned int length) {
+  String message = "";
+  for (int i = 0; i < length; i++) {
+    message += (char)payload[i];
+  }
+  
+  Serial.print("受信: ");
+  Serial.println(message);
+  
+  if (message == "ON") {
+    digitalWrite(FAN_PIN, HIGH);
+    Serial.println("Wind ON");
+  } else if (message == "OFF") {
+    digitalWrite(FAN_PIN, LOW);
+    Serial.println("Wind OFF");
+  }
+}
+
+void reconnect() {
+  while (!client.connected()) {
+    Serial.print("MQTT接続中...");
+    if (client.connect("ESP_Wind")) {
+      Serial.println("成功");
+      client.subscribe(mqtt_topic);
+    } else {
+      Serial.print("失敗, rc=");
+      Serial.print(client.state());
+      Serial.println(" 5秒後にリトライ");
+      delay(5000);
+    }
+  }
+}
+
+void loop() {
+  if (!client.connected()) {
+    reconnect();
+  }
+  client.loop();
+}
+```
+
+### Vibration Control (ESP-12E #4 - Motor1)
+
+```cpp
+#include <ESP8266WiFi.h>
+#include <PubSubClient.h>
+
+// Wi-Fi設定
+const char* ssid = "YOUR_WIFI_SSID";
+const char* password = "YOUR_WIFI_PASSWORD";
+
+// MQTT設定
+const char* mqtt_server = "172.18.28.55";
+const int mqtt_port = 1883;
+const char* mqtt_topic = "/4dx/motor1/control";
+
+// GPIO設定
+const int MOTOR_PIN = 4; // D2ピン
+
+WiFiClient espClient;
+PubSubClient client(espClient);
+
+void setup() {
+  Serial.begin(115200);
+  pinMode(MOTOR_PIN, OUTPUT);
+  digitalWrite(MOTOR_PIN, LOW);
+  
+  // Wi-Fi接続
+  WiFi.begin(ssid, password);
+  while (WiFi.status() != WL_CONNECTED) {
+    delay(500);
+    Serial.print(".");
+  }
+  Serial.println("\nWi-Fi接続成功");
+  
+  // MQTT接続
+  client.setServer(mqtt_server, mqtt_port);
+  client.setCallback(callback);
+  
+  reconnect();
+}
+
+void callback(char* topic, byte* payload, unsigned int length) {
+  String message = "";
+  for (int i = 0; i < length; i++) {
+    message += (char)payload[i];
+  }
+  
+  Serial.print("受信: ");
+  Serial.println(message);
+  
+  if (message == "ON") {
+    digitalWrite(MOTOR_PIN, HIGH);
+    Serial.println("Motor ON");
+  } else if (message == "OFF") {
+    digitalWrite(MOTOR_PIN, LOW);
+    Serial.println("Motor OFF");
+  } else if (message == "HEART") {
+    // ハートビートパターン: ドクドク
+    for (int i = 0; i < 5; i++) {
+      digitalWrite(MOTOR_PIN, HIGH);
+      delay(100);
+      digitalWrite(MOTOR_PIN, LOW);
+      delay(50);
+      digitalWrite(MOTOR_PIN, HIGH);
+      delay(100);
+      digitalWrite(MOTOR_PIN, LOW);
+      delay(500);
+    }
+  }
+}
+
+void reconnect() {
+  while (!client.connected()) {
+    Serial.print("MQTT接続中...");
+    if (client.connect("ESP_Motor1")) {
+      Serial.println("成功");
+      client.subscribe(mqtt_topic);
+    } else {
+      Serial.print("失敗, rc=");
+      Serial.print(client.state());
+      Serial.println(" 5秒後にリトライ");
+      delay(5000);
+    }
+  }
+}
+
+void loop() {
+  if (!client.connected()) {
+    reconnect();
+  }
+  client.loop();
+}
+```
+
+---
+
+## ストップ処理実装 **[NEW - AwardDay]**
+
+### Raspberry Pi側実装
+
+```python
+def _on_stop_signal_received(self, stop_data: Dict) -> None:
+    """ストップ信号受信時の処理（全アクチュエータ停止）
+    
+    Args:
+        stop_data: ストップ信号データ（session_id, action, timestamp, sourceを含む）
+    """
+    session_id = stop_data.get("session_id")
+    action = stop_data.get("action", "stop_all")
+    source = stop_data.get("source", "unknown")
+    
+    logger.info(
+        f"🛑 ストップ信号処理開始: session_id={session_id}, "
+        f"action={action}, source={source}"
+    )
+    
+    try:
+        # タイムライン再生を停止
+        if self.timeline_processor.is_playing:
+            self.timeline_processor.stop_playback()
+            logger.info("⏸️  タイムライン再生停止")
+        
+        # 全アクチュエータ停止MQTTコマンドを取得
+        stop_commands = EventToMQTTMapper.get_stop_all_commands()
+        
+        # MQTTコマンドを送信
+        for topic, payload in stop_commands:
+            self.mqtt_client.publish(topic, payload)
+            logger.debug(f"📤 MQTT送信: {topic} = {payload}")
+        
+        logger.info(
+            f"✅ 全アクチュエータ停止完了: {len(stop_commands)}個のコマンド送信"
+        )
+    
+    except Exception as e:
+        logger.error(f"❌ ストップ信号処理エラー: {e}", exc_info=True)
+```
+
+### 送信されるMQTTコマンド
+
+ストップ信号受信時、以下の5つのMQTTコマンドが送信されます:
+
+1. `/4dx/wind` → `OFF` (風停止)
+2. `/4dx/light` → `OFF` (フラッシュ/ライト消灯)
+3. `/4dx/color` → `RED` (LED色を赤に戻す)
+4. `/4dx/motor1/control` → `OFF` (振動モーター1停止)
+5. `/4dx/motor2/control` → `OFF` (振動モーター2停止)
+
+**注意**: LED色は完全OFFにせず、赤色に戻します（暗闇での視認性確保）。
+
+---
+
+## 起動・運用
+
+### Raspberry Pi起動方法
+
+#### 1. 依存パッケージインストール
+
+```bash
+cd hardware/rpi_server
+pip3 install -r requirements.txt
+```
+
+#### 2. 環境変数設定
+
+```bash
+cp .env.example .env
+nano .env
+# SESSION_ID, MQTT_BROKER_HOST 等を編集
+```
+
+#### 3. サーバー起動
+
+```bash
+python3 main.py
+```
+
+**起動ログ例**:
+```
+============================================================
+4DX@HOME Raspberry Pi Server 起動
+============================================================
+Device Hub ID: FDX001
+Session ID: demo1
+Cloud Run API: https://fdx-home-backend-api-xxxxxxxxxxxx.asia-northeast1.run.app
+============================================================
+✓ MQTT接続完了
+✓ Flaskサーバー起動完了
+WebSocket接続開始...
+🌐 [WebSocket] 接続成功: wss://...
+✅ [WebSocket] device_connected メッセージ送信完了
+```
+
+#### 4. 監視ダッシュボードアクセス
+
+```
+http://<Raspberry_Pi_IP>:5000
+```
+
+**表示内容**:
+- WebSocket接続状態
+- タイムライン情報 (イベント数、エフェクト統計)
+- 現在の再生時刻とイベント発生状況
+- 通信ログ (リアルタイム更新)
+
+---
+
+### systemdサービス化 (自動起動)
+
+#### サービスファイル作成
+
+```bash
+sudo nano /etc/systemd/system/4dx-home.service
+```
+
+```ini
+[Unit]
+Description=4DX@HOME Raspberry Pi Server
+After=network.target
+
+[Service]
+Type=simple
+User=pi
+WorkingDirectory=/home/pi/kz_2504/hardware/rpi_server
+ExecStart=/usr/bin/python3 main.py
+Restart=always
+RestartSec=10
+Environment=PYTHONUNBUFFERED=1
+
+[Install]
+WantedBy=multi-user.target
+```
+
+#### サービス有効化・起動
+
+```bash
+sudo systemctl daemon-reload
+sudo systemctl enable 4dx-home.service
+sudo systemctl start 4dx-home.service
+
+# ステータス確認
+sudo systemctl status 4dx-home.service
+
+# ログ確認
+sudo journalctl -u 4dx-home.service -f
+```
+
+---
+
+## デバッグ・監視
+
+### debug_hardware (PC上シミュレーター)
+
+**URL**: http://localhost:5000
+
+**用途**: Raspberry Pi動作のPC上シミュレーション
+
+**主要機能**:
+- Cloud Run WebSocket接続テスト
+- タイムライン処理確認
+- MQTT送信ログ確認
+- 通信ログ記録
+
+**起動方法**:
+```powershell
+cd debug_hardware
+pip install -r requirements.txt
+python app.py
+```
+
+### ログファイル
+
+- **デバイスハブログ**: `data/communication_logs/device_hub.log`
+- **通信ログ (JSON)**: `data/communication_logs/api_communication.log`
+
+---
+
+## トラブルシューティング
+
+### 1. WebSocket接続失敗
+
+**症状**: `WebSocketエラー: Connection refused`
+
+**原因**: Cloud Run API未起動、セッションID不一致
+
+**解決策**:
+- Cloud Run APIの`/health`エンドポイントにアクセス確認
+- `.env`の`SESSION_ID`が正しいか確認
+- ネットワーク接続確認
+
+### 2. MQTT接続失敗
+
+**症状**: `MQTT接続失敗: Connection refused`
+
+**原因**: Mosquitto未起動、ホスト名/ポート間違い
+
+**解決策**:
+```bash
+# Mosquittoインストール・起動
+sudo apt install mosquitto mosquitto-clients
+sudo systemctl start mosquitto
+sudo systemctl enable mosquitto
+
+# 接続テスト
+mosquitto_pub -h 172.18.28.55 -t /test -m "Hello"
+```
+
+### 3. タイムライン処理されない
+
+**症状**: イベントが発火しない
+
+**原因**: タイムライン未ロード、時刻同期ずれ
+
+**確認項目**:
+- タイムラインが正しくロードされているか (`/health`エンドポイント確認)
+- `SYNC_TOLERANCE_MS`設定 (デフォルト: 100ms)
+- ログでcurrentTimeの値を確認
+
+### 4. ESP-12E応答なし
+
+**症状**: MQTTメッセージを送っても動作しない
+
+**原因**: ESP-12Eプログラム未書き込み、Wi-Fi未接続
+
+**解決策**:
+- Arduino IDEでシリアルモニター確認 (115200 baud)
+- Wi-Fi接続状態確認 (`WiFi.status()`)
+- MQTTサブスクリプション確認 (`client.subscribe()`)
+
+---
+
+## パフォーマンス指標
+
+### レイテンシ
+
+| 区間 | 目標 | 実測 |
+|-----|-----|-----|
+| **Cloud Run → Raspberry Pi** | < 200ms | ~150ms |
+| **Raspberry Pi → ESP-12E** | < 100ms | ~50ms |
+| **合計レイテンシ** | < 300ms | ~200ms |
+
+### 同期精度
+
+- **タイムライン検索許容範囲**: ±100ms
+- **MQTT送信遅延**: ~50ms
+- **合計同期精度**: ±150ms以内
+
+---
+
+## AwardDay以降の変更点
+
+### 追加機能
+
+1. **ストップ処理統合**
+   - WebSocketストップ信号受信
+   - 5種類のアクチュエーター同時停止
+   - タイムライン再生停止
+
+2. **デバイステスト機能**
+   - 全アクチュエーター動作確認
+   - テスト結果をCloud Runに送信
+   - 準備画面で実行可能
+
+3. **詳細ログ機能**
+   - カラーログ出力 (coloredlogs)
+   - 通信ログJSON記録
+   - ダッシュボードリアルタイム表示
+
+### 改善点
+
+- WebSocket再接続ロジック: 最大5回リトライ (指数バックオフ)
+- MQTTキープアライブ: 60秒 (安定性向上)
+- タイムライン処理: ±100ms許容範囲 (精度向上)
+
+---
+
+## 今後の拡張予定
+
+- [ ] 水エフェクト (小型ポンプ制御)
+- [ ] 香りエフェクト (ペルチェ素子加熱)
+- [ ] 複数Raspberry Pi対応 (Redis/Pub/Sub)
+- [ ] ハードウェアヘルスモニタリング (温度・電流センサー)
+- [ ] OTAファームウェア更新 (ESP-12E)
+- [ ] 緊急停止ボタン (物理スイッチ)
+
+---
+
+## 安全機能
+
+### 電気的安全
+
+- **過電流保護**: ヒューズ・ブレーカー設置
+- **絶縁保護**: 電源部完全分離
+- **サージ保護**: バリスタ・フィルター使用
+
+### 物理的安全
+
+- **温度監視**: 過熱時自動停止 (予定)
+- **動作時間制限**: 連続運転時間制約
+- **緊急停止**: 手動停止スイッチ (予定)
+
+### ソフトウェア安全
+
+```python
+# 安全制約例
+MAX_VIBRATION_TIME = 30.0      # 振動最大継続時間 (秒)
+MAX_FLASH_DURATION = 5.0       # フラッシュ最大継続時間 (秒)
+OVERHEAT_THRESHOLD = 70.0      # 過熱しきい値 (℃)
+WATCHDOG_TIMEOUT = 5.0         # ウォッチドッグタイムアウト (秒)
+```
+
+---
+
+## 関連ドキュメント
+
+- [バックエンド仕様書](./backend-specification-awardday.md)
+- [フロントエンド仕様書](./frontend-specification-awardday.md)
+- [ストップ処理仕様](../debug_frontend/STOP_SIGNAL_SPEC.md)
+- [Raspberry Pi設定ガイド](../hardware/rpi_server/README.md)
+- [debug_hardware アーキテクチャ](../debug_hardware/ARCHITECTURE.md)
+
+---
+
+**変更履歴**:
+
+| 日付 | バージョン | 変更内容 |
+|-----|----------|---------|
+| 2025-11-14 | 2.0.0 | AwardDay後の実装を反映した仕様書作成 |

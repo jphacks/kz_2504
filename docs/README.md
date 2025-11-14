@@ -65,41 +65,61 @@ graph TB
 
 ## 仕様書構成
 
-### 📱 [フロントエンド仕様書](./frontend-specification.md)
-**React + TypeScript Webアプリケーション**
+### 🎯 最新版 (AwardDay 2024) - Version 2.0.0
 
-- **技術スタック**: React 18.3.1, TypeScript 5.9.3, Vite 7.1.9
+**対象イベント**: JPHACKS2025 AwardDay (2024年11月9日開催)
+
+#### 📱 [フロントエンド仕様書 (AwardDay版)](./frontend-specification-awardday.md)
+**React + TypeScript Webアプリケーション (Render + Cloud Run統合版)**
+
+- **デプロイ**: Render Static Site (https://kz-2504.onrender.com)
+- **技術スタック**: React 18.2.0, TypeScript 5.0.0, Vite 5.0.0, Axios 1.6.0
 - **主要機能**: 
-  - セッション管理・デバイスペアリング
-  - 動画選択・再生制御
-  - WebSocketリアルタイム通信
-  - レスポンシブUI (モバイル・デスクトップ対応)
-- **アーキテクチャ**: SPA, Component-based, Hook-based状態管理
-- **パフォーマンス**: 同期精度±50ms, レスポンシブ設計
+  - 4画面構成 (Home → Pairing → Select → Player)
+  - Cloud Run API統合 (REST + WebSocket)
+  - 500ms間隔同期メッセージ送信
+  - ストップ処理統合 (一時停止・動画終了時)
+- **アーキテクチャ**: SPA, React Router, WebSocket自動再接続
+- **新機能**: セッションID分離管理、エラーハンドリング強化
 
-### 🔧 [バックエンド仕様書](./backend-specification.md)  
-**FastAPI WebサーバーとAPI**
+#### 🔧 [バックエンド仕様書 (AwardDay版)](./backend-specification-awardday.md)  
+**FastAPI Cloud Run APIサーバー**
 
-- **技術スタック**: FastAPI 0.104.1, Uvicorn, WebSockets 11.0.3
+- **デプロイ**: Google Cloud Run (asia-northeast1)
+- **URL**: https://fdx-home-backend-api-xxxxxxxxxxxx.asia-northeast1.run.app
+- **技術スタック**: FastAPI 0.104.1, Uvicorn 0.24.0, WebSockets 11.0.3, Pydantic 2.5.0
 - **主要機能**:
-  - RESTful API (デバイス管理・動画管理)
-  - WebSocketリアルタイム通信
-  - セッション管理・同期制御
-  - 動画メタデータ管理
-- **アーキテクチャ**: 非同期処理, Pydanticデータ検証, CORS対応
-- **スケーラビリティ**: 100同時セッション, 1000 req/sec
+  - RESTful API (デバイス管理・動画管理・準備処理・再生制御)
+  - WebSocket 3種類 (準備・デバイス・再生同期)
+  - ストップ処理API (`POST /api/playback/stop/{session_id}`)
+  - デバイステスト機能
+- **アーキテクチャ**: 3層構成 (Frontend ↔ Cloud Run ↔ Raspberry Pi)
+- **リソース**: 512Mi RAM, 1 vCPU, 300秒タイムアウト
 
-### ⚙️ [ハードウェア仕様書](./hardware-specification.md)
-**Raspberry Pi + Arduino 物理制御システム**
+#### ⚙️ [ハードウェア仕様書 (AwardDay版)](./hardware-specification-awardday.md)
+**Raspberry Pi Hub + ESP-12E 物理制御システム (Cloud Run統合版)**
 
-- **技術スタック**: Python 3.9+, Arduino C++, MQTT, Serial通信
+- **技術スタック**: Python 3.9+, Flask 3.0.0, websocket-client 1.7.0, paho-mqtt 1.6.1
 - **主要機能**:
-  - 5種類物理効果制御 (振動・光・風・水・色)
-  - TCP/WebSocketリアルタイム通信
-  - 並列処理・タイムライン管理
-  - 安全機能・エラー回復
-- **アーキテクチャ**: デバイスハブ(RPi) + アクチュエーター制御(Arduino)
-- **物理仕様**: 手のひらサイズ筐体, 5V/12V電源系統
+  - Cloud Run WebSocket接続 (自動再接続)
+  - MQTT経由ESP-12E制御 (5デバイス)
+  - タイムライン処理エンジン (±100ms許容)
+  - ストップ処理 (全アクチュエーター停止)
+  - Flask監視ダッシュボード (localhost:5000)
+- **アーキテクチャ**: Raspberry Pi Hub → MQTT Broker → ESP-12E Devices
+- **物理デバイス**: Wind, Flash, LED Color, Motor1, Motor2
+
+---
+
+### 📦 HackDay版 (Version 1.0.0) - アーカイブ
+
+**対象イベント**: JPHACKS2025 HackDay (2024年10月11-12日開催)
+
+HackDay時点の仕様書は以下のディレクトリに保存されています:
+
+- [バックエンド仕様書 (HackDay版)](./archive/hackday-2025/backend-specification.md)
+- [フロントエンド仕様書 (HackDay版)](./archive/hackday-2025/frontend-specification.md)
+- [ハードウェア仕様書 (HackDay版)](./archive/hackday-2025/hardware-specification.md)
 
 ## 技術的特徴
 
@@ -217,20 +237,37 @@ journalctl -u 4dx-home.service -f
 
 ## 📚 ドキュメント更新履歴
 
-### HackDay 2025（2024年10月11-12日）
+### Version 2.0.0 - AwardDay 2024（2024年11月14日）
+- ✅ **AwardDay版仕様書作成** (3ファイル)
+  - `backend-specification-awardday.md`
+  - `frontend-specification-awardday.md`
+  - `hardware-specification-awardday.md`
+- ✅ **Cloud Runデプロイ情報追加**
+  - URL: https://fdx-home-backend-api-xxxxxxxxxxxx.asia-northeast1.run.app
+  - リソース設定: 512Mi RAM, 1 vCPU, 300秒タイムアウト
+- ✅ **ストップ処理機能文書化**
+  - REST API: `POST /api/playback/stop/{session_id}`
+  - WebSocket: `stop_signal` メッセージタイプ
+  - 全アクチュエーター停止処理
+- ✅ **3層アーキテクチャ図追加**
+  - Frontend ↔ Cloud Run API ↔ Raspberry Pi
+- ✅ **HackDay版のアーカイブ化**
+  - 移動先: `archive/hackday-2025/`
+
+### Version 1.0.0 - HackDay 2025（2024年10月11-12日）
 - 初回仕様書作成
 - 基本システムアーキテクチャ文書化
-
-### AwardDay 2024（2024年11月14日）
-- **⚠️ HackDay時点の仕様書であることを明記**
-- 最新実装へのリンクを各仕様書に追加
-- アーカイブディレクトリ準備: `archive/hackday-2025/`
-
-**注意**: 現在の仕様書はHackDay時点の内容です。最新の実装状況については、各仕様書冒頭のリンクを参照してください。
+- 2層アーキテクチャ (Frontend ↔ Backend ↔ Hardware)
 
 ---
 
 **初版作成日**: 2024年10月11日  
 **最終更新日**: 2024年11月14日  
-**バージョン**: 1.0.0 (HackDay Version)  
+**バージョン**: 2.0.0 (AwardDay Version)  
 **対象**: 開発チーム・技術仕様確認
+
+**関連ドキュメント**:
+- [デプロイガイド](../backend/DEPLOYMENT_GUIDE.md)
+- [本番フロー仕様](../debug_frontend/PRODUCTION_FLOW_SETUP.md)
+- [ストップ処理仕様](../debug_frontend/STOP_SIGNAL_SPEC.md)
+- [debug_hardware アーキテクチャ](../debug_hardware/ARCHITECTURE.md)
