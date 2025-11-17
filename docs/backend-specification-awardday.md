@@ -22,12 +22,12 @@
                                                        ↕ WebSocket
                                               ┌──────────────────────┐
                                               │  Raspberry Pi Hub    │
-                                              │  (Python Server)     │
+                                              │  (Python + MQTT)     │
                                               └──────────────────────┘
-                                                       ↓ MQTT
+                                                       ↓ Wi-Fi + MQTT
                                               ┌──────────────────────┐
-                                              │  ESP-12E Devices     │
-                                              │  (Arduino)           │
+                                              │  ESP-12E × 4台       │
+                                              │  (3Dプリント筐体)    │
                                               └──────────────────────┘
 ```
 

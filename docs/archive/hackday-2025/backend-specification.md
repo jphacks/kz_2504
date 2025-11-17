@@ -528,7 +528,7 @@ MAX_CONNECTIONS=100
 PING_INTERVAL=30
 
 # デバイス接続設定
-DEVICE_WEBSOCKET_BASE_URL="wss://fourdk-backend-333203798555.asia-northeast1.run.app"
+DEVICE_WEBSOCKET_BASE_URL="wss://fourdk-backend-xxxxxxxxxxxx.asia-northeast1.run.app"
 
 # デバッグ設定
 DEBUG_MODE=false
@@ -574,7 +574,7 @@ class Settings(BaseSettings):
     ping_interval: int = 30
     
     # デバイス接続設定
-    device_websocket_base_url: str = "wss://fourdk-backend-333203798555.asia-northeast1.run.app"
+    device_websocket_base_url: str = "wss://fourdk-backend-xxxxxxxxxxxx.asia-northeast1.run.app"
     
     # デバッグ設定
     debug_mode: bool = False

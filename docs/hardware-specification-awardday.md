@@ -9,7 +9,59 @@
 
 ## 概要
 
-4DX@HOME ハードウェアシステムは、Raspberry Pi 3 Model Bをデバイスハブとし、Cloud Run APIとWebSocket通信することで、動画再生に同期した5種類の4Dエフェクト（振動・光・風・水・色彩）を提供します。Raspberry PiはMQTT経由でESP-12Eマイコンを制御し、各種アクチュエーターを駆動します。
+4DX@HOME ハードウェアシステムは、Raspberry Pi 3 Model Bをデバイスハブとし、Cloud Run APIとWebSocket通信することで、動画再生に同期した5種類の4Dエフェクト（振動・光・風・水・色彩）を提供します。Raspberry Piは**Wi-Fi + MQTT経由で4台のESP-12Eマイコン**を無線制御し、各種アクチュエーターを駆動します。
+
+### 物理デバイス構成
+
+本システムは2種類の専用デバイスで構成され、すべて**CADソフトで設計した3Dプリント筐体**に収められています。
+
+#### 1. EffectStation（環境エフェクトデバイス）
+
+**3D設計データ**: `hardware/3DModel/4dx@home-stand.stl`
+
+- **機能**: 4種類の環境エフェクト（**水・風・光・色**）を提供
+- **サイズ**: 卓上サイズ（約29cm）
+- **制御マイコン**: ESP-12E × 2台
+  - ESP-12E #1: Wind & Water Control（風・水エフェクト統合）
+  - ESP-12E #2: Flash & LED Color Control（光・色エフェクト統合）
+- **搭載アクチュエーター**:
+  - ESP#1: 給水口・水噴射ノズル（サーボモーター制御）、DC扇風機（PWM制御）
+  - ESP#2: 高輝度LED（フラッシュエフェクト）、RGB LEDテープ（色彩エフェクト）
+- **通信方式**: Wi-Fi (802.11n) + MQTT
+
+#### 2. ActionDrive（振動フィードバックデバイス）
+
+**3D設計データ**: `hardware/3DModel/Motor Case Ver 2.stl`
+
+- **機能**: **振動**によるフィードバックを提供するクッション型デバイス
+- **制御マイコン**: ESP-12E × 2台（Motor Case Ver 2に格納）
+  - ESP-12E #4: Motor1 Control（4つの偏心モーター制御）
+  - ESP-12E #5: Motor2 Control（4つの偏心モーター制御）
+- **搭載アクチュエーター**:
+  - 偏心モーター × 8個（強度別4ピン制御）
+  - 強度レベル: STRONG, MEDIUM_STRONG, MEDIUM_WEAK, WEAK
+- **使用モード**:
+  - **1人利用**: 背中とお尻の2点で異なる振動を制御
+  - **2人利用**: 横に並べて2人で振動体験を共有
+- **通信方式**: Wi-Fi (802.11n) + MQTT
+
+### 無線通信アーキテクチャ
+
+本システムは**完全無線通信**を採用しており、配線の取り回しを最小化しています。
+
+```
+Raspberry Pi (MQTTブローカー + Wi-Fiアクセスポイント)
+       ↓ Wi-Fi (802.11n, SSID: PiMQTT-AP)
+       ├─ ESP-12E #1 (Wind/Water) ──→ DC Fan + Servo Pump
+       ├─ ESP-12E #2 (Flash/Color) ──→ High-Brightness LED + RGB LED Tape
+       ├─ ESP-12E #3 (Motor1) ──→ Vibration Motors (4個)
+       └─ ESP-12E #4 (Motor2) ──→ Vibration Motors (4個)
+```
+
+**Wi-Fi設定**:
+- SSID: `PiMQTT-AP`
+- IP: `192.168.4.1` (Raspberry Pi)
+- Protocol: MQTT over TCP/IP (Port 1883)
 
 ### システム全体構成
 
@@ -23,39 +75,39 @@ graph TB
         RaspberryPi[Raspberry Pi 3 Model B<br/>Device Hub Server<br/>Python 3.9+]
         
         subgraph "MQTT Broker"
-            Broker[Mosquitto MQTT Broker<br/>172.18.28.55:1883]
+            Broker[Mosquitto MQTT Broker<br/>192.168.4.1:1883]
         end
         
-        subgraph "ESP-12E Devices"
-            ESP1[ESP-12E #1<br/>Wind Control]
-            ESP2[ESP-12E #2<br/>Flash/Light Control]
-            ESP3[ESP-12E #3<br/>LED Color Control]
-            ESP4[ESP-12E #4<br/>Motor1 Control]
-            ESP5[ESP-12E #5<br/>Motor2 Control]
-        end
-        
-        subgraph "Actuators"
+        subgraph "EffectStation (3Dプリント筐体)"
+            ESP1[ESP-12E #1<br/>Wind & Water Control<br/>Wi-Fi]
+            ESP2[ESP-12E #2<br/>Flash & Color Control<br/>Wi-Fi]
             Fan[DC Fan 12V<br/>風エフェクト]
+            Water[Servo + Pump<br/>水エフェクト]
             Flash[High-Brightness LED<br/>フラッシュエフェクト]
-            RGB[RGB LED<br/>色彩エフェクト]
-            Motor1[Vibration Motor 1<br/>振動エフェクト]
-            Motor2[Vibration Motor 2<br/>振動エフェクト]
+            RGB[RGB LED Tape<br/>色彩エフェクト]
+        end
+        
+        subgraph "ActionDrive (Motor Case Ver 2)"
+            ESP3[ESP-12E #3<br/>Motor1 Control<br/>Wi-Fi]
+            ESP4[ESP-12E #4<br/>Motor2 Control<br/>Wi-Fi]
+            Motor1[Vibration Motors<br/>4個 (背中用)]
+            Motor2[Vibration Motors<br/>4個 (お尻用)]
         end
     end
     
     CloudRun -->|WebSocket<br/>wss://...| RaspberryPi
-    RaspberryPi -->|MQTT Publish| Broker
-    Broker -->|MQTT Subscribe| ESP1
-    Broker -->|MQTT Subscribe| ESP2
-    Broker -->|MQTT Subscribe| ESP3
-    Broker -->|MQTT Subscribe| ESP4
-    Broker -->|MQTT Subscribe| ESP5
+    RaspberryPi -->|MQTT Publish<br/>Wi-Fi| Broker
+    Broker -->|MQTT Subscribe<br/>Wi-Fi| ESP1
+    Broker -->|MQTT Subscribe<br/>Wi-Fi| ESP2
+    Broker -->|MQTT Subscribe<br/>Wi-Fi| ESP3
+    Broker -->|MQTT Subscribe<br/>Wi-Fi| ESP4
     
     ESP1 --> Fan
+    ESP1 --> Water
     ESP2 --> Flash
-    ESP3 --> RGB
-    ESP4 --> Motor1
-    ESP5 --> Motor2
+    ESP2 --> RGB
+    ESP3 --> Motor1
+    ESP4 --> Motor2
 ```
 
 ---
@@ -87,24 +139,58 @@ coloredlogs==15.0.1         # カラーログ出力
 asyncio                      # 非同期処理
 ```
 
-### ESP-12E Devices
+### ESP-12E Devices (全4台)
 
 #### ハードウェア
-- **ESP-12E** (ESP8266ベース)
+- **ESP-12E** (ESP8266ベース) × 4台
   - CPU: Tensilica L106 32-bit (80MHz)
   - RAM: 50KB
   - Flash: 4MB
-  - Wi-Fi: 802.11 b/g/n
+  - Wi-Fi: 802.11 b/g/n (2.4GHz)
   - GPIO: 11ピン使用可能
+  - 電源: 3.3V (各ESP独立電源供給)
 
 #### 開発環境
 - **Arduino IDE** 1.8.19+
 - **ESP8266 Arduino Core** 3.0.2+
+- **スケッチファイル**:
+  - `hardware/actuators/4DX_WATER_WIND.ino` (ESP#1: 風・水統合制御)
+  - `hardware/actuators/4DX_LIGHTS.ino` (ESP#2: 光・色統合制御)
+  - `hardware/actuators/4DX_MOTOR_MQTT.ino` (ESP#3, #4: 振動制御)
 
 #### 依存ライブラリ
 ```cpp
 #include <ESP8266WiFi.h>     // Wi-Fi接続
 #include <PubSubClient.h>    // MQTTクライアント
+#include <Servo.h>           // サーボモーター制御（水エフェクト用）
+```
+
+#### Wi-Fi接続設定
+
+全てのESP-12EはRaspberry Piが提供するWi-Fiアクセスポイントに接続します。
+
+```cpp
+const char* WIFI_SSID     = "PiMQTT-AP";
+const char* WIFI_PASSWORD = "AtHome1234";
+const char* MQTT_HOST     = "192.168.4.1";  // Raspberry Pi IP
+const uint16_t MQTT_PORT  = 1883;
+```
+
+#### デバイス別設定
+
+| ESP# | デバイスID | MQTTクライアントID | Subscribeトピック | 制御対象 |
+|------|-----------|-------------------|------------------|----------|
+| #1 | ESP-WindWater | ESP8266_4DX_Client | `/4dx/wind/control`<br/>`/4dx/water/control` | DC Fan + Servo Pump |
+| #2 | ESP-FlashColor | ESP8266_LED_Controller | `/4dx/flash/control`<br/>`/4dx/led/control` | High-Brightness LED + RGB LED Tape |
+| #3 | ESP-Motor1 | ESP8266_Motor_1 | `/4dx/motor1/control` | Vibration Motors (4個・背中) |
+| #4 | ESP-Motor2 | ESP8266_Motor_2 | `/4dx/motor2/control` | Vibration Motors (4個・お尻) |
+
+#### ハートビート機能
+
+各ESP-12Eは10秒ごとにハートビートメッセージを送信し、接続状態を監視します。
+
+```cpp
+const unsigned long HEARTBEAT_MS = 10000; // 10秒間隔
 ```
 
 ---
@@ -175,11 +261,17 @@ CLOUD_RUN_API_URL=https://fdx-home-backend-api-xxxxxxxxxxxx.asia-northeast1.run.
 CLOUD_RUN_WS_URL=wss://fdx-home-backend-api-xxxxxxxxxxxx.asia-northeast1.run.app
 
 # === MQTT設定 ===
-MQTT_BROKER_HOST=172.18.28.55
+MQTT_BROKER_HOST=192.168.4.1
 MQTT_BROKER_PORT=1883
 MQTT_CLIENT_ID=raspberrypi_controller
 MQTT_KEEPALIVE=60
 MQTT_QOS=1
+
+# === Wi-Fi AP設定 (Raspberry Pi) ===
+WIFI_SSID=PiMQTT-AP
+WIFI_PASSWORD=AtHome1234
+WIFI_CHANNEL=6
+WIFI_IP=192.168.4.1
 
 # === ログ設定 ===
 LOG_LEVEL=DEBUG

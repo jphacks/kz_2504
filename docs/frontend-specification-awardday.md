@@ -32,12 +32,13 @@
                ↓ WebSocket
 ┌─────────────────────────────────────────┐
 │  Raspberry Pi Hub                       │
-│  (Python Server)                        │
+│  (Python Server + MQTT Broker)          │
 └─────────────────────────────────────────┘
-               ↓ MQTT
+               ↓ Wi-Fi + MQTT
 ┌─────────────────────────────────────────┐
-│  ESP-12E Actuators                      │
-│  (Vibration, Wind, Water, Flash, LED)   │
+│  ESP-12E × 4台 (3Dプリント筐体)         │
+│  - EffectStation (風・水・光・色)        │
+│  - ActionDrive (振動×8モーター)         │
 └─────────────────────────────────────────┘
 ```
 

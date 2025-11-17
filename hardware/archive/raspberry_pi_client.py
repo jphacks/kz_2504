@@ -24,7 +24,7 @@ import websocket  # pip install websocket-client
 
 # --- WS接続先（固定） ---
 SESSION_ID = "demo_session"
-WEBSOCKET_URI = f"wss://fourdk-backend-333203798555.asia-northeast1.run.app/api/playback/ws/device/{SESSION_ID}"
+WEBSOCKET_URI = f"wss://fourdk-backend-xxxxxxxxxxxx.asia-northeast1.run.app/api/playback/ws/device/{SESSION_ID}"
 
 # --- 元コードの設定を維持 ---
 HOST = '127.0.0.1'

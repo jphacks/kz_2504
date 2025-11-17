@@ -42,9 +42,8 @@ graph TB
     end
     
     subgraph "物理デバイス"
-        Arduino1[Arduino #1<br/>光・風]
-        Arduino2[Arduino #2<br/>水]
-        ESP[ESP-12E<br/>振動]
+        EffectStation[EffectStation<br/>風・水・光・色<br/>3Dプリント筐体]
+        ActionDrive[ActionDrive<br/>振動×8モーター<br/>3Dプリント筐体]
     end
     
     Frontend -->|HTTPS/WSS| CloudRun
@@ -52,9 +51,8 @@ graph TB
     CloudRun -->|WebSocket| RaspberryPi
     CloudRun -->|WebSocket| DebugHardware
     
-    RaspberryPi -->|Serial| Arduino1
-    RaspberryPi -->|Serial| Arduino2
-    RaspberryPi -->|MQTT| ESP
+    RaspberryPi -->|Wi-Fi + MQTT| EffectStation
+    RaspberryPi -->|Wi-Fi + MQTT| ActionDrive
 ```
 
 ### 主要機能
@@ -161,7 +159,7 @@ python3 hardware_server.py
 ### システム要件
 - **フロントエンド**: Node.js 18+, モダンブラウザ
 - **バックエンド**: Python 3.9+, 512MB RAM
-- **ハードウェア**: Raspberry Pi 3 Model B, Arduino Uno, 12V/5A電源
+- **ハードウェア**: Raspberry Pi 3 Model B, ESP-12E × 4台, 3Dプリンター, 12V/5A電源
 
 ## API一覧
 
@@ -175,10 +173,11 @@ python3 hardware_server.py
 - `ws://server/api/preparation/ws/{session_id}` - リアルタイム通信
 
 ### デバイス制御プロトコル
-- **振動**: MQTT `/vibration/{mode}`
-- **光**: Serial `"COLOR R G B"`  
-- **風**: Serial `"ON"/"OFF"`
-- **水**: Serial `"SPLASH"`
+- **振動**: MQTT `/4dx/motor1/control`, `/4dx/motor2/control`
+- **光**: MQTT `/4dx/flash/control`, `/4dx/led/control`
+- **風**: MQTT `/4dx/wind/control`
+- **水**: MQTT `/4dx/water/control`
+- **通信**: Wi-Fi (802.11n) + MQTT over TCP/IP
 
 ## パフォーマンス指標
 
@@ -195,7 +194,7 @@ python3 hardware_server.py
 ### よくある問題
 1. **同期ずれ**: ネットワーク環境・処理負荷確認
 2. **WebSocket接続失敗**: ファイアウォール・CORS設定確認  
-3. **デバイス無応答**: シリアル接続・Arduino状態確認
+3. **デバイス無応答**: Wi-Fi接続・ESP-12E状態確認
 4. **動画再生できない**: ブラウザ対応・コーデック確認
 
 ### ログ確認
