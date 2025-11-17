@@ -132,10 +132,18 @@ graph TB
 #### 依存ライブラリ
 ```txt
 Flask==3.0.0                 # Webサーバー
-websocket-client==1.7.0      # WebSocket通信
-paho-mqtt==1.6.1            # MQTT通信
-python-dotenv==1.0.0        # 環境変数管理
-coloredlogs==15.0.1         # カラーログ出力
+flask-cors==4.0.0            # CORSサポート
+flask-socketio==5.3.5        # Socket.IO統合
+python-socketio==5.10.0      # Socket.IOクライアント
+websockets==12.0             # WebSocket通信（非同期版）
+paho-mqtt==1.6.1             # MQTT通信
+python-dotenv==1.0.0         # 環境変数管理
+aiofiles==23.2.1             # 非同期IO
+coloredlogs==15.0.1          # カラーログ出力
+python-json-logger==2.0.7    # JSONログ
+python-dateutil==2.8.2       # 日付処理
+pytest==7.4.3                # テストフレームワーク
+pytest-asyncio==0.21.1       # 非同期テスト
 asyncio                      # 非同期処理
 ```
 

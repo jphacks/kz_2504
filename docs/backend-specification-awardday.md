@@ -43,7 +43,7 @@
 
 ### HTTP・非同期処理
 - **httpx** 0.25.2 - 非同期HTTPクライアント
-- **aiohttp** 3.9.5 - 非同期HTTP処理
+- **aiohttp** 3.9.1 - 非同期HTTP処理
 - **aiofiles** 25.1.0 - 非同期ファイルIO
 
 ### 設定・ログ
@@ -79,7 +79,7 @@ CPU: 1 vCPU
 並列度: 80 (同時リクエスト数/インスタンス)
 最大インスタンス: 20
 最小インスタンス: 0 (スケールゼロ対応)
-認証: 未認証アクセス許可 (allow-unauthenticated)
+認証: 未認証アクセス許可 (--allow-unauthenticated)
 ```
 
 ### 環境変数
@@ -94,10 +94,12 @@ DEBUG=false
 # === サーバー設定 ===
 HOST="0.0.0.0"
 PORT=8080
+RELOAD=true
+WORKERS=1
 LOG_LEVEL="INFO"
 
 # === CORS設定 ===
-CORS_ORIGINS="http://localhost:3000,http://localhost:5173,https://kz-2504.onrender.com"
+CORS_ORIGINS="http://localhost:3000,http://localhost:5173,http://127.0.0.1:3000,http://127.0.0.1:5173,http://localhost:8000,http://127.0.0.1:8000,https://fdx-home-backend-api-xxxxxxxxxxxx.asia-northeast1.run.app"
 
 # === セキュリティ ===
 SECRET_KEY="<機密情報・環境変数で設定>"
@@ -108,17 +110,22 @@ WEBSOCKET_TIMEOUT=300
 MAX_CONNECTIONS=100
 PING_INTERVAL=30
 
+# === ファイルパス設定 ===
+DATA_PATH="./data"
+ASSETS_PATH="../assets"
+LOGS_PATH="./logs"
+VIDEO_ASSETS_PATH="../assets/videos"
+SYNC_DATA_PATH="../assets/sync-data"
+
 # === Cloud Run / GCP設定 ===
 CLOUD_PROJECT_ID="fourdk-home-2024"
 CLOUD_REGION="asia-northeast1"
 BACKEND_API_URL="https://fdx-home-backend-api-xxxxxxxxxxxx.asia-northeast1.run.app"
 BACKEND_WS_URL="wss://fdx-home-backend-api-xxxxxxxxxxxx.asia-northeast1.run.app"
 
-# === デバッグ設定 ===
-DEBUG_MODE=false
-DEBUG_SKIP_PREPARATION=false
-DEBUG_AUTO_READY=false
-DEBUG_FAST_CONNECTION=false
+# === パフォーマンス設定 ===
+REQUEST_TIMEOUT=30
+MAX_REQUEST_SIZE=16777216
 ```
 
 ---
@@ -148,9 +155,10 @@ backend/
 │   │   └── playback.py             # (NEW)
 │   │
 │   └── services/                    # ビジネスロジック
-│       ├── session_manager.py
-│       ├── timeline_service.py
-│       └── device_relay_service.py # (NEW)
+│       ├── preparation_service.py
+│       ├── video_service.py
+│       ├── sync_data_service.py
+│       └── continuous_sync_service.py
 │
 ├── data/                            # データファイル
 │   ├── devices.json
@@ -208,6 +216,38 @@ backend/
 
 #### `GET /api/version`
 APIバージョン・エンドポイント一覧
+
+**レスポンス**:
+```json
+{
+  "api_version": "1.0.0",
+  "environment": "production",
+  "supported_endpoints": [
+    "/",
+    "/health",
+    "/api/version",
+    "/api/device/register",
+    "/api/device/info/{product_code}",
+    "/api/device/capabilities",
+    "/api/videos/available",
+    "/api/videos/{video_id}",
+    "/api/videos/select",
+    "/api/videos/categories/list",
+    "/api/preparation/start/{session_id}",
+    "/api/preparation/status/{session_id}",
+    "/api/preparation/stop/{session_id}",
+    "/api/preparation/ws/{session_id}",
+    "/api/preparation/health",
+    "/api/playback/start/{session_id}",
+    "/api/playback/stop/{session_id}",
+    "/api/playback/status",
+    "/api/playback/connections",
+    "/api/playback/ws/sync/{session_id}",
+    "/api/playback/ws/device/{session_id}"
+  ],
+  "documentation": "/docs"
+}
+```
 
 ---
 
@@ -330,6 +370,43 @@ APIバージョン・エンドポイント一覧
 #### `DELETE /api/preparation/stop/{session_id}`
 準備処理停止
 
+#### `POST /api/preparation/upload-timeline/{session_id}` **[NEW]**
+タイムラインJSON送信
+
+**リクエスト**:
+```json
+{
+  "video_id": "demo1",
+  "timeline_data": {
+    "video_id": "demo1",
+    "duration": 120.0,
+    "events": [
+      {
+        "t": 5.0,
+        "type": "wind",
+        "mode": "short",
+        "intensity": 80,
+        "duration_ms": 2000
+      }
+    ]
+  }
+}
+```
+
+**レスポンス**:
+```json
+{
+  "success": true,
+  "message": "タイムラインを送信しました",
+  "session_id": "demo1",
+  "video_id": "demo1",
+  "size_kb": 2.5,
+  "events_count": 15,
+  "devices_notified": 2,
+  "transmission_time_ms": 120
+}
+```
+
 #### `GET /api/preparation/health`
 準備処理ヘルスチェック
 
@@ -398,19 +475,20 @@ WebSocket接続状態取得
 ```
 WSS /api/preparation/ws/{session_id}
 ```
-**用途**: フロントエンド ↔ Cloud Run API (準備進捗通知)
+**用途**: フロントエンド ↔ Cloud Run API (準備進捗通知・デバイステスト)
 
-#### 2. デバイスWebSocket **[NEW]**
-```
-WSS /api/playback/ws/device/{session_id}
-```
-**用途**: Cloud Run API ↔ Raspberry Pi Hub (双方向制御)
-
-#### 3. 再生同期WebSocket **[NEW]**
+#### 2. 再生同期WebSocket
 ```
 WSS /api/playback/ws/sync/{session_id}
 ```
-**用途**: フロントエンド ↔ Cloud Run API (500ms間隔同期)
+**用途**: フロントエンド ↔ Cloud Run API (100ms間隔同期)
+**クエリパラメータ**: `?hub={hubId}` (オプション: デバイスハブID)
+
+#### 3. デバイス接続WebSocket
+```
+WSS /api/playback/ws/device/{session_id}
+```
+**用途**: Cloud Run API ↔ Raspberry Pi Hub (双方向制御・タイムライン送信)
 
 ---
 
@@ -452,20 +530,42 @@ WSS /api/playback/ws/sync/{session_id}
   "type": "sync",
   "state": "play",
   "time": 45.2,
-  "currentTime": 45.2,
   "duration": 120.0,
   "ts": 1731571200000
 }
 ```
+
+**送信間隔**: 100ms (環境変数 `VITE_SYNC_INTERVAL_MS` で設定可能)
+**state値**: `"play"` | `"pause"` | `"seeking"` | `"seeked"`
 
 **同期ACK (Server → Client)**:
 ```json
 {
   "type": "sync_ack",
   "session_id": "demo1",
+  "received_time": 45.2,
   "received_state": "play",
   "server_time": "2025-11-14T12:00:00.789Z",
   "relayed_to_devices": true
+}
+```
+
+**接続確認 (Server → Client)**:
+```json
+{
+  "type": "connection_established",
+  "connection_id": "frontend_demo1_120000",
+  "session_id": "demo1",
+  "server_time": "2025-11-14T12:00:00Z",
+  "message": "WebSocket接続が確立されました"
+}
+```
+
+**識別メッセージ (Client → Server)** **[NEW]**:
+```json
+{
+  "type": "identify",
+  "hub_id": "demo1"
 }
 ```
 
@@ -527,9 +627,11 @@ WSS /api/playback/ws/sync/{session_id}
 {
   "type": "video_sync",
   "session_id": "demo1",
-  "current_time": 45.2,
-  "state": "play",
-  "timestamp": "2025-11-14T12:00:00Z"
+  "video_time": 45.2,
+  "video_state": "play",
+  "video_duration": 120.0,
+  "client_timestamp": 1731571200000,
+  "server_timestamp": 1731571200120
 }
 ```
 
@@ -574,79 +676,97 @@ WSS /api/playback/ws/sync/{session_id}
 
 ## Pydanticモデル
 
-### デバイス関連
+### 再生制御関連 (playback.py)
 
 ```python
 from pydantic import BaseModel, Field
-from typing import List, Optional
 from datetime import datetime
 
-class DeviceRegistrationRequest(BaseModel):
-    product_code: str = Field(..., min_length=5, max_length=6)
+class SyncMessage(BaseModel):
+    """フロントエンド同期メッセージ"""
+    type: str = "sync"
+    state: str = Field(..., description="再生状態 (play, pause, seeking, seeked)")
+    time: float = Field(ge=0.0, description="動画再生時刻（秒）")
+    duration: float = Field(ge=0.0, description="動画総再生時間（秒）") 
+    ts: Optional[int] = Field(None, description="クライアント送信タイムスタンプ（ミリ秒）")
 
-class DeviceInfo(BaseModel):
-    product_code: str
-    device_name: str
-    manufacturer: str
-    model: str
-    capabilities: List[str]
-    max_connections: int
-    is_active: bool
-    description: str
-    price_tier: str
-
-class DeviceRegistrationResponse(BaseModel):
-    device_id: str
-    device_name: str
-    capabilities: List[str]
-    status: str = "registered"
-    registered_at: datetime
-    session_timeout: int = 60
-```
-
-### 動画関連
-
-```python
-class VideoInfo(BaseModel):
-    video_id: str
-    title: str
-    description: str
-    duration_seconds: float
-    file_name: str
-    file_size_mb: Optional[float]
-    thumbnail_url: Optional[str]
-    categories: List[str]
-    tags: List[str]
-    created_at: datetime
-    updated_at: Optional[datetime]
-
-class VideoSelectRequest(BaseModel):
-    video_id: str
-    device_id: str
-    session_preferences: Optional[Dict[str, Any]] = {}
-
-class VideoSelectResponse(BaseModel):
+class ConnectionEstablished(BaseModel):
+    """WebSocket接続確立応答"""
+    type: str = "connection_established"
+    connection_id: str
     session_id: str
-    video_url: str
-    sync_data_url: Optional[str]
-    preparation_started: bool = False
-    estimated_preparation_time: int = 30
+    server_time: str = Field(default_factory=lambda: datetime.now().isoformat())
+    message: str = "WebSocket接続が確立されました"
+
+class SyncAcknowledge(BaseModel):
+    """同期確認応答"""
+    type: str = "sync_ack"
+    session_id: str
+    received_time: float
+    received_state: str
+    server_time: str = Field(default_factory=lambda: datetime.now().isoformat())
+    relayed_to_devices: bool = False
+
+class DeviceStatus(BaseModel):
+    """デバイス状態情報"""
+    type: str = "device_status"
+    device_id: str
+    status: str = Field(..., description="ready, busy, error, offline")
+    json_loaded: bool = Field(False, description="タイムライン読み込み状態")
 ```
 
-### タイムライン関連
+### 準備処理関連 (preparation.py)
 
 ```python
-class SyncEvent(BaseModel):
-    t: float                    # タイムスタンプ(秒)
-    action: str                # "start", "stop", "shot"
-    effect: str                # "VIBRATION", "WIND", "WATER", etc.
-    mode: str                  # 効果のモード
-    intensity: Optional[float] # 強度(0.0-1.0)
+from enum import Enum
 
-class TimelineData(BaseModel):
-    events: List[SyncEvent]
-    video_id: str
-    duration: float
+class ActuatorType(str, Enum):
+    """アクチュエータタイプ"""
+    VIBRATION = "VIBRATION"  # 振動クッション
+    WATER = "WATER"          # 水しぶきスプレー
+    WIND = "WIND"            # 風ファン
+    FLASH = "FLASH"          # フラッシュライト
+    COLOR = "COLOR"          # 色ライト
+
+class PreparationStatus(str, Enum):
+    """準備処理状況"""
+    NOT_STARTED = "not_started"
+    INITIALIZING = "initializing"
+    IN_PROGRESS = "in_progress"
+    TESTING = "testing"
+    COMPLETED = "completed"
+    FAILED = "failed"
+    TIMEOUT = "timeout"
+
+class ActuatorTestStatus(str, Enum):
+    """アクチュエーターテスト状況"""
+    PENDING = "pending"
+    TESTING = "testing"
+    READY = "ready"
+    FAILED = "failed"
+    TIMEOUT = "timeout"
+    UNAVAILABLE = "unavailable"
+
+class ActuatorTestResult(BaseModel):
+    """アクチュエーターテスト結果"""
+    actuator_type: ActuatorType
+    status: ActuatorTestStatus
+    response_time_ms: Optional[int]
+    test_intensity: Optional[float]
+    error_message: Optional[str]
+    tested_at: Optional[datetime]
+
+class PreparationState(BaseModel):
+    """準備処理統合状態"""
+    session_id: str
+    overall_status: PreparationStatus
+    overall_progress: int  # 0-100
+    video_preparation: VideoPreparationInfo
+    sync_data_preparation: SyncDataPreparationInfo
+    device_communication: DeviceCommunicationInfo
+    ready_for_playback: bool
+    min_required_actuators_ready: bool
+    all_actuators_ready: bool
 ```
 
 ---
@@ -666,9 +786,14 @@ app.add_middleware(
 ```
 
 **許可オリジン**:
-- `http://localhost:3000` - 開発環境
+- `http://localhost:3000` - 開発環境 (React)
 - `http://localhost:5173` - Vite開発サーバー
-- `https://kz-2504.onrender.com` - 本番フロントエンド
+- `http://127.0.0.1:3000` - ローカルホスト (React)
+- `http://127.0.0.1:5173` - ローカルホスト (Vite)
+- `http://localhost:8000` - デバッグ用
+- `http://127.0.0.1:8000` - デバッグ用
+- `https://fdx-home-backend-api-xxxxxxxxxxxx.asia-northeast1.run.app` - Cloud Run自身
+- `https://kz-2504.onrender.com` - 本番フロントエンド (Render)
 
 ### 入力バリデーション
 
@@ -695,17 +820,31 @@ async def global_exception_handler(request, exc):
 
 ## パフォーマンス
 
+### WebSocket接続管理
+
+**実装クラス**: `SimpleWebSocketManager` (playback_control.py)
+
+**主要機能**:
+- **接続管理**: `active_connections` (Dict[str, WebSocket])
+- **セッション管理**: `session_connections` (Dict[str, Set[str]])
+- **並列送信**: `send_to_session()` で全接続に並列メッセージ配信
+- **エラーハンドリング**: 送信失敗時の自動クリーンアップ
+- **タイムアウト**: 1.5秒で並列送信タイムアウト
+
 ### 応答時間目標
 
 - **REST API**: < 100ms (95th percentile)
-- **WebSocket**: < 50ms (同期メッセージ)
+- **WebSocket同期**: < 50ms (メッセージ処理)
+- **並列送信**: 1.5秒タイムアウト
 - **Cloud Run → Raspberry Pi**: < 200ms
 
 ### 同期精度
 
-- **フロントエンド送信間隔**: 500ms (固定)
+- **フロントエンド送信間隔**: 100ms (デフォルト、環境変数で変更可能)
+- **Cloud Run処理遅延**: < 50ms
 - **Raspberry Pi処理遅延**: ±100ms許容
 - **合計同期精度**: ±150ms以内
+- **並列送信**: セッション内の全接続に並列メッセージ送信（1.5秒タイムアウト）
 
 ### リソース制限
 
@@ -845,24 +984,42 @@ gcloud artifacts repositories create my-fastapi-repo \
 1. **ストップ処理API** (`POST /api/playback/stop/{session_id}`)
    - 全アクチュエーター即座停止
    - 一時停止・動画終了時に使用
+   - REST APIとWebSocketの二重送信対応
 
-2. **デバイスWebSocket** (`/api/playback/ws/device/{session_id}`)
+2. **タイムラインアップロードAPI** (`POST /api/preparation/upload-timeline/{session_id}`)
+   - JSONタイムラインの直接送信
+   - デバイス通知と検証機能
+   - 送信サイズ・イベント数のレポート
+
+3. **デバイスWebSocket** (`/api/playback/ws/device/{session_id}`)
    - Raspberry Pi専用WebSocket
    - 双方向リアルタイム通信
+   - タイムライン自動中継
 
-3. **再生同期WebSocket** (`/api/playback/ws/sync/{session_id}`)
+4. **再生同期WebSocket** (`/api/playback/ws/sync/{session_id}`)
    - フロントエンド→Cloud Run→Raspberry Pi中継
-   - 500ms間隔同期
+   - 100ms間隔同期 (環境変数で調整可能)
+   - ハブID識別機能 (`?hub={hubId}`)
+   - 並列メッセージ送信 (1.5秒タイムアウト)
 
-4. **詳細ログ機能**
+5. **SimpleWebSocketManager**
+   - 並列送信による高速配信
+   - 自動エラー検出とクリーンアップ
+   - セッション単位の接続管理
+
+6. **詳細ログ機能**
    - 構造化JSON出力
    - Cloud Loggingエクスプローラー対応
+   - WebSocket接続・切断の詳細ログ
 
 ### 改善点
 
-- WebSocketタイムアウト: 60秒 → 300秒
-- 並列度: 10 → 80
-- メモリ: 256Mi → 512Mi (WebSocket接続増加対応)
+- **WebSocketタイムアウト**: 60秒 → 300秒
+- **並列度**: 10 → 80リクエスト/インスタンス
+- **メモリ**: 256Mi → 512Mi (WebSocket接続増加対応)
+- **同期間隔**: 500ms → 100ms (高精度化)
+- **CORS設定**: 3オリジン → 8オリジン (開発環境拡充)
+- **並列送信**: asyncio.gather()による全接続同時配信
 
 ---
 

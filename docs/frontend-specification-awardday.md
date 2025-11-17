@@ -18,9 +18,9 @@
 │  Frontend (React + Vite)                │
 │  https://kz-2504.onrender.com           │
 │                                         │
-│  - HomePage (ランディング)               │
-│  - PairingPage (デバイス登録)            │
+│  - LoginPage (ログイン)                  │
 │  - SelectPage (動画選択)                 │
+│  - VideoPreparationPage (動画準備)      │
 │  - PlayerPage (再生・同期)               │
 └─────────────────────────────────────────┘
                ↓ HTTPS/WSS
@@ -47,19 +47,22 @@
 ## 技術スタック
 
 ### コアライブラリ
-- **React** 18.2.0 - UIライブラリ
+- **React** 18.3.1 - UIライブラリ
 - **React Router DOM** 6.30.1 - SPA ルーティング
-- **TypeScript** 5.0.0 - 型安全性
+- **TypeScript** 5.9.3 - 型安全性
 
 ### ビルド・開発ツール
-- **Vite** 5.0.0 - 高速ビルド・開発サーバー
-- **@vitejs/plugin-react** 4.2.0 - React統合
+- **Vite** 7.1.9 - 高速ビルド・開発サーバー
+- **@vitejs/plugin-react** 4.7.0 - React統合
+- **TailwindCSS** 4.1.14 - ユーティリティCSSフレームワーク
 
 ### HTTP通信
-- **Axios** 1.6.0 - REST APIクライアント
+- **Fetch API** (ネイティブ) - REST APIクライアント
+- **カスタムapiClient** - `services/apiClient.ts` で実装
 
 ### WebSocket通信
 - **WebSocket API** (ネイティブ) - リアルタイム同期
+- **カスタムWebSocketClient** - `services/websocketClient.ts` で実装
 
 ---
 
@@ -82,6 +85,10 @@ URL: https://kz-2504.onrender.com
 VITE_BACKEND_API_URL=https://fdx-home-backend-api-xxxxxxxxxxxx.asia-northeast1.run.app
 VITE_BACKEND_WS_URL=wss://fdx-home-backend-api-xxxxxxxxxxxx.asia-northeast1.run.app
 
+# === 同期間隔設定 ===
+VITE_SYNC_INTERVAL_MS=100
+VITE_SEEK_SYNC_INTERVAL_MS=100
+
 # === 本番フロー用セッションID ===
 VITE_PRODUCTION_SESSION_ID=demo1
 
@@ -95,87 +102,240 @@ VITE_DEFAULT_SESSION_ID=demo_session
 
 ## 画面構成
 
-### 1. HomePage - ホーム画面
+### 1. HomePage - ホーム画面（ランディング）
 
-**パス**: `/`
+**パス**: `/` (ルート)
 
-**目的**: キャッチコピー表示・サービス紹介
-
-**主要機能**:
-- サービスロゴ・キャッチコピー表示
-- 「体験を始める」ボタン → PairingPageへ遷移
-- システム概要の簡易説明
-
-**スクリーンショット**: ![Home](../assets/images/home.png)
-
----
-
-### 2. PairingPage - デバイス登録画面
-
-**パス**: `/session`
-
-**目的**: デバイスハブ製品コード入力・登録
+**目的**: サービスの第一印象を伝えるランディングページ
 
 **主要機能**:
-- **デバイスハブ製品コード入力**
-  - `DH001`: 4DX Home Basic (振動・風・水)
-  - `DH002`: 4DX Home Standard (Basic + フラッシュ)
-  - `DH003`: 4DX Home Premium (Standard + カラーLED)
-- **「接続」ボタン**: `/api/device/register` エンドポイント呼び出し
-- **接続状態表示**: 成功/失敗メッセージ
-- **次へボタン**: SelectPageへ遷移
+- **背景動画自動再生**: `/hero/main.mp4` がページ読み込み時に自動再生
+  - 再生中はフルスクリーンで動画が前面表示
+  - 再生終了後、フェードアウトして静止画 (`/home.jpeg`) を表示
+- **キャッチコピー表示**: 「おうち映画の常識を変える」
+- **サブコピー**: 「どこでも、誰とでも、特別な映画体験を」
+- **2つのボタン**:
+  - **「LOG IN」**: `/login` へ遷移（将来のユーザー認証用）
+  - **「GET STARTED」**: `/select` へ直接遷移（ゲストとして開始）
+- **レスポンシブデザイン**: モバイル・デスクトップ対応
+- **アニメーション**: 動画再生中はUIフェードアウト、終了後フェードイン
 
 **実装例**:
 ```typescript
-const handleRegister = async () => {
-  try {
-    const response = await axios.post(`${BACKEND_API_URL}/api/device/register`, {
-      product_code: productCode // "DH001", "DH002", "DH003"
-    });
-    
-    setDeviceId(response.data.device_id);
-    setCapabilities(response.data.capabilities);
-    setRegistered(true);
-  } catch (error) {
-    console.error('デバイス登録失敗:', error);
-  }
+const handleLogin = () => {
+  if (busy) return;
+  setBusy(true);
+  navigate("/login");
+};
+
+const handleGetStarted = () => {
+  if (busy) return;
+  setBusy(true);
+  // GET STARTEDは/selectへ直接遷移（SelectPage側でauth自動セット）
+  navigate("/select");
+};
+
+const handleEnded = () => {
+  setPlaying(false); // フェードアウト
+  setTimeout(() => setShowVideo(false), 200); // アンマウント
 };
 ```
 
-**スクリーンショット**: ![Session](../assets/images/session.png)
+**特徴**:
+- 背景動画 + 静止画のハイブリッド構成
+- CSS transitionによるスムーズなフェード効果
+- 連打防止機構
+- 自動再生失敗時のエラーハンドリング
+
+---
+
+### 2. LoginPage - ログイン画面
+
+**パス**: `/login`
+
+**目的**: ユーザー認証（現在はゲストログインのみ）
+
+**主要機能**:
+- **ユーザー名・パスワード入力フィールド** (将来実装予定)
+- **「ログイン」ボタン** (現在は未実装メッセージ表示)
+- **「ゲストとして続ける」ボタン** → `/select` へ遷移
+  - `sessionStorage.setItem("auth", "guest")` で認証状態を保存
+- **背景画像**: `/PairingPage.jpeg`
+- **ロゴ表示**: レスポンシブデザイン
+
+**実装例**:
+```typescript
+const handleGuestLogin = () => {
+  try { sessionStorage.setItem("auth", "guest"); } catch {}
+  navigate("/select", { replace: true });
+};
+```
+
+**注意**: 現在の実装では、HomePageの"GET STARTED"ボタンから直接SelectPageへ行けるため、この画面は使われないケースが多い。
 
 ---
 
 ### 3. SelectPage - 動画選択画面
 
-**パス**: `/selectpage`
+**パス**: `/select`
 
 **目的**: 視聴可能動画の一覧表示・選択
 
 **主要機能**:
-- **動画一覧表示**: `/api/videos/available` から取得
-- **カテゴリフィルター**: アクション、ホラー、アドベンチャー等
-- **サムネイル表示**: 400×225px (16:9)
-- **4DX対応バッジ**: エフェクト対応マーク
-- **動画選択**: クリックで詳細表示 → 「準備画面へ進む」ボタン
-- **ランキング表示** (予定): 人気順・評価順
-
-**サンプル動画**:
-- `demo1`: アクション映画 (120秒、24イベント)
-- `demo2`: 自然ドキュメンタリー (90秒、18イベント)
+- **自動認証**: ページアクセス時に `sessionStorage.setItem("auth", "1")` を自動実行
+- **ヘッダー固定**: ロゴ、ナビゲーション、アイコン（検索・通知・プロフィール）
+- **背景**: `/hero/main.gif` をグラデーション重ねで表示
+- **セクション構成**:
+  - **今熱い！**: `demo2` のみ（サムネイル存在時のみ表示）
+  - **アクション映画**: action-1 ～ action-4
+  - **ホラー映画**: horror-1 ～ horror-4
+- **サムネイル表示**: `/thumbs/{videoId}.jpeg`
+  - 画像が存在しない場合はセクションを非表示
+- **動画選択**: クリックで選択 → `/prepare?content={videoId}` へ遷移
+- **選択状態の保持**: `sessionStorage` に動画情報を保存
 
 **実装例**:
 ```typescript
-useEffect(() => {
-  const fetchVideos = async () => {
-    const response = await axios.get(`${BACKEND_API_URL}/api/videos/available`);
-    setVideos(response.data.videos);
+// 自動認証
+if (typeof window !== "undefined") {
+  try { sessionStorage.setItem("auth", "1"); } catch {}
+}
+
+const goPlayer = (id: string, title?: string, thumb?: string) => {
+  // 動画情報をsessionStorageに保存
+  const selectedVideo = {
+    id,
+    title: title || id.toUpperCase(),
+    thumbnailUrl: thumb || `/thumbs/${id}.jpeg`,
   };
-  fetchVideos();
-}, []);
+  try {
+    sessionStorage.setItem("selectedVideo", JSON.stringify(selectedVideo));
+  } catch (e) {
+    console.error("Failed to save selectedVideo:", e);
+  }
+  navigate(`/prepare?content=${encodeURIComponent(id)}`);
+};
 ```
 
-**スクリーンショット**: ![Select](../assets/images/select.png)
+**UI特徴**:
+- Netflix風のグリッドレイアウト
+- ホバー時のスケールアップアニメーション
+- ランキングバッジ表示
+- レスポンシブデザイン
+
+---
+
+### 4. VideoPreparationPage - 動画準備画面
+
+**パス**: `/prepare`
+
+**目的**: 5つのステップで動画再生の準備を行う
+
+**主要機能**:
+
+#### ステップ1: セッション接続確認 (session)
+- **セッションID入力**: デバイスハブコード（例: `demo1`, `demo2`, `main`）
+- **履歴機能**: localStorageに最近5件を保存・表示
+- **接続確認**: `/api/session/status/{sessionId}` で状態確認
+- **進行**: 手動実行・成功後自動進行
+
+#### ステップ2: デバイス接続確認 (device)
+- **デバイスID入力**: Raspberry PiのデバイスハブID
+- **履歴機能**: localStorageに最近5件を保存・表示
+- **接続確認**: `/api/device/capabilities` でデバイス情報取得
+- **進行**: 手動実行・成功後自動進行
+
+#### ステップ3: 動画読み込み確認 (videoLoad)
+- **自動実行**: 前ステップ完了後、自動的に実行
+- **動画パス**: `public/video/{videoId}.mp4`
+- **進行**: 1秒待機後自動進行
+
+#### ステップ4: タイムライン送信 (timeline)
+- **タイムラインファイル**: `public/json/{videoId}.json` を読み込み
+- **アップロード**: `/api/preparation/upload-timeline/{sessionId}` へPOST
+- **進行**: 手動実行（「タイムライン送信」ボタン）
+
+#### ステップ5: デバイステスト (deviceTest)
+- **WebSocket接続**: `wss://.../api/preparation/ws/{sessionId}`
+- **テスト開始**: 手動実行（「デバイステスト開始」ボタン）
+- **テスト結果受信**: 各エフェクトの動作確認結果を表示
+- **完了**: 「動画再生画面へ」ボタンで `/player` へ遷移
+
+**実装例**:
+```typescript
+// ステップ1: セッション接続
+const handleSessionConnect = async () => {
+  setStepStatus("session", "loading");
+  try {
+    const status = await fetchSessionStatus(sessionId);
+    if (status.exists) {
+      setStepStatus("session", "done");
+      pushRecent("recent_sessions", sessionId);
+    }
+  } catch (error) {
+    console.error("セッション接続失敗:", error);
+  }
+};
+
+// ステップ4: タイムライン送信
+const handleTimelineUpload = async () => {
+  setStepStatus("timeline", "loading");
+  try {
+    const fileId = resolveTimelineFileId(selectedVideo.id);
+    const response = await fetch(`/json/${fileId}.json`);
+    const timelineData = await response.json();
+    
+    await preparationApi.uploadTimeline(sessionId, timelineData);
+    setStepStatus("timeline", "done");
+  } catch (error) {
+    console.error("タイムライン送信失敗:", error);
+  }
+};
+
+// ステップ5: デバイステスト
+const handleDeviceTest = () => {
+  if (!wsRef.current) return;
+  
+  const testMessage = {
+    type: "device_test",
+    session_id: sessionId,
+    test_type: "basic",
+  };
+  
+  wsRef.current.send(JSON.stringify(testMessage));
+  setStepStatus("deviceTest", "loading");
+};
+```
+
+**WebSocketメッセージ**:
+```json
+// デバイステスト開始
+{
+  "type": "device_test",
+  "session_id": "demo1",
+  "test_type": "basic"
+}
+
+// デバイステスト結果
+{
+  "type": "device_test_result",
+  "session_id": "demo1",
+  "success": true,
+  "results": {
+    "VIBRATION": "OK",
+    "WIND": "OK",
+    "WATER": "OK",
+    "FLASH": "OK",
+    "COLOR": "OK"
+  }
+}
+```
+
+**UI特徴**:
+- 各ステップに状態アイコン（赤ドーナツリング → 緑チェックマーク）
+- 自動進行ステップと手動実行ステップの区別
+- 履歴機能によるUX向上
+- レスポンシブデザイン
 
 ---
 
@@ -183,129 +343,182 @@ useEffect(() => {
 
 **パス**: `/player`
 
-**目的**: 動画再生・リアルタイム同期・4Dエフェクト体験
+**目的**: 4Dエフェクトと同期した動画再生
 
 **主要機能**:
-- **HTML5 Video再生**: ネイティブコントロール
-- **WebSocket接続**: 500ms間隔で同期データ送信
-- **再生/一時停止コントロール**: カスタムUIボタン
-- **シークバー**: 再生位置調整
-- **音量コントロール**: 0-100%調整
-- **フルスクリーンボタン**: デスクトップ/モバイル対応
-- **4DXエフェクト状態表示** (デバッグ用): 現在のエフェクト可視化
-- **ストップ処理**: 一時停止・動画終了時に全アクチュエーター停止
 
-**WebSocket同期メッセージ**:
+#### 動画再生機能
+- **動画パス**: `?content={videoId}` パラメータから `/video/{videoId}.mp4` を読み込み
+- **自動再生開始**: ページ読み込み時に自動再生開始
+- **ミュート解除**: 再生開始後に音量を自動的に有効化
+- **再生コントロール**: 再生/一時停止、シークバー、ミュートボタン
+- **コントロールUIの自動隠れ**: 操作後3秒間操作がないとコントロールがフェードアウト
+- **エフェクトパネル表示/非表示**: ボタンでエフェクト情報を切り替え
+
+#### WebSocket同期機能
+- **接続先**: `wss://.../api/playback/ws/sync/{sessionId}?hub={hubId}`
+- **同期間隔**: 環境変数 `VITE_SYNC_INTERVAL_MS` (デフォルト100ms)
+- **シーク中同期**: 環境変数 `VITE_SEEK_SYNC_INTERVAL_MS` (デフォルト100ms)
+- **送信メッセージ**:
+  - `start_continuous_sync`: 再生開始時に1回送信
+  - `sync`: 再生位置・状態を定期送信 (`{type, state, time, duration, ts}`)
+  - `identify`: ハブIDをサーバーへ通知
+- **受信メッセージ**:
+  - `connection_established`: 接続確認
+  - `sync_ack`: 同期受信確認
+
+#### ストップ処理 (AwardDay新機能)
+- **一時停止時**: `/api/playback/stop/{sessionId}` へPOSTでストップ信号送信
+- **動画終了時**: 自動的にストップ信号送信 + 「もう一度見る」ボタン表示
+- **一度だけ送信**: `stopSentRef` で重複送信を防止
+- **Raspberry Pi連携**: ストップ信号がデバイスに伝播され、全アクチュエータが停止
+
+#### エフェクトステータスパネル
+- **タイムライン読み込み**: `/json/{videoId}.json` からエフェクトデータ取得
+- **リアルタイム表示**: 再生位置に合わせて現在のエフェクトをハイライト
+- **エフェクトタイプ**: 風・水・振動・光などをアイコンと強度で表示
+
+#### 再接続ロジック
+- **自動再接続**: 接続失敗時に最大5回まで再試行
+- **エクスポネンシャルバックオフ**: 1秒 → 2秒 → 4秒...と間隔を増やす
+- **エラー表示**: 接続失敗時にエラーメッセージ表示
+
+**実装例**:
 ```typescript
-const sendSyncMessage = () => {
-  if (wsClient?.isConnected()) {
-    wsClient.send({
-      type: 'sync',
-      state: isPlaying ? 'play' : 'pause',
-      time: currentTime,
-      currentTime: currentTime,
-      duration: duration,
-      ts: Date.now()
-    });
+// 環境変数から同期間隔を取得（ミリ秒）、デフォルトは100ms
+const SYNC_INTERVAL_MS = Number(import.meta.env.VITE_SYNC_INTERVAL_MS) || 100;
+// シーク中の同期間隔（デフォルトは同期間隔と同じ）
+const SEEK_SYNC_INTERVAL_MS = Number(import.meta.env.VITE_SEEK_SYNC_INTERVAL_MS) || SYNC_INTERVAL_MS;
+
+// 同期メッセージ送信
+const sendSync = (state: SyncState) => {
+  const ws = wsRef.current;
+  const v = videoRef.current;
+  if (!ws || ws.readyState !== WebSocket.OPEN || !v) return;
+  
+  const msg: OutMsg = {
+    type: "sync",
+    state,
+    time: v.currentTime,
+    duration: v.duration,
+    ts: Date.now(),
+  };
+  ws.send(JSON.stringify(msg));
+};
+
+// ストップ信号送信（一度だけ）
+const sendStopSignal = async () => {
+  if (stopSentRef.current) return;
+  stopSentRef.current = true;
+  
+  try {
+    await playbackApi.sendStopSignal(sessionId);
+    console.log("[player] stop signal sent", { sessionId });
+  } catch (err) {
+    console.error("[player] stop signal failed", err);
   }
 };
 
-// 500ms間隔で送信
-useEffect(() => {
-  if (isPlaying) {
-    const interval = setInterval(sendSyncMessage, 500);
-    return () => clearInterval(interval);
-  }
-}, [isPlaying, currentTime]);
-```
-
-**ストップ処理 (AwardDay追加機能)**:
-```typescript
-const handlePause = async () => {
-  setIsPlaying(false);
-  videoRef.current?.pause();
-  
-  // 同期インターバルをクリア
-  if (syncIntervalRef.current) {
-    clearInterval(syncIntervalRef.current);
-    syncIntervalRef.current = null;
-  }
-
-  // ストップ信号送信 (REST API)
-  try {
-    console.log('🛑 ストップ信号送信中...');
-    const response = await playbackApi.sendStopSignal(sessionId);
-    console.log('✅ ストップ信号送信完了:', response);
-  } catch (error) {
-    console.error('❌ ストップ信号送信エラー:', error);
-  }
-  
-  // WebSocketでもストップ信号送信 (二重送信で確実性向上)
-  if (wsClientRef.current?.isConnected()) {
-    wsClientRef.current.send({
-      type: 'stop_signal',
-      session_id: sessionId,
-      timestamp: Date.now(),
-    });
-    console.log('📤 WebSocketストップ信号送信完了');
-  }
+// 一時停止処理
+const handlePause = () => {
+  console.log("[player] video paused");
+  sendStopSignal(); // ストップ信号送信
+  sendSync("pause"); // パーズ状態同期
 };
 
-const handleEnded = async () => {
-  setIsPlaying(false);
-  
-  // 同期インターバルをクリア
-  if (syncIntervalRef.current) {
-    clearInterval(syncIntervalRef.current);
-    syncIntervalRef.current = null;
-  }
-
-  // ストップ信号送信
-  try {
-    console.log('🎬 動画終了: ストップ信号送信中...');
-    const response = await playbackApi.sendStopSignal(sessionId);
-    console.log('✅ 終了時ストップ信号送信完了:', response);
-  } catch (error) {
-    console.error('❌ 終了時ストップ信号送信エラー:', error);
-  }
-  
-  // WebSocketでもストップ信号送信
-  if (wsClientRef.current?.isConnected()) {
-    wsClientRef.current.send({
-      type: 'stop_signal',
-      session_id: sessionId,
-      timestamp: Date.now(),
-    });
-    console.log('📤 WebSocket終了時ストップ信号送信完了');
-  }
-
-  // 2秒後にページ遷移
-  setTimeout(() => {
-    navigate('/selectpage'); // 動画選択画面へ戻る
-  }, 2000);
+// 動画終了処理
+const handleEnded = () => {
+  console.log("[player] video ended");
+  setVideoEnded(true);
+  sendStopSignal(); // ストップ信号送信
 };
 ```
 
-**スクリーンショット**: ![Player](../assets/images/player.png)
+**特徴**:
+- 最小100ms間隔の高頻度同期
+- WebSocketバッファ管理で送信失敗を防止
+- ストップ信号で安全な停止処理
+- 再接続ロジックで接続安定性確保
 
 ---
 
 ## ルーティング構成
 
 ```typescript
-import { BrowserRouter, Routes, Route } from 'react-router-dom';
+import { Routes, Route, Navigate } from "react-router-dom";
+import HomePage from "./pages/HomePage";
+import LoginPage from "./pages/LoginPage";
+import SelectPage from "./pages/SelectPage";
+import PlayerPage from "./pages/PlayerPage";
+import VideoPreparationPage from "./pages/VideoPreparationPage";
+import ProtectedRoute from "./components/ProtectedRoute";
 
-function App() {
+export default function App() {
   return (
-    <BrowserRouter>
-      <Routes>
-        <Route path="/" element={<HomePage />} />
-        <Route path="/session" element={<PairingPage />} />
-        <Route path="/selectpage" element={<SelectPage />} />
-        <Route path="/player" element={<PlayerPage />} />
-      </Routes>
-    </BrowserRouter>
+    <Routes>
+      {/* 1. 初期表示はHomePage（ランディング） */}
+      <Route path="/" element={<HomePage />} />
+      <Route path="/login" element={<LoginPage />} />
+      
+      {/* 2. 動画選択画面 */}
+      <Route path="/select" element={<SelectPage />} />
+
+      {/* 3. 準備（認証/接続/テスト）画面 */}
+      <Route 
+        path="/prepare" 
+        element={
+          <ProtectedRoute>
+            <VideoPreparationPage />
+          </ProtectedRoute>
+        } 
+      />
+      
+      {/* 4. プレイヤー画面（準備済みでアクセス） */}
+      <Route 
+        path="/player" 
+        element={
+          <ProtectedRoute>
+            <PlayerPage />
+          </ProtectedRoute>
+        } 
+      />
+      
+      {/* 旧ページ（互換性のためリダイレクト） */}
+      <Route path="/home" element={<Navigate to="/" replace />} />
+      <Route path="/session" element={<Navigate to="/" replace />} />
+      <Route path="/selectpage" element={<Navigate to="/select" replace />} />
+    </Routes>
   );
+}
+```
+
+**ルート一覧**:
+
+| パス | コンポーネント | 認証 | 説明 |
+|------|------------|------|------|
+| `/` | HomePage | - | ランディングページ |
+| `/login` | LoginPage | - | ログイン画面 |
+| `/select` | SelectPage | - | 動画選択（自動認証） |
+| `/prepare` | VideoPreparationPage | ○ | 動画準備 |
+| `/player` | PlayerPage | ○ | 動画再生 |
+
+**互換性リダイレクト**:
+- `/home` → `/`
+- `/session` → `/`
+- `/selectpage` → `/select`
+
+**ProtectedRoute実装**:
+```typescript
+import { Navigate } from 'react-router-dom';
+
+export default function ProtectedRoute({ children }: { children: React.ReactNode }) {
+  const isAuthenticated = sessionStorage.getItem('auth') === 'guest';
+  
+  if (!isAuthenticated) {
+    return <Navigate to="/" replace />;
+  }
+  
+  return <>{children}</>;
 }
 ```
 
@@ -315,9 +528,21 @@ function App() {
 
 ### エンドポイント
 
+#### 1. 準備画面用WebSocket
+
+```
+wss://fdx-home-backend-api-xxxxxxxxxxxx.asia-northeast1.run.app/api/preparation/ws/{sessionId}
+```
+
+**用途**: デバイステスト実行・結果受信
+
+#### 2. 再生画面用WebSocket
+
 ```
 wss://fdx-home-backend-api-xxxxxxxxxxxx.asia-northeast1.run.app/api/playback/ws/sync/{sessionId}
 ```
+
+**用途**: 動画再生同期・リアルタイム通信
 
 ### 接続フロー
 
@@ -388,102 +613,124 @@ wss://fdx-home-backend-api-xxxxxxxxxxxx.asia-northeast1.run.app/api/playback/ws/
 
 ## REST API統合
 
-### APIクライアント構成 (endpoints.ts)
+### APIクライアント構成
+
+**実装ファイル**: `src/services/apiClient.ts`, `src/services/endpoints.ts`
+
+**特徴**: Axiosを使わず、ネイティブFetch APIをベースにした軽量な実装
 
 ```typescript
-import axios from 'axios';
+// src/services/apiClient.ts
+import { BACKEND_API_URL } from '../config/backend';
 
-const BACKEND_API_URL = import.meta.env.VITE_BACKEND_API_URL;
+export async function apiCall<T = any>(
+  endpoint: string,
+  options: RequestInit = {}
+): Promise<T> {
+  const url = `${BACKEND_API_URL}${endpoint}`;
+  
+  const response = await fetch(url, {
+    ...options,
+    headers: {
+      'Content-Type': 'application/json',
+      ...options.headers,
+    },
+  });
+  
+  if (!response.ok) {
+    const error = await response.json().catch(() => ({}));
+    throw new Error(error.detail || `HTTP ${response.status}`);
+  }
+  
+  return response.json();
+}
 
-const apiClient = axios.create({
-  baseURL: BACKEND_API_URL,
-  timeout: 10000,
-  headers: {
-    'Content-Type': 'application/json',
-  },
-});
+// src/services/endpoints.ts
+import { apiCall } from './apiClient';
 
-// デバイス管理API
-export const deviceApi = {
-  register: (productCode: string) =>
-    apiClient.post<DeviceRegistrationResponse>('/api/device/register', {
-      product_code: productCode,
-    }),
-  getInfo: (productCode: string) =>
-    apiClient.get<DeviceInfo>(`/api/device/info/${productCode}`),
-  getCapabilities: () =>
-    apiClient.get<CapabilitiesResponse>('/api/device/capabilities'),
-};
-
-// 動画管理API
-export const videoApi = {
-  getAvailable: () =>
-    apiClient.get<AvailableVideosResponse>('/api/videos/available'),
-  getDetail: (videoId: string) =>
-    apiClient.get<VideoDetail>(`/api/videos/${videoId}`),
-  select: (videoId: string, deviceId: string) =>
-    apiClient.post<VideoSelectResponse>('/api/videos/select', {
-      video_id: videoId,
-      device_id: deviceId,
-    }),
-};
-
-// 準備処理API
 export const preparationApi = {
-  start: (sessionId: string) =>
-    apiClient.post<PreparationStartResponse>(`/api/preparation/start/${sessionId}`, {}),
-  getStatus: (sessionId: string) =>
-    apiClient.get<PreparationStatus>(`/api/preparation/status/${sessionId}`),
-  stop: (sessionId: string) =>
-    apiClient.delete<PreparationStopResponse>(`/api/preparation/stop/${sessionId}`),
+  uploadTimeline: (sessionId: string, timeline: any) =>
+    apiCall(`/api/preparation/upload-timeline/${sessionId}`, {
+      method: 'POST',
+      body: JSON.stringify(timeline),
+    }),
 };
 
-// 再生制御API [NEW - AwardDay]
 export const playbackApi = {
-  sendStartSignal: (sessionId: string) =>
-    apiClient.post<any>(`/api/playback/start/${sessionId}`, {}),
   sendStopSignal: (sessionId: string) =>
-    apiClient.post<any>(`/api/playback/stop/${sessionId}`, {}),
-  getStatus: () =>
-    apiClient.get<any>('/api/playback/status'),
-  getConnections: () =>
-    apiClient.get<any>('/api/playback/connections'),
+    apiCall(`/api/playback/stop/${sessionId}`, {
+      method: 'POST',
+    }),
 };
 ```
 
 ---
 
-## セッションID管理
+## セッションID・デバイスID管理
 
 ### 2種類のID
 
-4DX@HOMEシステムでは、以下2種類のIDを使い分けます:
+4DX@HOMEシステムでは、以下2種類のIDを管理します:
 
-#### 1. デバイスハブ製品コード (大文字)
+#### 1. セッションID
 
-**用途**: 物理的なデバイスハブを識別
+**用途**: WebSocket接続・タイムライン管理・動画再生セッション識別
 
-**形式**: `DH001`, `DH002`, `DH003`
-
-**使用箇所**:
-- `/api/device/register` エンドポイント
-- PairingPage での入力フィールド
-
-#### 2. 本番フロー用セッションID (小文字)
-
-**用途**: WebSocket接続・タイムライン管理
-
-**形式**: `demo1`, `demo2`, `session_xyz789` 等
+**形式**: `demo1`, `demo2`, `main` 等（小文字）
 
 **使用箇所**:
-- `/api/playback/ws/sync/{sessionId}` エンドポイント
+- VideoPreparationPage - ステップ1で入力
+- `/api/session/status/{sessionId}` エンドポイント
+- `/api/preparation/ws/{sessionId}` WebSocket接続
+- `/api/playback/ws/sync/{sessionId}` WebSocket接続
 - `/api/preparation/upload-timeline/{sessionId}` エンドポイント
-- 環境変数 `VITE_PRODUCTION_SESSION_ID`
 
-### セッションID取得方法
+**履歴管理**: `localStorage` に最近使用した5件を保存
+
+#### 2. デバイスID（デバイスハブコード）
+
+**用途**: 物理的なRaspberry Piデバイスハブを識別
+
+**形式**: `FDX001`, `TestHub-001` 等（任意の文字列）
+
+**使用箇所**:
+- VideoPreparationPage - ステップ2で入力
+- `/api/device/capabilities` エンドポイント
+
+**履歴管理**: `localStorage` に最近使用した5件を保存
+
+### ID取得・保存の実装例
 
 ```typescript
-const sessionId = import.meta.env.VITE_PRODUCTION_SESSION_ID || 'demo1';
+// セッションID履歴保存
+function pushRecent(key: string, value: string, max = 5) {
+  const trimmed = value.trim();
+  if (!trimmed) return;
+  
+  try {
+    const raw = localStorage.getItem(key);
+    const list: string[] = raw ? JSON.parse(raw) : [];
+    const withoutDup = list.filter((v) => v !== trimmed);
+    const updated = [trimmed, ...withoutDup].slice(0, max);
+    localStorage.setItem(key, JSON.stringify(updated));
+  } catch {
+    // 失敗時は無視
+  }
+}
+
+// セッションID履歴読み込み
+function loadRecent(key: string): string[] {
+  try {
+    const raw = localStorage.getItem(key);
+    return raw ? JSON.parse(raw) : [];
+  } catch {
+    return [];
+  }
+}
+
+// 使用例
+const recentSessions = loadRecent('recent_sessions');
+const recentDevices = loadRecent('recent_devices');
 ```
 
 ---
