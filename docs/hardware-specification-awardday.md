@@ -90,8 +90,8 @@ graph TB
         subgraph "ActionDrive (Motor Case Ver 2)"
             ESP3[ESP-12E #3<br/>Motor1 Control<br/>Wi-Fi]
             ESP4[ESP-12E #4<br/>Motor2 Control<br/>Wi-Fi]
-            Motor1[Vibration Motors<br/>4個 (背中用)]
-            Motor2[Vibration Motors<br/>4個 (お尻用)]
+            Motor1[Vibration Motors<br/>4個 背中用]
+            Motor2[Vibration Motors<br/>4個 お尻用]
         end
     end
     
