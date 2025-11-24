@@ -1,23 +1,69 @@
 # 4DX@HOME システム仕様書
 
-> **最終更新**: 2024年11月14日  
+> **最終更新**: 2025年11月14日  
 > **バージョン**: 2.0.0 (Award Day Updated Version)
 
 ## はじめに
 
-4DX@HOMEは、AI動画解析とリアルタイム同期技術により、動画視聴に物理フィードバックを追加する革新的なシステムです。本仕様書では、**AwardDay（2024年11月）時点の最新実装**に基づき、システムを構成する3つの主要コンポーネントの技術仕様を詳細に説明します。
+4DX@HOMEは、AI動画解析とリアルタイム同期技術により、動画視聴に物理フィードバックを追加する革新的なシステムです。本仕様書では、**Award Day（2025年11月）時点の最新実装**に基づき、システムを構成する3つの主要コンポーネントの技術仕様を詳細に説明します。
 
-### 🆕 AwardDay版での主な変更点
+### 🆕 Award Day版での主な変更点
 
-- ✅ **Cloud Runデプロイ**: Google Cloud Runへの本番デプロイ完了
-- ✅ **3層アーキテクチャ**: Frontend ↔ Cloud Run API ↔ Raspberry Pi
-- ✅ **ストップ処理機能**: 緊急停止・安全制御機能追加
-- ✅ **デバイステスト機能**: 5デバイス動作確認機能追加
-- ✅ **詳細ログシステム**: 全通信のトレース記録機能
+> **前提**: Hack Day時点で既に3層構成（Frontend ↔ Cloud Run ↔ Raspberry Pi）とCloud Runデプロイは完了していました。ただし、セッションIDは決め打ち、タイムラインJSONはラズパイ側に固定配置、デバイス認証なし、スタート信号のみでタイミング制御はラズパイ任せという状態でした。
 
-### 📚 HackDay版仕様書について
+#### 🔌 エンドツーエンド連携の完全実装
+- ✅ **デバイス認証システム**: 製品コード（DH001/DH002/DH003）による認証機能
+  - Hack Day: デバイス登録APIは存在したが未連携
+  - Award Day: フロントエンド画面統合、実動作確認完了
+- ✅ **タイムラインJSON送信**: Cloud Run経由でRaspberry Piへ動的配信
+  - Hack Day: タイムラインJSONはラズパイ側に事前配置
+  - Award Day: `POST /api/preparation/upload-timeline/{session_id}` で動的送信
+- ✅ **デバイステスト機能**: 5デバイス（Wind/Water/LED/Motor1/Motor2）の動作確認
+  - Hack Day: APIは存在したが画面連携なし
+  - Award Day: VideoPreparationPage統合、個別デバイステスト可能
+- ✅ **時間同期制御**: フロントエンド→Cloud Run→Raspberry Pi間の高精度時刻同期
+  - Hack Day: スタート信号のみ、ラズパイがローカルで時刻判断
+  - Award Day: 200ms間隔同期メッセージ（VITE_SYNC_INTERVAL_MS）で連続同期
+- ✅ **ストップ処理**: 一時停止・終了時の全アクチュエータ安全停止
+  - Hack Day: 実装なし
+  - Award Day: `POST /api/playback/stop/{session_id}` + WebSocket `stop_signal` 完全実装
 
-HackDay 2025（2024年10月11-12日）時点の旧仕様書は、`archive/hackday-2025/` ディレクトリに保存されています。
+#### 🎨 フロントエンド統合
+- ✅ **本番フロー画面実装**: 3画面構成の完全な体験フロー
+  - `VideoSelectionPage` → `VideoPreparationPage` → `VideoPlaybackPage`
+  - 4ステップ準備プロセス（接続→読込→送信→テスト）
+- ✅ **セッションID管理**: 製品コード（大文字）と動的セッションID（小文字）の分離管理
+- ✅ **環境変数設定**: `VITE_SYNC_INTERVAL_MS`, `VITE_SEEK_SYNC_INTERVAL_MS` (デフォルト: 100ms)
+
+#### ⚙️ ハードウェア強化
+- ✅ **ハードウェア統一化**: Arduino全廃、ESP-12E × 4台に統一
+  - Hack Day: Arduino Uno R3 × 2台 + ESP-12E × 1台（シリアル通信 + MQTT混在）
+  - Award Day: ESP-12E × 4台（全てMQTT通信に統一、Wi-Fi制御）
+- ✅ **機体刷新**: 3Dプリント筐体を新規設計・製作
+  - EffectStation筐体（風・水・光・色）
+  - ActionDrive筐体（振動×8モーター）
+- ✅ **自動起動システム**: Raspberry Pi電源投入時にサーバー自動起動
+  - systemdサービス化
+  - 電源オンで即座に稼働可能
+- ✅ **WebSocket自動再接続**: `CloudRunWebSocketClient` (指数バックオフ再接続)
+- ✅ **動的タイムライン処理**: JSON受信→パース→イベント実行パイプライン
+  - `TimelineCacheManager`: 動的キャッシュ管理
+  - `TimelineProcessor`: リアルタイムイベント処理
+- ✅ **モジュール構造化**: 5モジュール（api/, mqtt/, timeline/, server/, utils/）
+- ✅ **通信ログシステム**: `CommunicationLogger` 全通信トレース
+- ✅ **Flask監視ダッシュボード**: デバイス状態・通信履歴のリアルタイム表示 (localhost:5000)
+
+#### 🛠️ バックエンドAPI拡張
+- ✅ **新規エンドポイント追加**:
+  - `POST /api/preparation/upload-timeline/{session_id}` - タイムライン動的送信
+  - `POST /api/playback/stop/{session_id}` - 緊急停止
+  - `POST /api/device/test` - デバイステスト
+  - `GET /api/playback/debug/*` - 6デバッグルート（sessions, connections, timeline, actuators, sync-history, logs）
+- ✅ **新サービスクラス**: `ContinuousSyncService`, `PreparationService`, `SyncDataService`, `VideoService`
+
+### 📚 Hack Day版仕様書について
+
+Hack Day（2025年10月11-12日）時点の旧仕様書は、`archive/hackday-2025/` ディレクトリに保存されています。
 
 ---
 
@@ -63,24 +109,24 @@ graph TB
 
 ## 仕様書構成
 
-### 🎯 最新版 (AwardDay 2024) - Version 2.0.0
+### 🎯 最新版 (Award Day 2025) - Version 2.0.0
 
-**対象イベント**: JPHACKS2025 AwardDay (2024年11月9日開催)
+**対象イベント**: JPHACKS 2025 Award Day (2025年11月9日開催)
 
-#### 📱 [フロントエンド仕様書 (AwardDay版)](./frontend-specification-awardday.md)
+#### 📱 [フロントエンド仕様書 (Award Day版)](./frontend-specification-awardday.md)
 **React + TypeScript Webアプリケーション (Render + Cloud Run統合版)**
 
 - **デプロイ**: Render Static Site (https://kz-2504.onrender.com)
-- **技術スタック**: React 18.2.0, TypeScript 5.0.0, Vite 5.0.0, Axios 1.6.0
+- **技術スタック**: React 18.3.1, TypeScript 5.0.0, Vite 5.0.0, Axios 1.6.0
 - **主要機能**: 
   - 4画面構成 (Home → Pairing → Select → Player)
   - Cloud Run API統合 (REST + WebSocket)
-  - 500ms間隔同期メッセージ送信
+  - 200ms間隔同期メッセージ送信（カスタマイズ可能）
   - ストップ処理統合 (一時停止・動画終了時)
 - **アーキテクチャ**: SPA, React Router, WebSocket自動再接続
 - **新機能**: セッションID分離管理、エラーハンドリング強化
 
-#### 🔧 [バックエンド仕様書 (AwardDay版)](./backend-specification-awardday.md)  
+#### 🔧 [バックエンド仕様書 (Award Day版)](./backend-specification-awardday.md)  
 **FastAPI Cloud Run APIサーバー**
 
 - **デプロイ**: Google Cloud Run (asia-northeast1)
@@ -94,10 +140,10 @@ graph TB
 - **アーキテクチャ**: 3層構成 (Frontend ↔ Cloud Run ↔ Raspberry Pi)
 - **リソース**: 512Mi RAM, 1 vCPU, 300秒タイムアウト
 
-#### ⚙️ [ハードウェア仕様書 (AwardDay版)](./hardware-specification-awardday.md)
+#### ⚙️ [ハードウェア仕様書 (Award Day版)](./hardware-specification-awardday.md)
 **Raspberry Pi Hub + ESP-12E 物理制御システム (Cloud Run統合版)**
 
-- **技術スタック**: Python 3.9+, Flask 3.0.0, websocket-client 1.7.0, paho-mqtt 1.6.1
+- **技術スタック**: Python 3.9+, Flask 3.0.0, websockets 12.0, paho-mqtt 1.6.1
 - **主要機能**:
   - Cloud Run WebSocket接続 (自動再接続)
   - MQTT経由ESP-12E制御 (5デバイス)
@@ -109,15 +155,15 @@ graph TB
 
 ---
 
-### 📦 HackDay版 (Version 1.0.0) - アーカイブ
+### 📦 Hack Day版 (Version 1.0.0) - アーカイブ
 
-**対象イベント**: JPHACKS2025 HackDay (2024年10月11-12日開催)
+**対象イベント**: JPHACKS 2025 Hack Day (2025年10月11-12日開催)
 
-HackDay時点の仕様書は以下のディレクトリに保存されています:
+Hack Day時点の仕様書は以下のディレクトリに保存されています:
 
-- [バックエンド仕様書 (HackDay版)](./archive/hackday-2025/backend-specification.md)
-- [フロントエンド仕様書 (HackDay版)](./archive/hackday-2025/frontend-specification.md)
-- [ハードウェア仕様書 (HackDay版)](./archive/hackday-2025/hardware-specification.md)
+- [バックエンド仕様書 (Hack Day版)](./archive/hackday-2025/backend-specification.md)
+- [フロントエンド仕様書 (Hack Day版)](./archive/hackday-2025/frontend-specification.md)
+- [ハードウェア仕様書 (Hack Day版)](./archive/hackday-2025/hardware-specification.md)
 
 ## 技術的特徴
 
@@ -236,8 +282,8 @@ journalctl -u 4dx-home.service -f
 
 ## 📚 ドキュメント更新履歴
 
-### Version 2.0.0 - AwardDay 2024（2024年11月14日）
-- ✅ **AwardDay版仕様書作成** (3ファイル)
+### Version 2.0.0 - Award Day 2025（2025年11月14日）
+- ✅ **Award Day版仕様書作成** (3ファイル)
   - `backend-specification-awardday.md`
   - `frontend-specification-awardday.md`
   - `hardware-specification-awardday.md`
@@ -250,19 +296,19 @@ journalctl -u 4dx-home.service -f
   - 全アクチュエーター停止処理
 - ✅ **3層アーキテクチャ図追加**
   - Frontend ↔ Cloud Run API ↔ Raspberry Pi
-- ✅ **HackDay版のアーカイブ化**
+- ✅ **Hack Day版のアーカイブ化**
   - 移動先: `archive/hackday-2025/`
 
-### Version 1.0.0 - HackDay 2025（2024年10月11-12日）
+### Version 1.0.0 - Hack Day（2025年10月11-12日）
 - 初回仕様書作成
 - 基本システムアーキテクチャ文書化
 - 2層アーキテクチャ (Frontend ↔ Backend ↔ Hardware)
 
 ---
 
-**初版作成日**: 2024年10月11日  
-**最終更新日**: 2024年11月14日  
-**バージョン**: 2.0.0 (AwardDay Version)  
+**初版作成日**: 2025年10月11日  
+**最終更新日**: 2025年11月14日  
+**バージョン**: 2.0.0 (Award Day Version)  
 **対象**: 開発チーム・技術仕様確認
 
 **関連ドキュメント**:

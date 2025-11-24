@@ -1,12 +1,12 @@
 # 4DX@HOME フロントエンド仕様書
 
-> **⚠️ HackDay 2025時点の仕様書**  
-> この文書はJPHacks2025 HackDay（2024年10月11-12日）時点の仕様です。  
+> **⚠️ Hack Day時点の仕様書**  
+> この文書はJPHACKS 2025 Hack Day（2025年10月11-12日）時点の仕様です。  
 > 最新の実装については以下を参照してください：
-> - **最新フロントエンド実装**: `frontend/4dathome-app/`
+> - **最新フロントエンド実装**: `../../../frontend/4dathome-app/`
 > - **本番デプロイ**: https://kz-2504.onrender.com (Render)
-> - **デバッグ環境**: `debug_frontend/`（Cloud Run API連携テスト用）
-> - **本番フロー仕様**: `debug_frontend/PRODUCTION_FLOW_SETUP.md`
+> - **デバッグ環境**: `../../../debug_frontend/`（Cloud Run API連携テスト用）
+> - **本番フロー仕様**: `../../../debug_frontend/PRODUCTION_FLOW_SETUP.md`
 
 ## 1. 概要
 
@@ -29,10 +29,10 @@
 
 | ページ                          | 説明                     | 画像例                               |
 | ---------------------------- | ---------------------- | ---------------------------------- |
-| ホーム (`HomePage`)             | キャッチコピー、開始導線           | ![Home](../assets/images/home.png)       |
-| セッション（ペアリング） (`PairingPage`) | セッションコード入力、接続状態        | ![Session](../assets/images/session.png) |
-| 動画選択 (`SelectPage`)          | 一覧/カテゴリ/ランキング          | ![Select](../assets/images/select.png)   |
-| 動画視聴（プレイヤー） (`PlayerPage`)   | 再生/一時停止・シーク・音量・フルスクリーン | ![Player](../assets/images/player.png)   |
+| ホーム (`HomePage`)             | キャッチコピー、開始導線           | ![Home](../../../assets/images/home.png)       |
+| セッション（ペアリング） (`PairingPage`) | セッションコード入力、接続状態        | ![Session](../../../assets/images/session.png) |
+| 動画選択 (`SelectPage`)          | 一覧/カテゴリ/ランキング          | ![Select](../../../assets/images/select.png)   |
+| 動画視聴（プレイヤー） (`PlayerPage`)   | 再生/一時停止・シーク・音量・フルスクリーン | ![Player](../../../assets/images/player.png)   |
 
 ---
 

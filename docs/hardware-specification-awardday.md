@@ -2,7 +2,7 @@
 
 **バージョン**: 2.0.0  
 **作成日**: 2025年11月14日  
-**対象イベント**: JPHACKS2025 AwardDay (2024年11月9日開催)  
+**対象イベント**: JPHACKS 2025 Award Day (2025年11月9日開催)  
 **システム**: Cloud Run統合 Raspberry Pi Hub
 
 ---
@@ -35,8 +35,8 @@
 
 - **機能**: **振動**によるフィードバックを提供するクッション型デバイス
 - **制御マイコン**: ESP-12E × 2台（Motor Case Ver 2に格納）
-  - ESP-12E #4: Motor1 Control（4つの偏心モーター制御）
-  - ESP-12E #5: Motor2 Control（4つの偏心モーター制御）
+  - ESP-12E #3: Motor1 Control（4つの偏心モーター制御）
+  - ESP-12E #4: Motor2 Control（4つの偏心モーター制御）
 - **搭載アクチュエーター**:
   - 偏心モーター × 8個（強度別4ピン制御）
   - 強度レベル: STRONG, MEDIUM_STRONG, MEDIUM_WEAK, WEAK
@@ -1005,30 +1005,53 @@ mosquitto_pub -h 172.18.28.55 -t /test -m "Hello"
 
 ---
 
-## AwardDay以降の変更点
+## Hack Day → Award Day 変更履歴
 
-### 追加機能
+### 前提: Hack Day時点の状態
 
-1. **ストップ処理統合**
-   - WebSocketストップ信号受信
-   - 5種類のアクチュエーター同時停止
-   - タイムライン再生停止
+- **アーキテクチャ**: 3層構成（Frontend ↔ Cloud Run ↔ Raspberry Pi）は完成
+- **デプロイ**: Cloud Runデプロイ済み
+- **制約**:
+  - セッションID決め打ち
+  - タイムラインJSONラズパイ側固定配置
+  - スタート信号のみ（タイミング制御はラズパイローカル）
+  - デバイス認証なし
+  - **ハードウェア構成**: Arduino Uno R3 × 2台 + ESP-12E × 1台（シリアル通信 + MQTT混在）
 
-2. **デバイステスト機能**
-   - 全アクチュエーター動作確認
-   - テスト結果をCloud Runに送信
-   - 準備画面で実行可能
+### Award Dayでの主要変更
 
-3. **詳細ログ機能**
-   - カラーログ出力 (coloredlogs)
-   - 通信ログJSON記録
-   - ダッシュボードリアルタイム表示
+#### 1. ハードウェア統一化 **[重要]**
+- ✅ **Arduino全廃**: Arduino Uno R3 × 2台を撤廃
+- ✅ **ESP-12E統一**: ESP-12E × 4台に統一（全てMQTT通信）
+- ✅ **通信プロトコル統一**: シリアル通信廃止、完全Wi-Fi + MQTT化
+- ✅ **配線簡素化**: Raspberry Pi ↔ ESP間の物理配線が不要に
 
-### 改善点
+#### 2. 機体刷新
+- ✅ **3Dプリント筐体設計**:
+  - `4dx@home-stand.stl` (EffectStation筐体)
+  - `Motor Case Ver 2.stl` (ActionDrive筐体)
+- ✅ **2デバイス構成**:
+  - **EffectStation**: 風・水・光・色（ESP-12E × 2台）
+  - **ActionDrive**: 振動×8モーター（ESP-12E × 2台）
 
-- WebSocket再接続ロジック: 最大5回リトライ (指数バックオフ)
-- MQTTキープアライブ: 60秒 (安定性向上)
-- タイムライン処理: ±100ms許容範囲 (精度向上)
+#### 3. 自動起動システム
+- ✅ **systemdサービス化**: `/etc/systemd/system/4dx-home.service`
+- ✅ **電源投入時自動起動**: Raspberry Pi起動と同時にサーバー稼働
+- ✅ **再起動耐性**: 異常終了時の自動再起動（RestartSec=10）
+
+#### 4. エンドツーエンド連携完全実装
+- ✅ **デバイス認証**: 製品コード（DH001/DH002/DH003）による認証
+- ✅ **タイムラインJSON動的送信**: Cloud Run → Raspberry Pi経由配信
+- ✅ **時間同期制御**: 200ms間隔連続同期（Hack Day: スタート信号のみ）
+- ✅ **ストップ処理**: WebSocket `stop_signal`による全アクチュエータ安全停止
+- ✅ **デバイステスト**: 5デバイス個別動作確認
+
+#### 5. ソフトウェア強化
+- ✅ **WebSocket自動再接続**: `CloudRunWebSocketClient`（指数バックオフ）
+- ✅ **動的タイムライン処理**: `TimelineProcessor` + `TimelineCacheManager`
+- ✅ **モジュール構造化**: 5モジュール（api/, mqtt/, timeline/, server/, utils/）
+- ✅ **通信ログシステム**: `CommunicationLogger` 全通信トレース
+- ✅ **Flask監視ダッシュボード**: localhost:5000
 
 ---
 
@@ -1083,4 +1106,4 @@ WATCHDOG_TIMEOUT = 5.0         # ウォッチドッグタイムアウト (秒)
 
 | 日付 | バージョン | 変更内容 |
 |-----|----------|---------|
-| 2025-11-14 | 2.0.0 | AwardDay後の実装を反映した仕様書作成 |
+| 2025-11-14 | 2.0.0 | Award Day後の実装を反映した仕様書作成 |

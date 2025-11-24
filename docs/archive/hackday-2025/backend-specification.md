@@ -1,11 +1,11 @@
 # 4DX@HOME バックエンド仕様書
 
-> **⚠️ HackDay 2025時点の仕様書**  
-> この文書はJPHacks2025 HackDay（2024年10月11-12日）時点の仕様です。  
+> **⚠️ Hack Day時点の仕様書**  
+> この文書はJPHACKS 2025 Hack Day（2025年10月11-12日）時点の仕様です。  
 > 最新の実装については以下を参照してください：
-> - **最新バックエンド実装**: `backend/app/`
-> - **Cloud Runデプロイガイド**: `backend/DEPLOYMENT_GUIDE.md`
-> - **詳細設計資料**: `docs/backend-report/`
+> - **最新バックエンド実装**: `../../../backend/app/`
+> - **Cloud Runデプロイガイド**: `../../../backend/DEPLOYMENT_GUIDE.md`
+> - **詳細設計資料**: `../../backend-report/`
 > - **最新アーキテクチャ**: 3層構成（Frontend ↔ Cloud Run API ↔ Raspberry Pi）
 
 ## 概要

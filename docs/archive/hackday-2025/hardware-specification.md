@@ -1,12 +1,12 @@
 # 4DX@HOME ハードウェア仕様書
 
-> **⚠️ HackDay 2025時点の仕様書**  
-> この文書はJPHacks2025 HackDay（2024年10月11-12日）時点の仕様です。  
+> **⚠️ Hack Day時点の仕様書**  
+> この文書はJPHACKS 2025 Hack Day（2025年10月11-12日）時点の仕様です。  
 > 最新の実装については以下を参照してください：
-> - **最新ハードウェア実装**: `hardware/rpi_server/`（Cloud Run統合版）
+> - **最新ハードウェア実装**: `../../../hardware/rpi_server/`（Cloud Run統合版）
 > - **デバイスハブサーバー**: Raspberry Pi Server with WebSocket
-> - **デバッグ環境**: `debug_hardware/`（PC上シミュレーター）
-> - **アーキテクチャ詳細**: `debug_hardware/ARCHITECTURE.md`
+> - **デバッグ環境**: `../../../debug_hardware/`（PC上シミュレーター）
+> - **アーキテクチャ詳細**: `../../../debug_hardware/ARCHITECTURE.md`
 
 ## 概要
 

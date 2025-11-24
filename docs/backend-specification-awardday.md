@@ -2,7 +2,7 @@
 
 **バージョン**: 2.0.0  
 **作成日**: 2025年11月14日  
-**対象イベント**: JPHACKS2025 AwardDay (2024年11月9日開催)  
+**対象イベント**: JPHACKS 2025 Award Day (2025年11月9日開催)  
 **システム**: Cloud Run統合版
 
 ---
@@ -54,6 +54,43 @@
 ### テスト
 - **pytest** 7.4.3 - テストフレームワーク
 - **pytest-asyncio** 0.21.1 - 非同期テスト
+
+---
+
+## Hack Day → Award Day 変更履歴
+
+### 前提: Hack Day時点の状態
+
+- **アーキテクチャ**: 3層構成（Frontend ↔ Cloud Run ↔ Raspberry Pi）完成
+- **Cloud Runデプロイ**: 完了済み
+- **制約**:
+  - セッションID決め打ち
+  - デバイス登録APIは存在したが画面連携なし
+  - タイムライン送信APIなし（ラズパイ側固定配置）
+  - デバイステストAPIは存在したが画面連携なし
+  - スタート信号のみ（連続同期なし）
+  - ストップ処理なし
+
+### Award Dayでの主要変更
+
+#### 1. エンドツーエンド連携の完全実装
+- ✅ **デバイス認証システム**: 製品コード認証をフロントエンド統合
+- ✅ **タイムラインJSON送信**: `POST /api/preparation/upload-timeline/{session_id}` 新規実装
+- ✅ **デバイステスト統合**: VideoPreparationPageと連携
+- ✅ **時間同期制御**: 200ms間隔連続同期メッセージ処理
+- ✅ **ストップ処理**: `POST /api/playback/stop/{session_id}` + WebSocket `stop_signal` 実装
+
+#### 2. 新規エンドポイント追加
+- ✅ `POST /api/preparation/upload-timeline/{session_id}` - タイムライン動的送信
+- ✅ `POST /api/playback/stop/{session_id}` - 緊急停止
+- ✅ `POST /api/device/test` - デバイステスト
+- ✅ `GET /api/playback/debug/*` - 6デバッグルート
+
+#### 3. 新サービスクラス追加
+- ✅ `ContinuousSyncService` - 連続同期処理
+- ✅ `PreparationService` - 準備処理管理
+- ✅ `SyncDataService` - 同期データ管理
+- ✅ `VideoService` - 動画管理
 
 ---
 
@@ -977,7 +1014,7 @@ gcloud artifacts repositories create my-fastapi-repo \
 
 ---
 
-## AwardDay以降の変更点
+## Award Day以降の変更点
 
 ### 追加機能
 
@@ -1017,7 +1054,7 @@ gcloud artifacts repositories create my-fastapi-repo \
 - **WebSocketタイムアウト**: 60秒 → 300秒
 - **並列度**: 10 → 80リクエスト/インスタンス
 - **メモリ**: 256Mi → 512Mi (WebSocket接続増加対応)
-- **同期間隔**: 500ms → 100ms (高精度化)
+- **同期間隔**: カスタマイズ可能（デフォルト200ms）
 - **CORS設定**: 3オリジン → 8オリジン (開発環境拡充)
 - **並列送信**: asyncio.gather()による全接続同時配信
 
@@ -1047,4 +1084,4 @@ gcloud artifacts repositories create my-fastapi-repo \
 
 | 日付 | バージョン | 変更内容 |
 |-----|----------|---------|
-| 2025-11-14 | 2.0.0 | AwardDay後の実装を反映した仕様書作成 |
+| 2025-11-14 | 2.0.0 | Award Day後の実装を反映した仕様書作成 |

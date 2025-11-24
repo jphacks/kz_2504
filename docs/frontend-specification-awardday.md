@@ -2,7 +2,7 @@
 
 **バージョン**: 2.0.0  
 **作成日**: 2025年11月14日  
-**対象イベント**: JPHACKS2025 AwardDay (2024年11月9日開催)  
+**対象イベント**: JPHACKS 2025 Award Day (2025年11月9日開催)  
 **システム**: Render + Cloud Run統合版
 
 ---
@@ -86,7 +86,7 @@ VITE_BACKEND_API_URL=https://fdx-home-backend-api-xxxxxxxxxxxx.asia-northeast1.r
 VITE_BACKEND_WS_URL=wss://fdx-home-backend-api-xxxxxxxxxxxx.asia-northeast1.run.app
 
 # === 同期間隔設定 ===
-VITE_SYNC_INTERVAL_MS=100
+VITE_SYNC_INTERVAL_MS=200
 VITE_SEEK_SYNC_INTERVAL_MS=100
 
 # === 本番フロー用セッションID ===
@@ -357,7 +357,7 @@ const handleDeviceTest = () => {
 
 #### WebSocket同期機能
 - **接続先**: `wss://.../api/playback/ws/sync/{sessionId}?hub={hubId}`
-- **同期間隔**: 環境変数 `VITE_SYNC_INTERVAL_MS` (デフォルト100ms)
+- **同期間隔**: 環境変数 `VITE_SYNC_INTERVAL_MS` (デフォルト200ms)
 - **シーク中同期**: 環境変数 `VITE_SEEK_SYNC_INTERVAL_MS` (デフォルト100ms)
 - **送信メッセージ**:
   - `start_continuous_sync`: 再生開始時に1回送信
@@ -385,8 +385,8 @@ const handleDeviceTest = () => {
 
 **実装例**:
 ```typescript
-// 環境変数から同期間隔を取得（ミリ秒）、デフォルトは100ms
-const SYNC_INTERVAL_MS = Number(import.meta.env.VITE_SYNC_INTERVAL_MS) || 100;
+// 環境変数から同期間隔を取得（ミリ秒）、デフォルトは200ms
+const SYNC_INTERVAL_MS = Number(import.meta.env.VITE_SYNC_INTERVAL_MS) || 200;
 // シーク中の同期間隔（デフォルトは同期間隔と同じ）
 const SEEK_SYNC_INTERVAL_MS = Number(import.meta.env.VITE_SEEK_SYNC_INTERVAL_MS) || SYNC_INTERVAL_MS;
 
@@ -435,7 +435,7 @@ const handleEnded = () => {
 ```
 
 **特徴**:
-- 最小100ms間隔の高頻度同期
+- 200ms間隔の高頻度同期（カスタマイズ可能）
 - WebSocketバッファ管理で送信失敗を防止
 - ストップ信号で安全な停止処理
 - 再接続ロジックで接続安定性確保
@@ -548,7 +548,7 @@ wss://fdx-home-backend-api-xxxxxxxxxxxx.asia-northeast1.run.app/api/playback/ws/
 
 1. **接続確立**: WebSocketコンストラクタでURL指定
 2. **接続成功**: `onopen` イベント発火
-3. **同期開始**: 500ms間隔で `sync` メッセージ送信
+3. **同期開始**: 200ms間隔で `sync` メッセージ送信
 4. **ACK受信**: サーバーから `sync_ack` 受信
 5. **切断**: `onclose` イベント → 自動再接続 (リトライ3回)
 
@@ -784,7 +784,7 @@ wsClient.on('close', (code, reason) => {
 
 ### 1. WebSocket送信間隔
 
-**目標**: 500ms固定
+**目標**: 200ms固定（シーク中）、再生中はカスタマイズ可能
 
 **実装**:
 ```typescript
@@ -792,7 +792,7 @@ useEffect(() => {
   if (isPlaying) {
     const interval = setInterval(() => {
       sendSyncMessage();
-    }, 500); // 500ms固定
+    }, 200); // 200ms固定（シーク中）
     
     return () => clearInterval(interval);
   }
@@ -941,7 +941,7 @@ ffmpeg -f lavfi -i color=c=black:s=1920x1080:d=120 \
 
 ---
 
-## AwardDay以降の変更点
+## Award Day以降の変更点
 
 ### 追加機能
 
@@ -994,4 +994,4 @@ ffmpeg -f lavfi -i color=c=black:s=1920x1080:d=120 \
 
 | 日付 | バージョン | 変更内容 |
 |-----|----------|---------|
-| 2025-11-14 | 2.0.0 | AwardDay後の実装を反映した仕様書作成 |
+| 2025-11-14 | 2.0.0 | Award Day後の実装を反映した仕様書作成 |
