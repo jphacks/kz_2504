@@ -13,34 +13,23 @@
   
   [![JPHacks 2025](https://img.shields.io/badge/JPHacks%202025-審査委員特別賞-silver?style=for-the-badge&logo=award)](https://github.com/jphacks/kz_2504)
   [![JPHacks 2025](https://img.shields.io/badge/JPHacks%202025-Innovator認定-purple?style=for-the-badge&logo=lightbulb)](https://github.com/jphacks/kz_2504)
-
-  <br>
-
   ## 🎉 JPHACKS 2025 受賞結果 🎉
-
-  <br>
-
-  ### 🏆 Hack Day (金沢会場)
+  ### **🏆 Hack Day (金沢会場)**
   **🥇 Best Hackday Award**  
   **🎯 Award Day Finalist**
 
-  <br>
-
-  ### 🏆 Award Day (オンライン最終審査)
-  **🏅 審査委員特別賞**  
-  **💡 Innovator認定**
-
+  ---
+  ### **🏆 Award Day**
+  **🏅 審査委員特別賞**    **💡 Innovator認定**<br>
   **🎁 企業賞3社受賞**  
   ULSコンサルティング株式会社賞  
   株式会社PLAY賞  
   株式会社東海理化賞
-
-  <br>
 </div>
 
 ## 🌐 Live Demo
 **Webアプリ**: https://kz-2504.onrender.com<br>
-**YouTube動画**: https://youtu.be/le1PPYY8JKY<br>
+**YouTube動画**: https://youtu.be/t1n5mQZU_nM<br>
 
 動画で使用しているPDFはこちら: [PDF](https://github.com/jphacks/kz_2504/blob/main/assets/images/4DX%40HOME_HackDay%E7%94%A8%E5%8B%95%E7%94%BB%E7%94%A8%E3%83%91%E3%83%AF%E3%83%9D.pdf)
 
