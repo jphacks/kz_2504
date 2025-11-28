@@ -173,6 +173,31 @@ Hack Day時点の仕様書は以下のディレクトリに保存されていま
 - **予測補正**によるネットワーク遅延対応
 
 ### 🔄 データフロー
+
+```mermaid
+sequenceDiagram
+    participant FE as フロントエンド<br/>(React)
+    participant BE as バックエンド<br/>(Cloud Run)
+    participant PI as Raspberry Pi<br/>(Hub)
+    participant ESP as ESP-12E<br/>(×4台)
+    
+    FE->>BE: 1. 動画再生開始
+    BE->>PI: 2. タイムライン送信
+    
+    loop 200ms間隔
+        FE->>BE: 3. 同期メッセージ (time, state)
+        BE->>PI: 4. 時刻転送
+        PI->>PI: 5. イベント検索 (±100ms)
+        PI->>ESP: 6. MQTTコマンド送信
+        ESP->>ESP: 7. アクチュエータ制御
+    end
+    
+    FE->>BE: 8. 停止信号
+    BE->>PI: 9. stop_signal
+    PI->>ESP: 10. 全停止コマンド
+```
+
+**処理概要**:
 1. **フロントエンド**: 動画再生・タイムスタンプ送信
 2. **バックエンド**: セッション管理・同期データ転送
 3. **ハードウェア**: タイムライン処理・物理効果制御
@@ -210,19 +235,71 @@ python3 hardware_server.py
 ## API一覧
 
 ### RESTful API
+
+```mermaid
+flowchart LR
+    subgraph Device["デバイス管理"]
+        D1[POST /api/device/register]
+        D2[GET /api/device/info]
+    end
+    
+    subgraph Video["動画管理"]
+        V1[GET /api/videos/available]
+        V2[POST /api/videos/select]
+    end
+    
+    subgraph Prep["準備処理"]
+        P1[POST /api/preparation/start]
+        P2[POST /api/preparation/upload-timeline]
+    end
+    
+    subgraph Play["再生制御"]
+        PL1[POST /api/playback/start]
+        PL2[POST /api/playback/stop]
+    end
+```
+
 - `POST /api/device/register` - デバイス登録
 - `GET /api/videos/available` - 動画一覧取得
 - `POST /api/videos/select` - 動画選択
 - `POST /api/preparation/start/{session_id}` - 準備開始
 
 ### WebSocket
-- `ws://server/api/preparation/ws/{session_id}` - リアルタイム通信
 
-### デバイス制御プロトコル
+```mermaid
+flowchart LR
+    FE[Frontend] <-->|WSS| WS1[/api/preparation/ws/]
+    FE <-->|WSS| WS2[/api/playback/ws/sync/]
+    PI[Raspberry Pi] <-->|WSS| WS3[/api/playback/ws/device/]
+```
+
+- `ws://server/api/preparation/ws/{session_id}` - 準備処理通信
+- `ws://server/api/playback/ws/sync/{session_id}` - 再生同期通信
+- `ws://server/api/playback/ws/device/{session_id}` - デバイス通信
+
+### デバイス制御プロトコル (MQTT)
+
+```mermaid
+flowchart TB
+    PI[Raspberry Pi<br/>MQTT Broker] --> T1[/4dx/motor1/control]
+    PI --> T2[/4dx/motor2/control]
+    PI --> T3[/4dx/wind]
+    PI --> T4[/4dx/water]
+    PI --> T5[/4dx/light]
+    PI --> T6[/4dx/color]
+    
+    T1 --> ESP3[ESP#3 Motor1]
+    T2 --> ESP4[ESP#4 Motor2]
+    T3 --> ESP1[ESP#1 Wind/Water]
+    T4 --> ESP1
+    T5 --> ESP2[ESP#2 Light/Color]
+    T6 --> ESP2
+```
+
 - **振動**: MQTT `/4dx/motor1/control`, `/4dx/motor2/control`
-- **光**: MQTT `/4dx/flash/control`, `/4dx/led/control`
-- **風**: MQTT `/4dx/wind/control`
-- **水**: MQTT `/4dx/water/control`
+- **光**: MQTT `/4dx/light`, `/4dx/color`
+- **風**: MQTT `/4dx/wind`
+- **水**: MQTT `/4dx/water`
 - **通信**: Wi-Fi (802.11n) + MQTT over TCP/IP
 
 ## パフォーマンス指標
@@ -256,6 +333,27 @@ journalctl -u 4dx-home.service -f
 ```
 
 ## 今後の拡張計画
+
+```mermaid
+gantt
+    title 4DX@HOME 拡張ロードマップ
+    dateFormat  YYYY-MM
+    section Phase 1
+    AI動画解析強化      :2025-01, 2M
+    ユーザーアップロード :2025-02, 2M
+    カスタマイズ機能    :2025-03, 1M
+    section Phase 2
+    クラウドスケール    :2025-04, 2M
+    リアルタイムOS      :2025-05, 2M
+    機械学習最適化      :2025-06, 2M
+    section Phase 3
+    サウンド同期        :2025-07, 2M
+    音源分離技術        :2025-08, 2M
+    section Phase 4
+    ウェアラブル開発    :2025-09, 3M
+    section Phase 5
+    多感覚統合          :2026-01, 3M
+```
 
 ### Phase 1: 機能拡張
 - **AI動画解析**: GPT-4o-mini Vision API統合

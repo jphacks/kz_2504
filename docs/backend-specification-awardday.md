@@ -13,22 +13,24 @@
 
 ### システム構成
 
-```
-┌─────────────────────┐      HTTPS/WSS       ┌──────────────────────┐
-│  Frontend (React)   │ ←─────────────────→ │  Cloud Run API       │
-│  Render Hosting     │                      │  (FastAPI)           │
-│  kz-2504.onrender   │                      │  asia-northeast1     │
-└─────────────────────┘                      └──────────────────────┘
-                                                       ↕ WebSocket
-                                              ┌──────────────────────┐
-                                              │  Raspberry Pi Hub    │
-                                              │  (Python + MQTT)     │
-                                              └──────────────────────┘
-                                                       ↓ Wi-Fi + MQTT
-                                              ┌──────────────────────┐
-                                              │  ESP-12E × 4台       │
-                                              │  (3Dプリント筐体)    │
-                                              └──────────────────────┘
+```mermaid
+flowchart TB
+    subgraph Frontend["🌐 フロントエンド層"]
+        FE[React Frontend<br/>kz-2504.onrender.com]
+    end
+    
+    subgraph CloudRun["☁️ Cloud Run"]
+        API[FastAPI Backend<br/>asia-northeast1]
+    end
+    
+    subgraph Device["🏠 デバイス層"]
+        PI[Raspberry Pi Hub<br/>Python + MQTT]
+        ESP[ESP-12E × 4台<br/>3Dプリント筐体]
+    end
+    
+    FE <-->|HTTPS/WSS| API
+    API <-->|WebSocket| PI
+    PI <-->|Wi-Fi + MQTT| ESP
 ```
 
 ---
@@ -168,6 +170,47 @@ MAX_REQUEST_SIZE=16777216
 ---
 
 ## ディレクトリ構造
+
+### モジュール関係図
+
+```mermaid
+flowchart TB
+    subgraph Entry["エントリーポイント"]
+        main[main.py]
+    end
+    
+    subgraph Config["設定"]
+        settings[config/settings.py]
+    end
+    
+    subgraph API["エンドポイント"]
+        device[api/device_registration.py]
+        video[api/video_management.py]
+        prep[api/preparation.py]
+        playback[api/playback_control.py]
+    end
+    
+    subgraph Models["データモデル"]
+        m_device[models/device.py]
+        m_video[models/video.py]
+        m_prep[models/preparation.py]
+        m_play[models/playback.py]
+    end
+    
+    subgraph Services["ビジネスロジック"]
+        s_prep[services/preparation_service.py]
+        s_video[services/video_service.py]
+        s_sync[services/sync_data_service.py]
+        s_cont[services/continuous_sync_service.py]
+    end
+    
+    main --> settings
+    main --> API
+    API --> Models
+    API --> Services
+```
+
+### ファイル構造
 
 ```
 backend/
@@ -508,6 +551,27 @@ WebSocket接続状態取得
 
 ### エンドポイント構成
 
+```mermaid
+flowchart LR
+    subgraph Frontend["フロントエンド"]
+        FE[React App]
+    end
+    
+    subgraph CloudRun["Cloud Run API"]
+        WS1["/api/preparation/ws/"]
+        WS2["/api/playback/ws/sync/"]
+        WS3["/api/playback/ws/device/"]
+    end
+    
+    subgraph Device["デバイス"]
+        PI[Raspberry Pi]
+    end
+    
+    FE <-->|WSS 準備処理| WS1
+    FE <-->|WSS 再生同期| WS2
+    PI <-->|WSS デバイス制御| WS3
+```
+
 #### 1. 準備処理WebSocket
 ```
 WSS /api/preparation/ws/{session_id}
@@ -560,6 +624,26 @@ WSS /api/playback/ws/device/{session_id}
 ```
 
 #### 再生同期用 **[NEW]**
+
+```mermaid
+sequenceDiagram
+    participant FE as Frontend
+    participant API as Cloud Run API
+    participant PI as Raspberry Pi
+    
+    FE->>API: WebSocket接続
+    API-->>FE: connection_established
+    
+    loop 200ms間隔
+        FE->>API: sync {state, time, duration, ts}
+        API->>PI: video_sync {current_time, state}
+        API-->>FE: sync_ack
+    end
+    
+    FE->>API: stop_signal
+    API->>PI: stop_signal
+    API-->>FE: stop_signal_ack
+```
 
 **同期メッセージ (Client → Server)**:
 ```json
@@ -893,6 +977,19 @@ async def global_exception_handler(request, exc):
 ---
 
 ## デプロイ手順
+
+```mermaid
+flowchart LR
+    subgraph Local["ローカル"]
+        A[Docker Build] --> B[Image]
+    end
+    
+    subgraph GCP["Google Cloud"]
+        B --> C[Artifact Registry]
+        C --> D[Cloud Run Deploy]
+        D --> E[✅ 稼働中]
+    end
+```
 
 ### 1. Dockerイメージビルド
 

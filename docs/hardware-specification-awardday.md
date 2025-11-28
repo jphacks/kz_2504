@@ -58,13 +58,47 @@
 
 本システムは**完全無線通信**を採用しており、配線の取り回しを最小化しています。
 
-```
-Raspberry Pi (MQTTブローカー + Wi-Fiアクセスポイント)
-       ↓ Wi-Fi (802.11n, SSID: PiMQTT-AP)
-       ├─ ESP-12E #1 (Wind/Water) ──→ DC Fan + Servo Pump
-       ├─ ESP-12E #2 (Flash/Color) ──→ High-Brightness LED + RGB LED Tape
-       ├─ ESP-12E #3 (Motor1) ──→ Vibration Motors (4個)
-       └─ ESP-12E #4 (Motor2) ──→ Vibration Motors (4個)
+```mermaid
+flowchart TB
+    subgraph RPI["🍓 Raspberry Pi"]
+        MQTT[MQTT Broker<br/>Port 1883]
+        AP[Wi-Fi AP<br/>PiMQTT-AP]
+    end
+    
+    subgraph Effect["🌬️ EffectStation"]
+        ESP1[ESP#1<br/>Wind/Water]
+        ESP2[ESP#2<br/>Flash/Color]
+        FAN[DC Fan]
+        PUMP[Servo Pump]
+        LED[High-Brightness LED]
+        RGB[RGB LED Tape]
+    end
+    
+    subgraph Action["📳 ActionDrive"]
+        ESP3[ESP#3<br/>Motor1]
+        ESP4[ESP#4<br/>Motor2]
+        M1[Vibration Motors<br/>×4 背中用]
+        M2[Vibration Motors<br/>×4 お尻用]
+    end
+    
+    AP -.->|Wi-Fi 802.11n| ESP1
+    AP -.->|Wi-Fi 802.11n| ESP2
+    AP -.->|Wi-Fi 802.11n| ESP3
+    AP -.->|Wi-Fi 802.11n| ESP4
+    
+    MQTT -->|/4dx/wind| ESP1
+    MQTT -->|/4dx/water| ESP1
+    MQTT -->|/4dx/light| ESP2
+    MQTT -->|/4dx/color| ESP2
+    MQTT -->|/4dx/motor1/control| ESP3
+    MQTT -->|/4dx/motor2/control| ESP4
+    
+    ESP1 --> FAN
+    ESP1 --> PUMP
+    ESP2 --> LED
+    ESP2 --> RGB
+    ESP3 --> M1
+    ESP4 --> M2
 ```
 
 **Wi-Fi設定**:
@@ -216,6 +250,49 @@ const unsigned long HEARTBEAT_MS = 10000; // 10秒間隔
 
 ### デバイスハブ (Raspberry Pi)
 
+#### モジュール構成図
+
+```mermaid
+flowchart TB
+    subgraph Main["メイン"]
+        M[main.py]
+        C[config.py]
+    end
+    
+    subgraph API["api/"]
+        WS[websocket_client.py<br/>Cloud Run接続]
+        MH[message_handler.py<br/>メッセージ処理]
+    end
+    
+    subgraph MQTT["mqtt/"]
+        BR[broker.py<br/>MQTTクライアント]
+        EM[event_mapper.py<br/>イベント⋆MQTT変換]
+        DM[device_manager.py<br/>デバイス管理]
+    end
+    
+    subgraph Timeline["timeline/"]
+        TP[processor.py<br/>タイムライン処理]
+        CM[cache_manager.py<br/>キャッシュ管理]
+    end
+    
+    subgraph Server["server/"]
+        FL[app.py<br/>Flaskダッシュボード]
+    end
+    
+    subgraph Utils["utils/"]
+        LG[logger.py]
+        CL[communication_logger.py]
+    end
+    
+    M --> C
+    M --> API
+    M --> MQTT
+    M --> Timeline
+    M --> Server
+    API --> Utils
+    MQTT --> Utils
+```
+
 #### ディレクトリ構造
 
 ```
@@ -306,6 +383,31 @@ TIME_LOOKUP_BUFFER_MS=50
 ## 通信プロトコル
 
 ### 1. WebSocket通信 (Raspberry Pi ↔ Cloud Run API)
+
+```mermaid
+sequenceDiagram
+    participant PI as Raspberry Pi
+    participant API as Cloud Run API
+    participant FE as Frontend
+    
+    PI->>API: WebSocket接続
+    PI->>API: device_connected
+    
+    FE->>API: 動画選択
+    API->>PI: timeline (JSON)
+    PI->>PI: タイムラインロード
+    
+    loop 200ms間隔
+        FE->>API: sync
+        API->>PI: video_sync {current_time, state}
+        PI->>PI: イベント検索 (±100ms)
+        PI->>PI: MQTTコマンド送信
+    end
+    
+    FE->>API: stop_signal
+    API->>PI: stop_signal
+    PI->>PI: 全アクチュエータ停止
+```
 
 #### 接続先
 
@@ -409,6 +511,41 @@ wss://fdx-home-backend-api-xxxxxxxxxxxx.asia-northeast1.run.app/api/playback/ws/
 
 ### 2. MQTT通信 (Raspberry Pi ↔ ESP-12E Devices)
 
+#### MQTTトピック構成図
+
+```mermaid
+flowchart LR
+    subgraph Broker["🍓 MQTT Broker"]
+        PI[Raspberry Pi<br/>192.168.4.1:1883]
+    end
+    
+    subgraph Topics["トピック"]
+        T1[/4dx/wind]
+        T2[/4dx/water]
+        T3[/4dx/light]
+        T4[/4dx/color]
+        T5[/4dx/motor1/control]
+        T6[/4dx/motor2/control]
+        T7[/4dx/heartbeat]
+    end
+    
+    subgraph ESP["📡 ESP-12E"]
+        E1[ESP#1<br/>Wind/Water]
+        E2[ESP#2<br/>Flash/Color]
+        E3[ESP#3<br/>Motor1]
+        E4[ESP#4<br/>Motor2]
+    end
+    
+    PI --> Topics
+    T1 --> E1
+    T2 --> E1
+    T3 --> E2
+    T4 --> E2
+    T5 --> E3
+    T6 --> E4
+    E1 & E2 & E3 & E4 -.->|Heartbeat| T7
+```
+
 #### MQTTトピック構成
 
 | エフェクト | MQTTトピック | ペイロード例 | 説明 |
@@ -432,6 +569,36 @@ MQTT_KEEPALIVE = 60
 ---
 
 ## タイムライン処理
+
+### 処理フロー
+
+```mermaid
+flowchart TB
+    subgraph Input["入力"]
+        JSON[Timeline JSON]
+        TIME[current_time]
+    end
+    
+    subgraph Process["処理"]
+        LOAD[load_timeline]
+        UPDATE[update_time]
+        SEARCH[イベント検索<br/>±100ms]
+        EXEC[イベント実行]
+    end
+    
+    subgraph Output["出力"]
+        MAP[EventToMQTTMapper]
+        MQTT[MQTT Publish]
+    end
+    
+    JSON --> LOAD
+    LOAD --> UPDATE
+    TIME --> UPDATE
+    UPDATE --> SEARCH
+    SEARCH -->|該当あり| EXEC
+    EXEC --> MAP
+    MAP --> MQTT
+```
 
 ### イベント構造
 
@@ -763,6 +930,29 @@ void loop() {
 
 ## ストップ処理実装 **[NEW - AwardDay]**
 
+### ストップ処理フロー
+
+```mermaid
+sequenceDiagram
+    participant FE as Frontend
+    participant API as Cloud Run
+    participant PI as Raspberry Pi
+    participant ESP as ESP-12E
+    
+    FE->>API: 一時停止/終了
+    API->>PI: stop_signal
+    
+    PI->>PI: timeline_processor.stop_playback()
+    
+    PI->>ESP: /4dx/wind = OFF
+    PI->>ESP: /4dx/light = OFF
+    PI->>ESP: /4dx/color = RED
+    PI->>ESP: /4dx/motor1/control = OFF
+    PI->>ESP: /4dx/motor2/control = OFF
+    
+    ESP-->>PI: 停止完了
+```
+
 ### Raspberry Pi側実装
 
 ```python
@@ -818,6 +1008,24 @@ def _on_stop_signal_received(self, stop_data: Dict) -> None:
 ---
 
 ## 起動・運用
+
+### 起動フロー
+
+```mermaid
+flowchart TB
+    subgraph Boot["起動プロセス"]
+        A[電源投入] --> B[systemdサービス起動]
+        B --> C[main.py 実行]
+        C --> D[MQTT Broker接続]
+        D --> E[Flaskサーバー起動]
+        E --> F[WebSocket接続]
+        F --> G[✅ 稼働中]
+    end
+    
+    subgraph Monitor["監視"]
+        G --> H[Flask Dashboard<br/>localhost:5000]
+    end
+```
 
 ### Raspberry Pi起動方法
 

@@ -13,33 +13,34 @@
 
 ### システム構成
 
-```
-┌─────────────────────────────────────────┐
-│  Frontend (React + Vite)                │
-│  https://kz-2504.onrender.com           │
-│                                         │
-│  - LoginPage (ログイン)                  │
-│  - SelectPage (動画選択)                 │
-│  - VideoPreparationPage (動画準備)      │
-│  - PlayerPage (再生・同期)               │
-└─────────────────────────────────────────┘
-               ↓ HTTPS/WSS
-┌─────────────────────────────────────────┐
-│  Cloud Run API (FastAPI)                │
-│  asia-northeast1                        │
-│  https://fdx-home-backend-api-...       │
-└─────────────────────────────────────────┘
-               ↓ WebSocket
-┌─────────────────────────────────────────┐
-│  Raspberry Pi Hub                       │
-│  (Python Server + MQTT Broker)          │
-└─────────────────────────────────────────┘
-               ↓ Wi-Fi + MQTT
-┌─────────────────────────────────────────┐
-│  ESP-12E × 4台 (3Dプリント筐体)         │
-│  - EffectStation (風・水・光・色)        │
-│  - ActionDrive (振動×8モーター)         │
-└─────────────────────────────────────────┘
+```mermaid
+flowchart TB
+    subgraph Frontend["🌐 Frontend (React + Vite)"]
+        direction TB
+        HP[HomePage<br/>ランディング]
+        LP[LoginPage<br/>ログイン]
+        SP[SelectPage<br/>動画選択]
+        PP[VideoPreparationPage<br/>動画準備]
+        PL[PlayerPage<br/>再生・同期]
+    end
+    
+    subgraph Backend["☁️ Cloud Run API"]
+        API[FastAPI<br/>asia-northeast1]
+    end
+    
+    subgraph Device["🏠 デバイス層"]
+        PI[Raspberry Pi Hub]
+        ESP[ESP-12E × 4台]
+    end
+    
+    HP --> LP
+    LP --> SP
+    SP --> PP
+    PP --> PL
+    
+    Frontend <-->|HTTPS/WSS| API
+    API <-->|WebSocket| PI
+    PI <-->|Wi-Fi + MQTT| ESP
 ```
 
 ---
@@ -101,6 +102,25 @@ VITE_DEFAULT_SESSION_ID=demo_session
 ---
 
 ## 画面構成
+
+### 画面遷移フロー
+
+```mermaid
+stateDiagram-v2
+    [*] --> HomePage: アクセス
+    
+    HomePage --> LoginPage: LOG IN
+    HomePage --> SelectPage: GET STARTED
+    
+    LoginPage --> SelectPage: ゲストログイン
+    
+    SelectPage --> VideoPreparationPage: 動画選択
+    
+    VideoPreparationPage --> PlayerPage: 準備完了
+    
+    PlayerPage --> SelectPage: 動画終了
+    PlayerPage --> PlayerPage: もう一度見る
+```
 
 ### 1. HomePage - ホーム画面（ランディング）
 
@@ -230,6 +250,24 @@ const goPlayer = (id: string, title?: string, thumb?: string) => {
 **パス**: `/prepare`
 
 **目的**: 5つのステップで動画再生の準備を行う
+
+```mermaid
+flowchart LR
+    subgraph Steps["準備ステップ"]
+        S1[1️⃣ セッション接続] --> S2[2️⃣ デバイス接続]
+        S2 --> S3[3️⃣ 動画読み込み]
+        S3 --> S4[4️⃣ タイムライン送信]
+        S4 --> S5[5️⃣ デバイステスト]
+    end
+    
+    S5 --> Player[動画再生画面へ]
+    
+    style S1 fill:#e8f5e9
+    style S2 fill:#e8f5e9
+    style S3 fill:#fff3e0
+    style S4 fill:#e3f2fd
+    style S5 fill:#fce4ec
+```
 
 **主要機能**:
 
@@ -444,6 +482,32 @@ const handleEnded = () => {
 
 ## ルーティング構成
 
+```mermaid
+flowchart TB
+    subgraph Public["パブリック"]
+        R1[/ 🏠 HomePage]
+        R2[/login 🔐 LoginPage]
+        R3[/select 🎥 SelectPage]
+    end
+    
+    subgraph Protected["認証必須"]
+        R4[/prepare ⚙️ VideoPreparationPage]
+        R5[/player ▶️ PlayerPage]
+    end
+    
+    subgraph Redirect["リダイレクト"]
+        OLD1[/home] --> R1
+        OLD2[/session] --> R1
+        OLD3[/selectpage] --> R3
+    end
+    
+    R1 --> R2
+    R1 --> R3
+    R2 --> R3
+    R3 --> R4
+    R4 --> R5
+```
+
 ```typescript
 import { Routes, Route, Navigate } from "react-router-dom";
 import HomePage from "./pages/HomePage";
@@ -528,6 +592,22 @@ export default function ProtectedRoute({ children }: { children: React.ReactNode
 
 ### エンドポイント
 
+```mermaid
+flowchart TB
+    subgraph Frontend["フロントエンド"]
+        Prep[VideoPreparationPage]
+        Player[PlayerPage]
+    end
+    
+    subgraph CloudRun["Cloud Run API"]
+        WS1["/api/preparation/ws/"]
+        WS2["/api/playback/ws/sync/"]
+    end
+    
+    Prep <-->|WSS| WS1
+    Player <-->|WSS| WS2
+```
+
 #### 1. 準備画面用WebSocket
 
 ```
@@ -545,6 +625,30 @@ wss://fdx-home-backend-api-xxxxxxxxxxxx.asia-northeast1.run.app/api/playback/ws/
 **用途**: 動画再生同期・リアルタイム通信
 
 ### 接続フロー
+
+```mermaid
+sequenceDiagram
+    participant FE as Frontend
+    participant API as Cloud Run API
+    participant PI as Raspberry Pi
+    
+    FE->>API: 1. WebSocket接続
+    API-->>FE: 2. connection_established
+    
+    FE->>API: 3. identify {hub_id}
+    
+    loop 200ms間隔
+        FE->>API: 4. sync {state, time, ts}
+        API->>PI: 5. video_sync
+        API-->>FE: 6. sync_ack
+    end
+    
+    alt 一時停止/終了
+        FE->>API: 7. POST /playback/stop
+        API->>PI: 8. stop_signal
+        API-->>FE: 9. stop_signal_ack
+    end
+```
 
 1. **接続確立**: WebSocketコンストラクタでURL指定
 2. **接続成功**: `onopen` イベント発火

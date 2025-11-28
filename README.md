@@ -88,8 +88,30 @@ Google Cloud Run上のFastAPI + WebSocketによる**ミリ秒精度のリアル�
 - **アクチュエーター** (ESP-12E × 4台): 振動・光・風・水・色の5種類物理効果を無線制御（Wi-Fi + MQTT）
 
 **3層アーキテクチャ：**
-```
-Frontend (Render) ←→ Cloud Run API (asia-northeast1) ←→ Raspberry Pi Hub ←→ ESP-12E Devices (Wi-Fi + MQTT)
+```mermaid
+flowchart LR
+    subgraph Cloud["☁️ クラウド層"]
+        A[🌐 Frontend<br/>React + TypeScript<br/>Render]
+        B[⚡ Cloud Run API<br/>FastAPI + WebSocket<br/>asia-northeast1]
+    end
+    
+    subgraph Local["🏠 ローカル層"]
+        C[🍓 Raspberry Pi Hub<br/>MQTT Broker<br/>Wi-Fi AP]
+    end
+    
+    subgraph Device["🎮 デバイス層"]
+        D1[💨 ESP#1<br/>Wind & Water]
+        D2[💡 ESP#2<br/>Flash & Color]
+        D3[📳 ESP#3<br/>Motor1]
+        D4[📳 ESP#4<br/>Motor2]
+    end
+    
+    A <-->|WebSocket<br/>WSS| B
+    B <-->|WebSocket<br/>WSS| C
+    C <-->|MQTT<br/>Wi-Fi| D1
+    C <-->|MQTT<br/>Wi-Fi| D2
+    C <-->|MQTT<br/>Wi-Fi| D3
+    C <-->|MQTT<br/>Wi-Fi| D4
 ```
 
 ### 特長
