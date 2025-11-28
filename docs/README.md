@@ -281,12 +281,12 @@ flowchart LR
 
 ```mermaid
 flowchart TB
-    PI[Raspberry Pi<br/>MQTT Broker] --> T1[/4dx/motor1/control]
-    PI --> T2[/4dx/motor2/control]
-    PI --> T3[/4dx/wind]
-    PI --> T4[/4dx/water]
-    PI --> T5[/4dx/light]
-    PI --> T6[/4dx/color]
+    PI[Raspberry Pi<br/>MQTT Broker] --> T1["/4dx/motor1/control"]
+    PI --> T2["/4dx/motor2/control"]
+    PI --> T3["/4dx/wind"]
+    PI --> T4["/4dx/water"]
+    PI --> T5["/4dx/light"]
+    PI --> T6["/4dx/color"]
     
     T1 --> ESP3[ESP#3 Motor1]
     T2 --> ESP4[ESP#4 Motor2]

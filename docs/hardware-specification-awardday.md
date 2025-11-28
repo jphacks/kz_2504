@@ -520,13 +520,13 @@ flowchart LR
     end
     
     subgraph Topics["トピック"]
-        T1[/4dx/wind]
-        T2[/4dx/water]
-        T3[/4dx/light]
-        T4[/4dx/color]
-        T5[/4dx/motor1/control]
-        T6[/4dx/motor2/control]
-        T7[/4dx/heartbeat]
+        T1["/4dx/wind"]
+        T2["/4dx/water"]
+        T3["/4dx/light"]
+        T4["/4dx/color"]
+        T5["/4dx/motor1/control"]
+        T6["/4dx/motor2/control"]
+        T7["/4dx/heartbeat"]
     end
     
     subgraph ESP["📡 ESP-12E"]

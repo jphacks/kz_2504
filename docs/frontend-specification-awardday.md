@@ -485,20 +485,20 @@ const handleEnded = () => {
 ```mermaid
 flowchart TB
     subgraph Public["パブリック"]
-        R1[/ 🏠 HomePage]
-        R2[/login 🔐 LoginPage]
-        R3[/select 🎥 SelectPage]
+        R1["/ 🏠 HomePage"]
+        R2["/login 🔐 LoginPage"]
+        R3["/select 🎥 SelectPage"]
     end
     
     subgraph Protected["認証必須"]
-        R4[/prepare ⚙️ VideoPreparationPage]
-        R5[/player ▶️ PlayerPage]
+        R4["/prepare ⚙️ VideoPreparationPage"]
+        R5["/player ▶️ PlayerPage"]
     end
     
     subgraph Redirect["リダイレクト"]
-        OLD1[/home] --> R1
-        OLD2[/session] --> R1
-        OLD3[/selectpage] --> R3
+        OLD1["/home"] --> R1
+        OLD2["/session"] --> R1
+        OLD3["/selectpage"] --> R3
     end
     
     R1 --> R2
