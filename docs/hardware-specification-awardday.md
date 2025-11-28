@@ -514,7 +514,7 @@ wss://fdx-home-backend-api-xxxxxxxxxxxx.asia-northeast1.run.app/api/playback/ws/
 #### MQTTトピック構成図
 
 ```mermaid
-flowchart LR
+flowchart TD
     subgraph Broker["🍓 MQTT Broker"]
         PI[Raspberry Pi<br/>192.168.4.1:1883]
     end
