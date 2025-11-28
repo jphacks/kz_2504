@@ -67,7 +67,7 @@
 
 <b>🎬 霧吹き動作デモ動画</b>
 
-
+https://github.com/user-attachments/assets/980f8eda-1dce-4137-88e9-89016a450ba4
 
 </div>
 
