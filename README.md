@@ -1,18 +1,20 @@
-# ※修正作業中
-
 # 4DX@HOME - あなたのおうちで「最高の映像」が「最強の体験」へ。
 
 <div align="center">
-  <img src="assets/images/4DX@HOME2.png" alt="4DX@HOME" width="400" style="margin-right: 10px;">
-  <img src="assets/images/Woodworking_Workbench.png" alt="木工製固定台" width="400">
+
+  [![4DX@HOME デモ動画](https://img.youtube.com/vi/t1n5mQZU_nM/maxresdefault.jpg)](https://youtu.be/t1n5mQZU_nM)
+  
+  **👆 クリックして動画を再生 👆**
+  
+  [![YouTube](https://img.shields.io/badge/▶%20YouTube-紹介動画を見る-FF0000?style=for-the-badge&logo=youtube&logoColor=white)](https://youtu.be/t1n5mQZU_nM)
 
   <br>
 
-  [![JPHacks 2025](https://img.shields.io/badge/JPHacks%202025-Best%20Hackday%20Award-gold?style=for-the-badge&logo=trophy)](https://github.com/jphacks/kz_2504)
-  [![JPHacks 2025](https://img.shields.io/badge/JPHacks%202025-Award%20Day%20Finalist-blue?style=for-the-badge&logo=star)](https://github.com/jphacks/kz_2504)
+  [![JPHacks 2025](https://img.shields.io/badge/JPHacks%202025-Best%20Hackday%20Award-gold?style=for-the-badge&logo=trophy)](https://jphacks.com/information/hackday-result-2025/#:~:text=GitHub-,HackDay%20Audience%20Award,-KZ_2504)
+  [![JPHacks 2025](https://img.shields.io/badge/JPHacks%202025-Award%20Day%20Finalist-blue?style=for-the-badge&logo=star)](https://jphacks.com/information/award-finalists2025/#:~:text=4DX%40HOME%EF%BC%88KZ_2504%EF%BC%9AWILD%20C%40RD%EF%BC%89)
   
-  [![JPHacks 2025](https://img.shields.io/badge/JPHacks%202025-審査委員特別賞-silver?style=for-the-badge&logo=award)](https://github.com/jphacks/kz_2504)
-  [![JPHacks 2025](https://img.shields.io/badge/JPHacks%202025-Innovator認定-purple?style=for-the-badge&logo=lightbulb)](https://github.com/jphacks/kz_2504)
+  [![JPHacks 2025](https://img.shields.io/badge/JPHacks%202025-審査委員特別賞-silver?style=for-the-badge&logo=award)](https://jphacks.com/2025/result/innovator/#:~:text=in%202025-,%E5%AF%A9%E6%9F%BB%E5%A7%94%E5%93%A1%E7%89%B9%E5%88%A5%E8%B3%9E,-4DX%40HOME%20(KZ_2504))
+  [![JPHacks 2025](https://img.shields.io/badge/JPHacks%202025-Innovator認定-purple?style=for-the-badge&logo=lightbulb)](https://jphacks.com/2025/result/innovator/#:~:text=in%202025-,JPHACKS%20Innovator%E8%AA%8D%E5%AE%9A,-4DX%40HOME%20(KZ_2504))
   ## 🎉 JPHACKS 2025 受賞結果 🎉
   ### **🏆 Hack Day (金沢会場)**
   **🥇 Best Hackday Award**  
@@ -27,11 +29,10 @@
   株式会社東海理化賞
 </div>
 
-## 🌐 Live Demo
-**Webアプリ**: https://kz-2504.onrender.com<br>
-**YouTube動画**: https://youtu.be/t1n5mQZU_nM<br>
+---
 
-動画で使用しているPDFはこちら: [PDF](https://github.com/jphacks/kz_2504/blob/main/assets/images/4DX%40HOME_HackDay%E7%94%A8%E5%8B%95%E7%94%BB%E7%94%A8%E3%83%91%E3%83%AF%E3%83%9D.pdf)
+## 🌐 Live Demo
+**Webアプリ**: https://kz-2504.onrender.com
 
 ## 製品概要
 
@@ -116,15 +117,36 @@ Frontend (Render) ←→ Cloud Run API (asia-northeast1) ←→ Raspberry Pi Hub
 - **全映像作品に対応** - ジャンルや年代を問わず、プロによる事前設定不要
 
 ### 今後の展望
-- **ラグの解消と分析スピードの向上**: ネットワーク遅延の最小化とAI処理の高速化
-- **AIモデルのファインチューニングとプロンプト改善**: より精度の高いシーン理解と効果選択
-- **新要素の追加**: アクチュエータ増設による「匂い」「傾き」の実装
-  - 香り拡散（アロマカートリッジ）、温度制御（ペルチェ素子）
-- **分析の高度化**: 音の分析や画像処理の併用による多感覚4DX体験
-- **展示会やイベントへの出展**: より多くの人に体験してもらう機会の創出
+
+#### 🚀 もっと賢く、もっと便利に
+- **AIの進化**: シーンの理解精度を高め、より「ちょうどいい」タイミングで効果を発動
+- **お気に入り動画に対応**: 自分の持っている動画をアップロードして4DX化
+- **あなた好みに調整**: 効果の強さや種類を自分好みにカスタマイズ
+
+#### ⚡ もっと速く、もっと正確に
+- **ラグの解消**: 映像と効果のズレをさらに小さく、違和感のない体験へ
+- **AI学習の改善**: 爆発・雨・風などのシーンをより正確に判別
+- **あなた専用の最適化**: 使うほどにあなたの好みを学習し、ベストな体験を提案
+
+#### 🎵 音と連動する新体験
+- **音楽に合わせて振動**: ライブ映像やMVで、ビートに合わせた振動体験
+- **効果音で臨場感UP**: 雷鳴で光り、銃声で振動、風の音で風が吹く
+- **立体的な音の演出**: 音の方向に合わせた効果で、360度の没入感
+
+#### ⌚ 身につける4DX
+- **ネックバンド型**: 首元にひんやり感や振動を伝えるウェアラブルデバイス
+- **リストバンド型**: 手首で感じる心臓のドキドキや温度変化
+- **体の反応と連携**: あなたの心拍数に合わせて、緊張シーンをさらに盛り上げ
+
+#### 🌟 五感すべてで感じる未来
+- **香りの演出**: 森のシーンで木の香り、カフェのシーンでコーヒーの香り
+- **温度の変化**: 雪山で冷たさ、砂漠で暖かさを肌で感じる
+- **みんなで一緒に**: 離れた場所にいる友人・家族と同じ体験を共有
+- **VR/ARとの融合**: 仮想現実の世界で、本物の風や振動を感じる次世代体験
+- **体験イベントの開催**: 展示会やイベントで、より多くの人に4DX@HOMEを届ける
 
 ### 注力したこと（こだわり等）
-* **AI動画解析の効率化**: Gemini 2.5 Proによる高精度映像解析（4FPS、120枚同時分析）により、0.数秒で映像の意味を理解し、24種類のアクションから最適な組み合わせを自動選択
+* **AI動画解析の効率化**: Gemini 2.5 Proによる高精度映像解析（4FPS、120枚同時分析）により、0.数秒で映像の意味を理解し、5種類のエフェクト、24種類のアクションから最適な組み合わせを自動選択
 * **エンドツーエンド連携の完全実装**: 
   - デバイス認証システム（製品コードDH001/DH002/DH003）の統合
   - タイムラインJSON動的送信（`POST /api/preparation/upload-timeline/{session_id}`）
@@ -183,6 +205,8 @@ Frontend (Render) ←→ Cloud Run API (asia-northeast1) ←→ Raspberry Pi Hub
   - ESP#4: Motor2 Control（振動モーター4個・お尻）
 - ![振動](https://img.shields.io/badge/振動モーター-8個-purple) **偏心モーター × 8個** - 強度別4ピン制御（STRONG, MEDIUM_STRONG, MEDIUM_WEAK, WEAK）、16種類の振動パターン
 - ![3Dプリント](https://img.shields.io/badge/3Dプリント-2種類筐体-orange) **3Dプリント専用筐体**
+  - **設計ソフト**: Autodesk Fusion（3D CAD）
+  - **素材**: PLAフィラメント（生分解性プラスチック）
   - **EffectStation**: 風・水・光・色の環境エフェクト統合筐体（卓上サイズ約29cm）
   - **ActionDrive**: 振動モーター8個収納筐体（Motor Case Ver 2）
 - ![LED](https://img.shields.io/badge/RGB%20LED-PWM制御-rainbow) **RGB LED + 高輝度LED** - PWM制御による光の演出（3モード: ストロボ、閃光、照明）+ 色表現（RGB）
@@ -221,7 +245,7 @@ Frontend (Render) ←→ Cloud Run API (asia-northeast1) ←→ Raspberry Pi Hub
   → [`frontend/4dathome-app/src/pages/HomePage.tsx`](./frontend/4dathome-app/src/pages/HomePage.tsx), [`frontend/4dathome-app/src/pages/LoginPage.tsx`](./frontend/4dathome-app/src/pages/LoginPage.tsx), [`frontend/4dathome-app/src/pages/SelectPage.tsx`](./frontend/4dathome-app/src/pages/SelectPage.tsx), [`frontend/4dathome-app/src/pages/VideoPreparationPage.tsx`](./frontend/4dathome-app/src/pages/VideoPreparationPage.tsx), [`frontend/4dathome-app/src/pages/PlayerPage.tsx`](./frontend/4dathome-app/src/pages/PlayerPage.tsx)
 
 * **ハードウェア完全無線化**: Arduino全廃、ESP-12E × 4台統一（Wi-Fi + MQTT）  
-  → [`hardware/actuators/4DX_WATER_WIND.ino`](./hardware/actuators/4DX_WATER_WIND.ino), [`hardware/actuators/4DX_FLASH_COLOR.ino`](./hardware/actuators/4DX_FLASH_COLOR.ino), [`hardware/actuators/4DX_MOTOR_MQTT.ino`](./hardware/actuators/4DX_MOTOR_MQTT.ino)
+  → [`hardware/actuators/4DX_WATER_WIND.ino`](./hardware/actuators/4DX_WATER_WIND.ino), [`hardware/actuators/4DX_LIGHTS.ino`](./hardware/actuators/4DX_LIGHTS.ino), [`hardware/actuators/4DX_MOTOR_MQTT.ino`](./hardware/actuators/4DX_MOTOR_MQTT.ino)
 
 * **Raspberry Pi自動起動システム**: systemdサービス化、電源投入で即座稼働  
   → [`hardware/rpi_server/main.py`](./hardware/rpi_server/main.py)

@@ -13,11 +13,20 @@
 
 ### 物理デバイス構成
 
-本システムは2種類の専用デバイスで構成され、すべて**CADソフトで設計した3Dプリント筐体**に収められています。
+本システムは2種類の専用デバイスで構成され、すべて**Autodesk Fusionで設計した3Dプリント筐体**に収められています。
+
+#### 3Dプリント仕様
+
+| 項目 | 詳細 |
+|-----|------|
+| **設計ソフト** | Autodesk Fusion（3D CAD/CAM/CAE統合ソフトウェア） |
+| **フィラメント素材** | PLA（ポリ乳酸）- 生分解性・環境配慮型プラスチック |
+| **積層ピッチ** | 0.2mm |
+| **インフィル** | 20% |
 
 #### 1. EffectStation（環境エフェクトデバイス）
 
-**3D設計データ**: `hardware/3DModel/4dx@home-stand.stl`
+**3D設計データ**: `hardware/3DModel/4dx@home-stand.stl`（Autodesk Fusion設計）
 
 - **機能**: 4種類の環境エフェクト（**水・風・光・色**）を提供
 - **サイズ**: 卓上サイズ（約29cm）
@@ -31,7 +40,7 @@
 
 #### 2. ActionDrive（振動フィードバックデバイス）
 
-**3D設計データ**: `hardware/3DModel/Motor Case Ver 2.stl`
+**3D設計データ**: `hardware/3DModel/Motor Case Ver 2.stl`（Autodesk Fusion設計）
 
 - **機能**: **振動**によるフィードバックを提供するクッション型デバイス
 - **制御マイコン**: ESP-12E × 2台（Motor Case Ver 2に格納）
