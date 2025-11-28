@@ -64,6 +64,11 @@
 <td><img src="../assets/images/AwardDay_EffectStation_3D_Model.png" width="300" alt="EffectStation 3Dモデル"></td>
 </tr>
 </table>
+
+<b>🎬 霧吹き動作デモ動画</b>
+
+
+
 </div>
 
 **3D設計データ**: `hardware/3DModel/4dx@home-stand.stl`（Autodesk Fusion設計）
@@ -94,7 +99,7 @@
 </tr>
 </table>
 
-<b>🎬 動作デモ動画</b>
+<b>🎬 モーター動作デモ動画</b>
 
 
 
