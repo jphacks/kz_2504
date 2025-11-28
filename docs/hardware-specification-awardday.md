@@ -7,6 +7,35 @@
 
 ---
 
+## 📑 目次
+
+1. [概要](#概要)
+   - [物理デバイス構成](#物理デバイス構成)
+   - [無線通信アーキテクチャ](#無線通信アーキテクチャ)
+   - [システム全体構成](#システム全体構成)
+2. [技術スタック](#技術スタック)
+   - [Raspberry Pi Server](#raspberry-pi-server)
+   - [ESP-12E Devices](#esp-12e-devices-全4台)
+3. [システム構成](#システム構成)
+   - [デバイスハブ (Raspberry Pi)](#デバイスハブ-raspberry-pi)
+   - [ディレクトリ構造](#ディレクトリ構造)
+4. [通信プロトコル](#通信プロトコル)
+   - [WebSocket通信](#1-websocket通信-raspberry-pi--cloud-run-api)
+   - [MQTT通信](#2-mqtt通信-raspberry-pi--esp-12e-devices)
+5. [タイムライン処理](#タイムライン処理)
+6. [イベント→MQTTマッピング](#イベントmqttマッピング)
+7. [ストップ処理実装](#ストップ処理実装-new---awardday)
+8. [起動・運用](#起動運用)
+9. [デバッグ・監視](#デバッグ監視)
+10. [トラブルシューティング](#トラブルシューティング)
+11. [パフォーマンス指標](#パフォーマンス指標)
+12. [Hack Day → Award Day 変更履歴](#hack-day--award-day-変更履歴)
+13. [今後の拡張予定](#今後の拡張予定)
+14. [安全機能](#安全機能)
+15. [実装例集](#実装例集)
+
+---
+
 ## 概要
 
 4DX@HOME ハードウェアシステムは、Raspberry Pi 3 Model Bをデバイスハブとし、Cloud Run APIとWebSocket通信することで、動画再生に同期した5種類の4Dエフェクト（振動・光・風・水・色彩）を提供します。Raspberry Piは**Wi-Fi + MQTT経由で4台のESP-12Eマイコン**を無線制御し、各種アクチュエーターを駆動します。
@@ -231,8 +260,8 @@ const uint16_t MQTT_PORT  = 1883;
 
 | ESP# | デバイスID | MQTTクライアントID | Subscribeトピック | 制御対象 |
 |------|-----------|-------------------|------------------|----------|
-| #1 | ESP-WindWater | ESP8266_4DX_Client | `/4dx/wind/control`<br/>`/4dx/water/control` | DC Fan + Servo Pump |
-| #2 | ESP-FlashColor | ESP8266_LED_Controller | `/4dx/flash/control`<br/>`/4dx/led/control` | High-Brightness LED + RGB LED Tape |
+| #1 | ESP-WindWater | ESP8266_4DX_Client | `/4dx/wind`<br/>`/4dx/water` | DC Fan + Servo Pump |
+| #2 | ESP-FlashColor | ESP8266_LED_Controller | `/4dx/light`<br/>`/4dx/color` | High-Brightness LED + RGB LED Tape |
 | #3 | ESP-Motor1 | ESP8266_Motor_1 | `/4dx/motor1/control` | Vibration Motors (4個・背中) |
 | #4 | ESP-Motor2 | ESP8266_Motor_2 | `/4dx/motor2/control` | Vibration Motors (4個・お尻) |
 
@@ -669,262 +698,30 @@ class TimelineProcessor:
 
 ## イベント→MQTTマッピング
 
-### EventToMQTTMapper クラス
+> 📝 EventToMQTTMapperの詳細な実装例は[実装例集 - EventToMQTTMapper](#eventtomqttmapper-実装例)を参照
 
-```python
-class EventToMQTTMapper:
-    """タイムラインイベントをMQTTコマンドに変換"""
-    
-    @classmethod
-    def map_event_to_mqtt(cls, event: Dict) -> List[Tuple[str, str]]:
-        """イベント→MQTTコマンド変換
-        
-        Returns:
-            [(topic, payload), ...] のリスト
-        """
-        effect = event.get("effect", "").lower()
-        action = event.get("action", "start")
-        mode = event.get("mode", "default")
-        
-        commands = []
-        
-        # Wind エフェクト
-        if effect == "wind":
-            if action == "start":
-                commands.append(("/4dx/wind", "ON"))
-            elif action == "stop":
-                commands.append(("/4dx/wind", "OFF"))
-        
-        # Flash エフェクト
-        elif effect == "flash":
-            if action == "start":
-                if mode == "strobe":
-                    commands.append(("/4dx/light", "FLASH 15"))
-                elif mode == "burst":
-                    commands.append(("/4dx/light", "FLASH 10"))
-                else:
-                    commands.append(("/4dx/light", "ON"))
-            elif action == "stop":
-                commands.append(("/4dx/light", "OFF"))
-        
-        # Vibration エフェクト
-        elif effect == "vibration":
-            if action == "start":
-                if mode == "heart":
-                    commands.append(("/4dx/motor1/control", "HEART"))
-                    commands.append(("/4dx/motor2/control", "HEART"))
-                else:
-                    commands.append(("/4dx/motor1/control", "ON"))
-                    commands.append(("/4dx/motor2/control", "ON"))
-            elif action == "stop":
-                commands.append(("/4dx/motor1/control", "OFF"))
-                commands.append(("/4dx/motor2/control", "OFF"))
-        
-        # Color エフェクト
-        elif effect == "color":
-            color = mode.upper()  # "RED", "GREEN", "BLUE", etc.
-            commands.append(("/4dx/color", color))
-        
-        return commands
-    
-    @classmethod
-    def get_stop_all_commands(cls) -> List[Tuple[str, str]]:
-        """全アクチュエータ停止コマンド生成 [NEW - AwardDay]
-        
-        一時停止・動画終了時に呼び出される
-        """
-        stop_commands = [
-            ("/4dx/wind", "OFF"),
-            ("/4dx/light", "OFF"),
-            ("/4dx/color", "RED"),  # 完全OFFにはせず赤に戻す
-            ("/4dx/motor1/control", "OFF"),
-            ("/4dx/motor2/control", "OFF"),
-        ]
-        
-        logger.info(f"🛑 全停止MQTTコマンド生成: {len(stop_commands)}件")
-        
-        return stop_commands
-```
+### 対応エフェクト一覧
 
----
+| エフェクト | MQTTトピック | startコマンド | stopコマンド |
+|---------|------------|-------------|------------|
+| Wind | `/4dx/wind` | `ON` | `OFF` |
+| Flash (strobe) | `/4dx/light` | `FLASH 15` | `OFF` |
+| Flash (burst) | `/4dx/light` | `FLASH 10` | `OFF` |
+| Vibration | `/4dx/motor1/control`, `/4dx/motor2/control` | `ON` | `OFF` |
+| Vibration (heart) | `/4dx/motor1/control`, `/4dx/motor2/control` | `HEART` | `OFF` |
+| Color | `/4dx/color` | `RED`, `GREEN`, `BLUE` etc. | - |
 
-## ESP-12E プログラム例
+### 全アクチュエータ停止コマンド
 
-### Wind Control (ESP-12E #1)
+ストップ信号受信時、以下の5つのMQTTコマンドが送信されます:
 
-```cpp
-#include <ESP8266WiFi.h>
-#include <PubSubClient.h>
+1. `/4dx/wind` → `OFF` (風停止)
+2. `/4dx/light` → `OFF` (フラッシュ/ライト消灯)
+3. `/4dx/color` → `RED` (LED色を赤に戻す)
+4. `/4dx/motor1/control` → `OFF` (振動モーター1停止)
+5. `/4dx/motor2/control` → `OFF` (振動モーター2停止)
 
-// Wi-Fi設定
-const char* ssid = "YOUR_WIFI_SSID";
-const char* password = "YOUR_WIFI_PASSWORD";
-
-// MQTT設定
-const char* mqtt_server = "172.18.28.55";
-const int mqtt_port = 1883;
-const char* mqtt_topic = "/4dx/wind";
-
-// GPIO設定
-const int FAN_PIN = 5; // D1ピン
-
-WiFiClient espClient;
-PubSubClient client(espClient);
-
-void setup() {
-  Serial.begin(115200);
-  pinMode(FAN_PIN, OUTPUT);
-  digitalWrite(FAN_PIN, LOW);
-  
-  // Wi-Fi接続
-  WiFi.begin(ssid, password);
-  while (WiFi.status() != WL_CONNECTED) {
-    delay(500);
-    Serial.print(".");
-  }
-  Serial.println("\nWi-Fi接続成功");
-  
-  // MQTT接続
-  client.setServer(mqtt_server, mqtt_port);
-  client.setCallback(callback);
-  
-  reconnect();
-}
-
-void callback(char* topic, byte* payload, unsigned int length) {
-  String message = "";
-  for (int i = 0; i < length; i++) {
-    message += (char)payload[i];
-  }
-  
-  Serial.print("受信: ");
-  Serial.println(message);
-  
-  if (message == "ON") {
-    digitalWrite(FAN_PIN, HIGH);
-    Serial.println("Wind ON");
-  } else if (message == "OFF") {
-    digitalWrite(FAN_PIN, LOW);
-    Serial.println("Wind OFF");
-  }
-}
-
-void reconnect() {
-  while (!client.connected()) {
-    Serial.print("MQTT接続中...");
-    if (client.connect("ESP_Wind")) {
-      Serial.println("成功");
-      client.subscribe(mqtt_topic);
-    } else {
-      Serial.print("失敗, rc=");
-      Serial.print(client.state());
-      Serial.println(" 5秒後にリトライ");
-      delay(5000);
-    }
-  }
-}
-
-void loop() {
-  if (!client.connected()) {
-    reconnect();
-  }
-  client.loop();
-}
-```
-
-### Vibration Control (ESP-12E #4 - Motor1)
-
-```cpp
-#include <ESP8266WiFi.h>
-#include <PubSubClient.h>
-
-// Wi-Fi設定
-const char* ssid = "YOUR_WIFI_SSID";
-const char* password = "YOUR_WIFI_PASSWORD";
-
-// MQTT設定
-const char* mqtt_server = "172.18.28.55";
-const int mqtt_port = 1883;
-const char* mqtt_topic = "/4dx/motor1/control";
-
-// GPIO設定
-const int MOTOR_PIN = 4; // D2ピン
-
-WiFiClient espClient;
-PubSubClient client(espClient);
-
-void setup() {
-  Serial.begin(115200);
-  pinMode(MOTOR_PIN, OUTPUT);
-  digitalWrite(MOTOR_PIN, LOW);
-  
-  // Wi-Fi接続
-  WiFi.begin(ssid, password);
-  while (WiFi.status() != WL_CONNECTED) {
-    delay(500);
-    Serial.print(".");
-  }
-  Serial.println("\nWi-Fi接続成功");
-  
-  // MQTT接続
-  client.setServer(mqtt_server, mqtt_port);
-  client.setCallback(callback);
-  
-  reconnect();
-}
-
-void callback(char* topic, byte* payload, unsigned int length) {
-  String message = "";
-  for (int i = 0; i < length; i++) {
-    message += (char)payload[i];
-  }
-  
-  Serial.print("受信: ");
-  Serial.println(message);
-  
-  if (message == "ON") {
-    digitalWrite(MOTOR_PIN, HIGH);
-    Serial.println("Motor ON");
-  } else if (message == "OFF") {
-    digitalWrite(MOTOR_PIN, LOW);
-    Serial.println("Motor OFF");
-  } else if (message == "HEART") {
-    // ハートビートパターン: ドクドク
-    for (int i = 0; i < 5; i++) {
-      digitalWrite(MOTOR_PIN, HIGH);
-      delay(100);
-      digitalWrite(MOTOR_PIN, LOW);
-      delay(50);
-      digitalWrite(MOTOR_PIN, HIGH);
-      delay(100);
-      digitalWrite(MOTOR_PIN, LOW);
-      delay(500);
-    }
-  }
-}
-
-void reconnect() {
-  while (!client.connected()) {
-    Serial.print("MQTT接続中...");
-    if (client.connect("ESP_Motor1")) {
-      Serial.println("成功");
-      client.subscribe(mqtt_topic);
-    } else {
-      Serial.print("失敗, rc=");
-      Serial.print(client.state());
-      Serial.println(" 5秒後にリトライ");
-      delay(5000);
-    }
-  }
-}
-
-void loop() {
-  if (!client.connected()) {
-    reconnect();
-  }
-  client.loop();
-}
-```
+**注意**: LED色は完全OFFにせず、赤色に戻します（暗闇での視認性確保）。
 
 ---
 
@@ -953,57 +750,7 @@ sequenceDiagram
     ESP-->>PI: 停止完了
 ```
 
-### Raspberry Pi側実装
-
-```python
-def _on_stop_signal_received(self, stop_data: Dict) -> None:
-    """ストップ信号受信時の処理（全アクチュエータ停止）
-    
-    Args:
-        stop_data: ストップ信号データ（session_id, action, timestamp, sourceを含む）
-    """
-    session_id = stop_data.get("session_id")
-    action = stop_data.get("action", "stop_all")
-    source = stop_data.get("source", "unknown")
-    
-    logger.info(
-        f"🛑 ストップ信号処理開始: session_id={session_id}, "
-        f"action={action}, source={source}"
-    )
-    
-    try:
-        # タイムライン再生を停止
-        if self.timeline_processor.is_playing:
-            self.timeline_processor.stop_playback()
-            logger.info("⏸️  タイムライン再生停止")
-        
-        # 全アクチュエータ停止MQTTコマンドを取得
-        stop_commands = EventToMQTTMapper.get_stop_all_commands()
-        
-        # MQTTコマンドを送信
-        for topic, payload in stop_commands:
-            self.mqtt_client.publish(topic, payload)
-            logger.debug(f"📤 MQTT送信: {topic} = {payload}")
-        
-        logger.info(
-            f"✅ 全アクチュエータ停止完了: {len(stop_commands)}個のコマンド送信"
-        )
-    
-    except Exception as e:
-        logger.error(f"❌ ストップ信号処理エラー: {e}", exc_info=True)
-```
-
-### 送信されるMQTTコマンド
-
-ストップ信号受信時、以下の5つのMQTTコマンドが送信されます:
-
-1. `/4dx/wind` → `OFF` (風停止)
-2. `/4dx/light` → `OFF` (フラッシュ/ライト消灯)
-3. `/4dx/color` → `RED` (LED色を赤に戻す)
-4. `/4dx/motor1/control` → `OFF` (振動モーター1停止)
-5. `/4dx/motor2/control` → `OFF` (振動モーター2停止)
-
-**注意**: LED色は完全OFFにせず、赤色に戻します（暗闇での視認性確保）。
+> 📝 Raspberry Pi側のストップ処理実装例は[実装例集 - ストップ処理](#ストップ処理-実装例)を参照
 
 ---
 
@@ -1316,6 +1063,317 @@ WATCHDOG_TIMEOUT = 5.0         # ウォッチドッグタイムアウト (秒)
 - [ストップ処理仕様](../debug_frontend/STOP_SIGNAL_SPEC.md)
 - [Raspberry Pi設定ガイド](../hardware/rpi_server/README.md)
 - [debug_hardware アーキテクチャ](../debug_hardware/ARCHITECTURE.md)
+
+---
+
+## 実装例集
+
+以下は各機能の詳細な実装例です。
+
+### TimelineProcessor 実装例
+
+```python
+class TimelineProcessor:
+    """タイムライン処理エンジン"""
+    
+    def __init__(self, on_event_callback):
+        self.events = []
+        self.current_time = 0.0
+        self.is_playing = False
+        self.on_event_callback = on_event_callback
+        self.tolerance_ms = 100  # ±100ms許容
+    
+    def load_timeline(self, timeline_data: dict):
+        """タイムラインJSONを読み込み"""
+        self.events = timeline_data.get("events", [])
+        logger.info(f"タイムライン読み込み完了: {len(self.events)}イベント")
+    
+    def update_time(self, current_time: float):
+        """現在時刻を更新し、該当イベントを検索"""
+        self.current_time = current_time
+        
+        # 時刻範囲内のイベントを検索 (±100ms)
+        tolerance_sec = self.tolerance_ms / 1000.0
+        start_time = current_time - tolerance_sec
+        end_time = current_time + tolerance_sec
+        
+        matching_events = [
+            event for event in self.events
+            if start_time <= event["t"] <= end_time
+        ]
+        
+        # イベント発火
+        for event in matching_events:
+            self.on_event_callback(event)
+            logger.debug(f"イベント発火: t={event['t']}, effect={event['effect']}")
+    
+    def stop_playback(self):
+        """再生停止"""
+        self.is_playing = False
+        logger.info("タイムライン再生停止")
+```
+
+### EventToMQTTMapper 実装例
+
+```python
+class EventToMQTTMapper:
+    """タイムラインイベントをMQTTコマンドに変換"""
+    
+    @classmethod
+    def map_event_to_mqtt(cls, event: Dict) -> List[Tuple[str, str]]:
+        """イベント→MQTTコマンド変換
+        
+        Returns:
+            [(topic, payload), ...] のリスト
+        """
+        effect = event.get("effect", "").lower()
+        action = event.get("action", "start")
+        mode = event.get("mode", "default")
+        
+        commands = []
+        
+        # Wind エフェクト
+        if effect == "wind":
+            if action == "start":
+                commands.append(("/4dx/wind", "ON"))
+            elif action == "stop":
+                commands.append(("/4dx/wind", "OFF"))
+        
+        # Flash エフェクト
+        elif effect == "flash":
+            if action == "start":
+                if mode == "strobe":
+                    commands.append(("/4dx/light", "FLASH 15"))
+                elif mode == "burst":
+                    commands.append(("/4dx/light", "FLASH 10"))
+                else:
+                    commands.append(("/4dx/light", "ON"))
+            elif action == "stop":
+                commands.append(("/4dx/light", "OFF"))
+        
+        # Vibration エフェクト
+        elif effect == "vibration":
+            if action == "start":
+                if mode == "heart":
+                    commands.append(("/4dx/motor1/control", "HEART"))
+                    commands.append(("/4dx/motor2/control", "HEART"))
+                else:
+                    commands.append(("/4dx/motor1/control", "ON"))
+                    commands.append(("/4dx/motor2/control", "ON"))
+            elif action == "stop":
+                commands.append(("/4dx/motor1/control", "OFF"))
+                commands.append(("/4dx/motor2/control", "OFF"))
+        
+        # Color エフェクト
+        elif effect == "color":
+            color = mode.upper()  # "RED", "GREEN", "BLUE", etc.
+            commands.append(("/4dx/color", color))
+        
+        return commands
+    
+    @classmethod
+    def get_stop_all_commands(cls) -> List[Tuple[str, str]]:
+        """全アクチュエータ停止コマンド生成 [NEW - AwardDay]
+        
+        一時停止・動画終了時に呼び出される
+        """
+        stop_commands = [
+            ("/4dx/wind", "OFF"),
+            ("/4dx/light", "OFF"),
+            ("/4dx/color", "RED"),  # 完全OFFにはせず赤に戻す
+            ("/4dx/motor1/control", "OFF"),
+            ("/4dx/motor2/control", "OFF"),
+        ]
+        
+        logger.info(f"🛑 全停止MQTTコマンド生成: {len(stop_commands)}件")
+        
+        return stop_commands
+```
+
+### ストップ処理 実装例
+
+```python
+def _on_stop_signal_received(self, stop_data: Dict) -> None:
+    """ストップ信号受信時の処理（全アクチュエータ停止）
+    
+    Args:
+        stop_data: ストップ信号データ（session_id, action, timestamp, sourceを含む）
+    """
+    session_id = stop_data.get("session_id")
+    action = stop_data.get("action", "stop_all")
+    source = stop_data.get("source", "unknown")
+    
+    logger.info(
+        f"🛑 ストップ信号処理開始: session_id={session_id}, "
+        f"action={action}, source={source}"
+    )
+    
+    try:
+        # タイムライン再生を停止
+        if self.timeline_processor.is_playing:
+            self.timeline_processor.stop_playback()
+            logger.info("⏸️  タイムライン再生停止")
+        
+        # 全アクチュエータ停止MQTTコマンドを取得
+        stop_commands = EventToMQTTMapper.get_stop_all_commands()
+        
+        # MQTTコマンドを送信
+        for topic, payload in stop_commands:
+            self.mqtt_client.publish(topic, payload)
+            logger.debug(f"📤 MQTT送信: {topic} = {payload}")
+        
+        logger.info(
+            f"✅ 全アクチュエータ停止完了: {len(stop_commands)}個のコマンド送信"
+        )
+    
+    except Exception as e:
+        logger.error(f"❌ ストップ信号処理エラー: {e}", exc_info=True)
+```
+
+### ESP-12E Wind Control 実装例
+
+```cpp
+#include <ESP8266WiFi.h>
+#include <PubSubClient.h>
+
+// Wi-Fi設定
+const char* ssid = "YOUR_WIFI_SSID";
+const char* password = "YOUR_WIFI_PASSWORD";
+
+// MQTT設定
+const char* mqtt_server = "172.18.28.55";
+const int mqtt_port = 1883;
+const char* mqtt_topic = "/4dx/wind";
+
+// GPIO設定
+const int FAN_PIN = 5; // D1ピン
+
+WiFiClient espClient;
+PubSubClient client(espClient);
+
+void setup() {
+  Serial.begin(115200);
+  pinMode(FAN_PIN, OUTPUT);
+  digitalWrite(FAN_PIN, LOW);
+  
+  // Wi-Fi接続
+  WiFi.begin(ssid, password);
+  while (WiFi.status() != WL_CONNECTED) {
+    delay(500);
+    Serial.print(".");
+  }
+  Serial.println("\nWi-Fi接続成功");
+  
+  // MQTT接続
+  client.setServer(mqtt_server, mqtt_port);
+  client.setCallback(callback);
+  
+  reconnect();
+}
+
+void callback(char* topic, byte* payload, unsigned int length) {
+  String message = "";
+  for (int i = 0; i < length; i++) {
+    message += (char)payload[i];
+  }
+  
+  if (message == "ON") {
+    digitalWrite(FAN_PIN, HIGH);
+  } else if (message == "OFF") {
+    digitalWrite(FAN_PIN, LOW);
+  }
+}
+
+void reconnect() {
+  while (!client.connected()) {
+    if (client.connect("ESP_Wind")) {
+      client.subscribe(mqtt_topic);
+    } else {
+      delay(5000);
+    }
+  }
+}
+
+void loop() {
+  if (!client.connected()) {
+    reconnect();
+  }
+  client.loop();
+}
+```
+
+### ESP-12E Motor Control 実装例
+
+```cpp
+#include <ESP8266WiFi.h>
+#include <PubSubClient.h>
+
+const char* ssid = "YOUR_WIFI_SSID";
+const char* password = "YOUR_WIFI_PASSWORD";
+const char* mqtt_server = "172.18.28.55";
+const int mqtt_port = 1883;
+const char* mqtt_topic = "/4dx/motor1/control";
+const int MOTOR_PIN = 4;
+
+WiFiClient espClient;
+PubSubClient client(espClient);
+
+void callback(char* topic, byte* payload, unsigned int length) {
+  String message = "";
+  for (int i = 0; i < length; i++) {
+    message += (char)payload[i];
+  }
+  
+  if (message == "ON") {
+    digitalWrite(MOTOR_PIN, HIGH);
+  } else if (message == "OFF") {
+    digitalWrite(MOTOR_PIN, LOW);
+  } else if (message == "HEART") {
+    // ハートビートパターン: ドクドク
+    for (int i = 0; i < 5; i++) {
+      digitalWrite(MOTOR_PIN, HIGH);
+      delay(100);
+      digitalWrite(MOTOR_PIN, LOW);
+      delay(50);
+      digitalWrite(MOTOR_PIN, HIGH);
+      delay(100);
+      digitalWrite(MOTOR_PIN, LOW);
+      delay(500);
+    }
+  }
+}
+
+void setup() {
+  Serial.begin(115200);
+  pinMode(MOTOR_PIN, OUTPUT);
+  digitalWrite(MOTOR_PIN, LOW);
+  
+  WiFi.begin(ssid, password);
+  while (WiFi.status() != WL_CONNECTED) {
+    delay(500);
+  }
+  
+  client.setServer(mqtt_server, mqtt_port);
+  client.setCallback(callback);
+}
+
+void reconnect() {
+  while (!client.connected()) {
+    if (client.connect("ESP_Motor1")) {
+      client.subscribe(mqtt_topic);
+    } else {
+      delay(5000);
+    }
+  }
+}
+
+void loop() {
+  if (!client.connected()) {
+    reconnect();
+  }
+  client.loop();
+}
+```
 
 ---
 

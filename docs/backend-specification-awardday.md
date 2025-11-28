@@ -7,6 +7,33 @@
 
 ---
 
+## 📑 目次
+
+1. [概要](#概要)
+2. [技術スタック](#技術スタック)
+3. [Hack Day → Award Day 変更履歴](#hack-day--award-day-変更履歴)
+4. [デプロイ情報](#デプロイ情報)
+5. [ディレクトリ構造](#ディレクトリ構造)
+6. [API エンドポイント](#api-エンドポイント)
+   - [システム情報](#システム情報)
+   - [デバイス管理](#デバイス管理-apidevice)
+   - [動画管理](#動画管理-apivideos)
+   - [準備処理](#準備処理-apipreparation)
+   - [再生制御](#再生制御-apiplayback-new---awardday追加)
+7. [WebSocket通信](#websocket通信)
+8. [Pydanticモデル](#pydanticモデル)
+9. [セキュリティ](#セキュリティ)
+10. [パフォーマンス](#パフォーマンス)
+11. [デプロイ手順](#デプロイ手順)
+12. [開発・テスト](#開発テスト)
+13. [デバッグツール](#デバッグツール)
+14. [トラブルシューティング](#トラブルシューティング)
+15. [Award Day以降の変更点](#award-day以降の変更点)
+16. [今後の拡張予定](#今後の拡張予定)
+17. [実装例集](#実装例集)
+
+---
+
 ## 概要
 
 4DX@HOME バックエンドは、Google Cloud Run上で稼働するFastAPIベースの3層アーキテクチャAPIサーバーです。フロントエンド（React）とRaspberry Piデバイスハブの中継役として、WebSocketリアルタイム通信と完全なREST APIを提供します。
@@ -797,98 +824,26 @@ sequenceDiagram
 
 ## Pydanticモデル
 
+> 📝 Pydanticモデルの詳細な実装例は[実装例集 - Pydanticモデル](#pydanticモデル-実装例)を参照
+
 ### 再生制御関連 (playback.py)
 
-```python
-from pydantic import BaseModel, Field
-from datetime import datetime
-
-class SyncMessage(BaseModel):
-    """フロントエンド同期メッセージ"""
-    type: str = "sync"
-    state: str = Field(..., description="再生状態 (play, pause, seeking, seeked)")
-    time: float = Field(ge=0.0, description="動画再生時刻（秒）")
-    duration: float = Field(ge=0.0, description="動画総再生時間（秒）") 
-    ts: Optional[int] = Field(None, description="クライアント送信タイムスタンプ（ミリ秒）")
-
-class ConnectionEstablished(BaseModel):
-    """WebSocket接続確立応答"""
-    type: str = "connection_established"
-    connection_id: str
-    session_id: str
-    server_time: str = Field(default_factory=lambda: datetime.now().isoformat())
-    message: str = "WebSocket接続が確立されました"
-
-class SyncAcknowledge(BaseModel):
-    """同期確認応答"""
-    type: str = "sync_ack"
-    session_id: str
-    received_time: float
-    received_state: str
-    server_time: str = Field(default_factory=lambda: datetime.now().isoformat())
-    relayed_to_devices: bool = False
-
-class DeviceStatus(BaseModel):
-    """デバイス状態情報"""
-    type: str = "device_status"
-    device_id: str
-    status: str = Field(..., description="ready, busy, error, offline")
-    json_loaded: bool = Field(False, description="タイムライン読み込み状態")
-```
+| モデル名 | 用途 |
+|---------|------|
+| `SyncMessage` | フロントエンド同期メッセージ |
+| `ConnectionEstablished` | WebSocket接続確立応答 |
+| `SyncAcknowledge` | 同期確認応答 |
+| `DeviceStatus` | デバイス状態情報 |
 
 ### 準備処理関連 (preparation.py)
 
-```python
-from enum import Enum
-
-class ActuatorType(str, Enum):
-    """アクチュエータタイプ"""
-    VIBRATION = "VIBRATION"  # 振動クッション
-    WATER = "WATER"          # 水しぶきスプレー
-    WIND = "WIND"            # 風ファン
-    FLASH = "FLASH"          # フラッシュライト
-    COLOR = "COLOR"          # 色ライト
-
-class PreparationStatus(str, Enum):
-    """準備処理状況"""
-    NOT_STARTED = "not_started"
-    INITIALIZING = "initializing"
-    IN_PROGRESS = "in_progress"
-    TESTING = "testing"
-    COMPLETED = "completed"
-    FAILED = "failed"
-    TIMEOUT = "timeout"
-
-class ActuatorTestStatus(str, Enum):
-    """アクチュエーターテスト状況"""
-    PENDING = "pending"
-    TESTING = "testing"
-    READY = "ready"
-    FAILED = "failed"
-    TIMEOUT = "timeout"
-    UNAVAILABLE = "unavailable"
-
-class ActuatorTestResult(BaseModel):
-    """アクチュエーターテスト結果"""
-    actuator_type: ActuatorType
-    status: ActuatorTestStatus
-    response_time_ms: Optional[int]
-    test_intensity: Optional[float]
-    error_message: Optional[str]
-    tested_at: Optional[datetime]
-
-class PreparationState(BaseModel):
-    """準備処理統合状態"""
-    session_id: str
-    overall_status: PreparationStatus
-    overall_progress: int  # 0-100
-    video_preparation: VideoPreparationInfo
-    sync_data_preparation: SyncDataPreparationInfo
-    device_communication: DeviceCommunicationInfo
-    ready_for_playback: bool
-    min_required_actuators_ready: bool
-    all_actuators_ready: bool
-```
+| モデル名 | 用途 |
+|---------|------|
+| `ActuatorType` | アクチュエータタイプ (VIBRATION, WATER, WIND, FLASH, COLOR) |
+| `PreparationStatus` | 準備処理状況 |
+| `ActuatorTestStatus` | アクチュエーターテスト状況 |
+| `ActuatorTestResult` | アクチュエーターテスト結果 |
+| `PreparationState` | 準備処理統合状態 |
 
 ---
 
@@ -1174,6 +1129,107 @@ gcloud artifacts repositories create my-fastapi-repo \
 - [フロントエンド仕様書](./frontend-specification-awardday.md)
 - [ハードウェア仕様書](./hardware-specification-awardday.md)
 - [ストップ処理仕様](../debug_frontend/STOP_SIGNAL_SPEC.md)
+
+---
+
+## 実装例集
+
+以下は各機能の詳細な実装例です。
+
+### Pydanticモデル 実装例
+
+#### 再生制御関連 (playback.py)
+
+```python
+from pydantic import BaseModel, Field
+from datetime import datetime
+
+class SyncMessage(BaseModel):
+    """フロントエンド同期メッセージ"""
+    type: str = "sync"
+    state: str = Field(..., description="再生状態 (play, pause, seeking, seeked)")
+    time: float = Field(ge=0.0, description="動画再生時刻（秒）")
+    duration: float = Field(ge=0.0, description="動画総再生時間（秒）") 
+    ts: Optional[int] = Field(None, description="クライアント送信タイムスタンプ（ミリ秒）")
+
+class ConnectionEstablished(BaseModel):
+    """WebSocket接続確立応答"""
+    type: str = "connection_established"
+    connection_id: str
+    session_id: str
+    server_time: str = Field(default_factory=lambda: datetime.now().isoformat())
+    message: str = "WebSocket接続が確立されました"
+
+class SyncAcknowledge(BaseModel):
+    """同期確認応答"""
+    type: str = "sync_ack"
+    session_id: str
+    received_time: float
+    received_state: str
+    server_time: str = Field(default_factory=lambda: datetime.now().isoformat())
+    relayed_to_devices: bool = False
+
+class DeviceStatus(BaseModel):
+    """デバイス状態情報"""
+    type: str = "device_status"
+    device_id: str
+    status: str = Field(..., description="ready, busy, error, offline")
+    json_loaded: bool = Field(False, description="タイムライン読み込み状態")
+```
+
+#### 準備処理関連 (preparation.py)
+
+```python
+from enum import Enum
+
+class ActuatorType(str, Enum):
+    """アクチュエータタイプ"""
+    VIBRATION = "VIBRATION"  # 振動クッション
+    WATER = "WATER"          # 水しぶきスプレー
+    WIND = "WIND"            # 風ファン
+    FLASH = "FLASH"          # フラッシュライト
+    COLOR = "COLOR"          # 色ライト
+
+class PreparationStatus(str, Enum):
+    """準備処理状況"""
+    NOT_STARTED = "not_started"
+    INITIALIZING = "initializing"
+    IN_PROGRESS = "in_progress"
+    TESTING = "testing"
+    COMPLETED = "completed"
+    FAILED = "failed"
+    TIMEOUT = "timeout"
+
+class ActuatorTestStatus(str, Enum):
+    """アクチュエーターテスト状況"""
+    PENDING = "pending"
+    TESTING = "testing"
+    READY = "ready"
+    FAILED = "failed"
+    TIMEOUT = "timeout"
+    UNAVAILABLE = "unavailable"
+
+class ActuatorTestResult(BaseModel):
+    """アクチュエーターテスト結果"""
+    actuator_type: ActuatorType
+    status: ActuatorTestStatus
+    response_time_ms: Optional[int]
+    test_intensity: Optional[float]
+    error_message: Optional[str]
+    tested_at: Optional[datetime]
+
+class PreparationState(BaseModel):
+    """準備処理統合状態"""
+    session_id: str
+    overall_status: PreparationStatus
+    overall_progress: int  # 0-100
+    video_preparation: VideoPreparationInfo
+    sync_data_preparation: SyncDataPreparationInfo
+    device_communication: DeviceCommunicationInfo
+    ready_for_playback: bool
+    min_required_actuators_ready: bool
+    all_actuators_ready: bool
+```
 
 ---
 

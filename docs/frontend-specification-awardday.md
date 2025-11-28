@@ -7,6 +7,32 @@
 
 ---
 
+## 📑 目次
+
+1. [概要](#概要)
+2. [技術スタック](#技術スタック)
+3. [デプロイ情報](#デプロイ情報)
+4. [画面構成](#画面構成)
+   - [HomePage](#1-homepage---ホーム画面ランディング)
+   - [LoginPage](#2-loginpage---ログイン画面)
+   - [SelectPage](#3-selectpage---動画選択画面)
+   - [VideoPreparationPage](#4-videopreparationpage---動画準備画面)
+   - [PlayerPage](#4-playerpage---動画再生画面)
+5. [ルーティング構成](#ルーティング構成)
+6. [WebSocket通信プロトコル](#websocket通信プロトコル)
+7. [REST API統合](#rest-api統合)
+8. [セッションID・デバイスID管理](#セッションidデバイスid管理)
+9. [エラーハンドリング](#エラーハンドリング)
+10. [パフォーマンス最適化](#パフォーマンス最適化)
+11. [ビルド・デプロイ](#ビルドデプロイ)
+12. [デバッグツール](#デバッグツール)
+13. [トラブルシューティング](#トラブルシューティング)
+14. [Award Day以降の変更点](#award-day以降の変更点)
+15. [今後の拡張予定](#今後の拡張予定)
+16. [実装例集](#実装例集)
+
+---
+
 ## 概要
 
 4DX@HOME フロントエンドは、Render上にデプロイされたReact + TypeScript + ViteベースのSPA（シングルページアプリケーション）です。Cloud Run APIと通信し、動画再生と4Dエフェクトの同期体験を提供します。
@@ -140,26 +166,7 @@ stateDiagram-v2
 - **レスポンシブデザイン**: モバイル・デスクトップ対応
 - **アニメーション**: 動画再生中はUIフェードアウト、終了後フェードイン
 
-**実装例**:
-```typescript
-const handleLogin = () => {
-  if (busy) return;
-  setBusy(true);
-  navigate("/login");
-};
-
-const handleGetStarted = () => {
-  if (busy) return;
-  setBusy(true);
-  // GET STARTEDは/selectへ直接遷移（SelectPage側でauth自動セット）
-  navigate("/select");
-};
-
-const handleEnded = () => {
-  setPlaying(false); // フェードアウト
-  setTimeout(() => setShowVideo(false), 200); // アンマウント
-};
-```
+> 📝 実装例は[実装例集 - HomePage](#homepage-実装例)を参照
 
 **特徴**:
 - 背景動画 + 静止画のハイブリッド構成
@@ -183,13 +190,7 @@ const handleEnded = () => {
 - **背景画像**: `/PairingPage.jpeg`
 - **ロゴ表示**: レスポンシブデザイン
 
-**実装例**:
-```typescript
-const handleGuestLogin = () => {
-  try { sessionStorage.setItem("auth", "guest"); } catch {}
-  navigate("/select", { replace: true });
-};
-```
+> 📝 実装例は[実装例集 - LoginPage](#loginpage-実装例)を参照
 
 **注意**: 現在の実装では、HomePageの"GET STARTED"ボタンから直接SelectPageへ行けるため、この画面は使われないケースが多い。
 
@@ -214,28 +215,7 @@ const handleGuestLogin = () => {
 - **動画選択**: クリックで選択 → `/prepare?content={videoId}` へ遷移
 - **選択状態の保持**: `sessionStorage` に動画情報を保存
 
-**実装例**:
-```typescript
-// 自動認証
-if (typeof window !== "undefined") {
-  try { sessionStorage.setItem("auth", "1"); } catch {}
-}
-
-const goPlayer = (id: string, title?: string, thumb?: string) => {
-  // 動画情報をsessionStorageに保存
-  const selectedVideo = {
-    id,
-    title: title || id.toUpperCase(),
-    thumbnailUrl: thumb || `/thumbs/${id}.jpeg`,
-  };
-  try {
-    sessionStorage.setItem("selectedVideo", JSON.stringify(selectedVideo));
-  } catch (e) {
-    console.error("Failed to save selectedVideo:", e);
-  }
-  navigate(`/prepare?content=${encodeURIComponent(id)}`);
-};
-```
+> 📝 実装例は[実装例集 - SelectPage](#selectpage-実装例)を参照
 
 **UI特徴**:
 - Netflix風のグリッドレイアウト
@@ -299,51 +279,7 @@ flowchart LR
 - **テスト結果受信**: 各エフェクトの動作確認結果を表示
 - **完了**: 「動画再生画面へ」ボタンで `/player` へ遷移
 
-**実装例**:
-```typescript
-// ステップ1: セッション接続
-const handleSessionConnect = async () => {
-  setStepStatus("session", "loading");
-  try {
-    const status = await fetchSessionStatus(sessionId);
-    if (status.exists) {
-      setStepStatus("session", "done");
-      pushRecent("recent_sessions", sessionId);
-    }
-  } catch (error) {
-    console.error("セッション接続失敗:", error);
-  }
-};
-
-// ステップ4: タイムライン送信
-const handleTimelineUpload = async () => {
-  setStepStatus("timeline", "loading");
-  try {
-    const fileId = resolveTimelineFileId(selectedVideo.id);
-    const response = await fetch(`/json/${fileId}.json`);
-    const timelineData = await response.json();
-    
-    await preparationApi.uploadTimeline(sessionId, timelineData);
-    setStepStatus("timeline", "done");
-  } catch (error) {
-    console.error("タイムライン送信失敗:", error);
-  }
-};
-
-// ステップ5: デバイステスト
-const handleDeviceTest = () => {
-  if (!wsRef.current) return;
-  
-  const testMessage = {
-    type: "device_test",
-    session_id: sessionId,
-    test_type: "basic",
-  };
-  
-  wsRef.current.send(JSON.stringify(testMessage));
-  setStepStatus("deviceTest", "loading");
-};
-```
+> 📝 実装例は[実装例集 - VideoPreparationPage](#videopreparationpage-実装例)を参照
 
 **WebSocketメッセージ**:
 ```json
@@ -421,56 +357,7 @@ const handleDeviceTest = () => {
 - **エクスポネンシャルバックオフ**: 1秒 → 2秒 → 4秒...と間隔を増やす
 - **エラー表示**: 接続失敗時にエラーメッセージ表示
 
-**実装例**:
-```typescript
-// 環境変数から同期間隔を取得（ミリ秒）、デフォルトは200ms
-const SYNC_INTERVAL_MS = Number(import.meta.env.VITE_SYNC_INTERVAL_MS) || 200;
-// シーク中の同期間隔（デフォルトは同期間隔と同じ）
-const SEEK_SYNC_INTERVAL_MS = Number(import.meta.env.VITE_SEEK_SYNC_INTERVAL_MS) || SYNC_INTERVAL_MS;
-
-// 同期メッセージ送信
-const sendSync = (state: SyncState) => {
-  const ws = wsRef.current;
-  const v = videoRef.current;
-  if (!ws || ws.readyState !== WebSocket.OPEN || !v) return;
-  
-  const msg: OutMsg = {
-    type: "sync",
-    state,
-    time: v.currentTime,
-    duration: v.duration,
-    ts: Date.now(),
-  };
-  ws.send(JSON.stringify(msg));
-};
-
-// ストップ信号送信（一度だけ）
-const sendStopSignal = async () => {
-  if (stopSentRef.current) return;
-  stopSentRef.current = true;
-  
-  try {
-    await playbackApi.sendStopSignal(sessionId);
-    console.log("[player] stop signal sent", { sessionId });
-  } catch (err) {
-    console.error("[player] stop signal failed", err);
-  }
-};
-
-// 一時停止処理
-const handlePause = () => {
-  console.log("[player] video paused");
-  sendStopSignal(); // ストップ信号送信
-  sendSync("pause"); // パーズ状態同期
-};
-
-// 動画終了処理
-const handleEnded = () => {
-  console.log("[player] video ended");
-  setVideoEnded(true);
-  sendStopSignal(); // ストップ信号送信
-};
-```
+> 📝 実装例は[実装例集 - PlayerPage](#playerpage-実装例)を参照
 
 **特徴**:
 - 200ms間隔の高頻度同期（カスタマイズ可能）
@@ -508,53 +395,7 @@ flowchart TB
     R4 --> R5
 ```
 
-```typescript
-import { Routes, Route, Navigate } from "react-router-dom";
-import HomePage from "./pages/HomePage";
-import LoginPage from "./pages/LoginPage";
-import SelectPage from "./pages/SelectPage";
-import PlayerPage from "./pages/PlayerPage";
-import VideoPreparationPage from "./pages/VideoPreparationPage";
-import ProtectedRoute from "./components/ProtectedRoute";
-
-export default function App() {
-  return (
-    <Routes>
-      {/* 1. 初期表示はHomePage（ランディング） */}
-      <Route path="/" element={<HomePage />} />
-      <Route path="/login" element={<LoginPage />} />
-      
-      {/* 2. 動画選択画面 */}
-      <Route path="/select" element={<SelectPage />} />
-
-      {/* 3. 準備（認証/接続/テスト）画面 */}
-      <Route 
-        path="/prepare" 
-        element={
-          <ProtectedRoute>
-            <VideoPreparationPage />
-          </ProtectedRoute>
-        } 
-      />
-      
-      {/* 4. プレイヤー画面（準備済みでアクセス） */}
-      <Route 
-        path="/player" 
-        element={
-          <ProtectedRoute>
-            <PlayerPage />
-          </ProtectedRoute>
-        } 
-      />
-      
-      {/* 旧ページ（互換性のためリダイレクト） */}
-      <Route path="/home" element={<Navigate to="/" replace />} />
-      <Route path="/session" element={<Navigate to="/" replace />} />
-      <Route path="/selectpage" element={<Navigate to="/select" replace />} />
-    </Routes>
-  );
-}
-```
+> 📝 実装例は[実装例集 - ルーティング構成](#ルーティング構成-実装例)を参照
 
 **ルート一覧**:
 
@@ -571,20 +412,7 @@ export default function App() {
 - `/session` → `/`
 - `/selectpage` → `/select`
 
-**ProtectedRoute実装**:
-```typescript
-import { Navigate } from 'react-router-dom';
-
-export default function ProtectedRoute({ children }: { children: React.ReactNode }) {
-  const isAuthenticated = sessionStorage.getItem('auth') === 'guest';
-  
-  if (!isAuthenticated) {
-    return <Navigate to="/" replace />;
-  }
-  
-  return <>{children}</>;
-}
-```
+> 📝 ProtectedRoute実装例は[実装例集 - ProtectedRoute](#protectedroute-実装例)を参照
 
 ---
 
@@ -723,50 +551,7 @@ sequenceDiagram
 
 **特徴**: Axiosを使わず、ネイティブFetch APIをベースにした軽量な実装
 
-```typescript
-// src/services/apiClient.ts
-import { BACKEND_API_URL } from '../config/backend';
-
-export async function apiCall<T = any>(
-  endpoint: string,
-  options: RequestInit = {}
-): Promise<T> {
-  const url = `${BACKEND_API_URL}${endpoint}`;
-  
-  const response = await fetch(url, {
-    ...options,
-    headers: {
-      'Content-Type': 'application/json',
-      ...options.headers,
-    },
-  });
-  
-  if (!response.ok) {
-    const error = await response.json().catch(() => ({}));
-    throw new Error(error.detail || `HTTP ${response.status}`);
-  }
-  
-  return response.json();
-}
-
-// src/services/endpoints.ts
-import { apiCall } from './apiClient';
-
-export const preparationApi = {
-  uploadTimeline: (sessionId: string, timeline: any) =>
-    apiCall(`/api/preparation/upload-timeline/${sessionId}`, {
-      method: 'POST',
-      body: JSON.stringify(timeline),
-    }),
-};
-
-export const playbackApi = {
-  sendStopSignal: (sessionId: string) =>
-    apiCall(`/api/playback/stop/${sessionId}`, {
-      method: 'POST',
-    }),
-};
-```
+> 📝 実装例は[実装例集 - APIクライアント](#apiクライアント-実装例)を参照
 
 ---
 
@@ -803,84 +588,13 @@ export const playbackApi = {
 
 **履歴管理**: `localStorage` に最近使用した5件を保存
 
-### ID取得・保存の実装例
-
-```typescript
-// セッションID履歴保存
-function pushRecent(key: string, value: string, max = 5) {
-  const trimmed = value.trim();
-  if (!trimmed) return;
-  
-  try {
-    const raw = localStorage.getItem(key);
-    const list: string[] = raw ? JSON.parse(raw) : [];
-    const withoutDup = list.filter((v) => v !== trimmed);
-    const updated = [trimmed, ...withoutDup].slice(0, max);
-    localStorage.setItem(key, JSON.stringify(updated));
-  } catch {
-    // 失敗時は無視
-  }
-}
-
-// セッションID履歴読み込み
-function loadRecent(key: string): string[] {
-  try {
-    const raw = localStorage.getItem(key);
-    return raw ? JSON.parse(raw) : [];
-  } catch {
-    return [];
-  }
-}
-
-// 使用例
-const recentSessions = loadRecent('recent_sessions');
-const recentDevices = loadRecent('recent_devices');
-```
+> 📝 ID取得・保存の実装例は[実装例集 - セッションID管理](#セッションid管理-実装例)を参照
 
 ---
 
 ## エラーハンドリング
 
-### ネットワークエラー
-
-```typescript
-try {
-  const response = await axios.post('/api/device/register', data);
-} catch (error) {
-  if (axios.isAxiosError(error)) {
-    if (error.response) {
-      // サーバーエラー (4xx, 5xx)
-      console.error('サーバーエラー:', error.response.status, error.response.data);
-      alert(`エラー: ${error.response.data.detail || error.response.data.message}`);
-    } else if (error.request) {
-      // ネットワークエラー (タイムアウト等)
-      console.error('ネットワークエラー:', error.message);
-      alert('サーバーに接続できません。ネットワーク接続を確認してください。');
-    }
-  }
-}
-```
-
-### WebSocketエラー
-
-```typescript
-wsClient.on('error', (error) => {
-  console.error('WebSocketエラー:', error);
-  setWsStatus('error');
-});
-
-wsClient.on('close', (code, reason) => {
-  console.warn(`WebSocket切断: code=${code}, reason=${reason}`);
-  setWsStatus('disconnected');
-  
-  // 自動再接続 (最大3回)
-  if (reconnectAttempts < 3) {
-    setTimeout(() => {
-      reconnectWebSocket();
-    }, 2000 * (reconnectAttempts + 1)); // 指数バックオフ
-  }
-});
-```
+> 📝 エラーハンドリングの実装例は[実装例集 - エラーハンドリング](#エラーハンドリング-実装例)を参照
 
 ---
 
@@ -890,48 +604,16 @@ wsClient.on('close', (code, reason) => {
 
 **目標**: 200ms固定（シーク中）、再生中はカスタマイズ可能
 
-**実装**:
-```typescript
-useEffect(() => {
-  if (isPlaying) {
-    const interval = setInterval(() => {
-      sendSyncMessage();
-    }, 200); // 200ms固定（シーク中）
-    
-    return () => clearInterval(interval);
-  }
-}, [isPlaying, currentTime]);
-```
-
 ### 2. 動画プリロード
 
-```typescript
-<video
-  ref={videoRef}
-  preload="metadata" // メタデータのみプリロード
-  onCanPlay={() => setVideoReady(true)}
->
-  <source src={videoUrl} type="video/mp4" />
-</video>
-```
+**設定**: `preload="metadata"` でメタデータのみプリロード
 
 ### 3. 状態管理最適化
 
-```typescript
-// React.memoでコンポーネント再レンダリング抑制
-const VideoControls = React.memo(({ isPlaying, onPlayPause }) => {
-  return (
-    <button onClick={onPlayPause}>
-      {isPlaying ? '⏸️ 一時停止' : '▶️ 再生'}
-    </button>
-  );
-});
+- `React.memo` でコンポーネント再レンダリング抑制
+- `useMemo` で計算結果をキャッシュ
 
-// useMemoで計算結果をキャッシュ
-const formattedTime = useMemo(() => {
-  return formatTime(currentTime);
-}, [currentTime]);
-```
+> 📝 詳細な実装例は[実装例集 - パフォーマンス最適化](#パフォーマンス最適化-実装例)を参照
 
 ---
 
@@ -1091,6 +773,402 @@ ffmpeg -f lavfi -i color=c=black:s=1920x1080:d=120 \
 - [ハードウェア仕様書](./hardware-specification-awardday.md)
 - [本番フロー仕様](../debug_frontend/PRODUCTION_FLOW_SETUP.md)
 - [ストップ処理仕様](../debug_frontend/STOP_SIGNAL_SPEC.md)
+
+---
+
+## 実装例集
+
+以下は各機能の詳細な実装例です。
+
+### HomePage 実装例
+
+```typescript
+const handleLogin = () => {
+  if (busy) return;
+  setBusy(true);
+  navigate("/login");
+};
+
+const handleGetStarted = () => {
+  if (busy) return;
+  setBusy(true);
+  // GET STARTEDは/selectへ直接遷移（SelectPage側でauth自動セット）
+  navigate("/select");
+};
+
+const handleEnded = () => {
+  setPlaying(false); // フェードアウト
+  setTimeout(() => setShowVideo(false), 200); // アンマウント
+};
+```
+
+### LoginPage 実装例
+
+```typescript
+const handleGuestLogin = () => {
+  try { sessionStorage.setItem("auth", "guest"); } catch {}
+  navigate("/select", { replace: true });
+};
+```
+
+### SelectPage 実装例
+
+```typescript
+// 自動認証
+if (typeof window !== "undefined") {
+  try { sessionStorage.setItem("auth", "1"); } catch {}
+}
+
+const goPlayer = (id: string, title?: string, thumb?: string) => {
+  // 動画情報をsessionStorageに保存
+  const selectedVideo = {
+    id,
+    title: title || id.toUpperCase(),
+    thumbnailUrl: thumb || `/thumbs/${id}.jpeg`,
+  };
+  try {
+    sessionStorage.setItem("selectedVideo", JSON.stringify(selectedVideo));
+  } catch (e) {
+    console.error("Failed to save selectedVideo:", e);
+  }
+  navigate(`/prepare?content=${encodeURIComponent(id)}`);
+};
+```
+
+### VideoPreparationPage 実装例
+
+```typescript
+// ステップ1: セッション接続
+const handleSessionConnect = async () => {
+  setStepStatus("session", "loading");
+  try {
+    const status = await fetchSessionStatus(sessionId);
+    if (status.exists) {
+      setStepStatus("session", "done");
+      pushRecent("recent_sessions", sessionId);
+    }
+  } catch (error) {
+    console.error("セッション接続失敗:", error);
+  }
+};
+
+// ステップ4: タイムライン送信
+const handleTimelineUpload = async () => {
+  setStepStatus("timeline", "loading");
+  try {
+    const fileId = resolveTimelineFileId(selectedVideo.id);
+    const response = await fetch(`/json/${fileId}.json`);
+    const timelineData = await response.json();
+    
+    await preparationApi.uploadTimeline(sessionId, timelineData);
+    setStepStatus("timeline", "done");
+  } catch (error) {
+    console.error("タイムライン送信失敗:", error);
+  }
+};
+
+// ステップ5: デバイステスト
+const handleDeviceTest = () => {
+  if (!wsRef.current) return;
+  
+  const testMessage = {
+    type: "device_test",
+    session_id: sessionId,
+    test_type: "basic",
+  };
+  
+  wsRef.current.send(JSON.stringify(testMessage));
+  setStepStatus("deviceTest", "loading");
+};
+```
+
+### PlayerPage 実装例
+
+```typescript
+// 環境変数から同期間隔を取得（ミリ秒）、デフォルトは200ms
+const SYNC_INTERVAL_MS = Number(import.meta.env.VITE_SYNC_INTERVAL_MS) || 200;
+// シーク中の同期間隔（デフォルトは同期間隔と同じ）
+const SEEK_SYNC_INTERVAL_MS = Number(import.meta.env.VITE_SEEK_SYNC_INTERVAL_MS) || SYNC_INTERVAL_MS;
+
+// 同期メッセージ送信
+const sendSync = (state: SyncState) => {
+  const ws = wsRef.current;
+  const v = videoRef.current;
+  if (!ws || ws.readyState !== WebSocket.OPEN || !v) return;
+  
+  const msg: OutMsg = {
+    type: "sync",
+    state,
+    time: v.currentTime,
+    duration: v.duration,
+    ts: Date.now(),
+  };
+  ws.send(JSON.stringify(msg));
+};
+
+// ストップ信号送信（一度だけ）
+const sendStopSignal = async () => {
+  if (stopSentRef.current) return;
+  stopSentRef.current = true;
+  
+  try {
+    await playbackApi.sendStopSignal(sessionId);
+    console.log("[player] stop signal sent", { sessionId });
+  } catch (err) {
+    console.error("[player] stop signal failed", err);
+  }
+};
+
+// 一時停止処理
+const handlePause = () => {
+  console.log("[player] video paused");
+  sendStopSignal(); // ストップ信号送信
+  sendSync("pause"); // パーズ状態同期
+};
+
+// 動画終了処理
+const handleEnded = () => {
+  console.log("[player] video ended");
+  setVideoEnded(true);
+  sendStopSignal(); // ストップ信号送信
+};
+```
+
+### ルーティング構成 実装例
+
+```typescript
+import { Routes, Route, Navigate } from "react-router-dom";
+import HomePage from "./pages/HomePage";
+import LoginPage from "./pages/LoginPage";
+import SelectPage from "./pages/SelectPage";
+import PlayerPage from "./pages/PlayerPage";
+import VideoPreparationPage from "./pages/VideoPreparationPage";
+import ProtectedRoute from "./components/ProtectedRoute";
+
+export default function App() {
+  return (
+    <Routes>
+      {/* 1. 初期表示はHomePage（ランディング） */}
+      <Route path="/" element={<HomePage />} />
+      <Route path="/login" element={<LoginPage />} />
+      
+      {/* 2. 動画選択画面 */}
+      <Route path="/select" element={<SelectPage />} />
+
+      {/* 3. 準備（認証/接続/テスト）画面 */}
+      <Route 
+        path="/prepare" 
+        element={
+          <ProtectedRoute>
+            <VideoPreparationPage />
+          </ProtectedRoute>
+        } 
+      />
+      
+      {/* 4. プレイヤー画面（準備済みでアクセス） */}
+      <Route 
+        path="/player" 
+        element={
+          <ProtectedRoute>
+            <PlayerPage />
+          </ProtectedRoute>
+        } 
+      />
+      
+      {/* 旧ページ（互換性のためリダイレクト） */}
+      <Route path="/home" element={<Navigate to="/" replace />} />
+      <Route path="/session" element={<Navigate to="/" replace />} />
+      <Route path="/selectpage" element={<Navigate to="/select" replace />} />
+    </Routes>
+  );
+}
+```
+
+### ProtectedRoute 実装例
+
+```typescript
+import { Navigate } from 'react-router-dom';
+
+export default function ProtectedRoute({ children }: { children: React.ReactNode }) {
+  const isAuthenticated = sessionStorage.getItem('auth') === 'guest';
+  
+  if (!isAuthenticated) {
+    return <Navigate to="/" replace />;
+  }
+  
+  return <>{children}</>;
+}
+```
+
+### APIクライアント 実装例
+
+```typescript
+// src/services/apiClient.ts
+import { BACKEND_API_URL } from '../config/backend';
+
+export async function apiCall<T = any>(
+  endpoint: string,
+  options: RequestInit = {}
+): Promise<T> {
+  const url = `${BACKEND_API_URL}${endpoint}`;
+  
+  const response = await fetch(url, {
+    ...options,
+    headers: {
+      'Content-Type': 'application/json',
+      ...options.headers,
+    },
+  });
+  
+  if (!response.ok) {
+    const error = await response.json().catch(() => ({}));
+    throw new Error(error.detail || `HTTP ${response.status}`);
+  }
+  
+  return response.json();
+}
+
+// src/services/endpoints.ts
+import { apiCall } from './apiClient';
+
+export const preparationApi = {
+  uploadTimeline: (sessionId: string, timeline: any) =>
+    apiCall(`/api/preparation/upload-timeline/${sessionId}`, {
+      method: 'POST',
+      body: JSON.stringify(timeline),
+    }),
+};
+
+export const playbackApi = {
+  sendStopSignal: (sessionId: string) =>
+    apiCall(`/api/playback/stop/${sessionId}`, {
+      method: 'POST',
+    }),
+};
+```
+
+### セッションID管理 実装例
+
+```typescript
+// セッションID履歴保存
+function pushRecent(key: string, value: string, max = 5) {
+  const trimmed = value.trim();
+  if (!trimmed) return;
+  
+  try {
+    const raw = localStorage.getItem(key);
+    const list: string[] = raw ? JSON.parse(raw) : [];
+    const withoutDup = list.filter((v) => v !== trimmed);
+    const updated = [trimmed, ...withoutDup].slice(0, max);
+    localStorage.setItem(key, JSON.stringify(updated));
+  } catch {
+    // 失敗時は無視
+  }
+}
+
+// セッションID履歴読み込み
+function loadRecent(key: string): string[] {
+  try {
+    const raw = localStorage.getItem(key);
+    return raw ? JSON.parse(raw) : [];
+  } catch {
+    return [];
+  }
+}
+
+// 使用例
+const recentSessions = loadRecent('recent_sessions');
+const recentDevices = loadRecent('recent_devices');
+```
+
+### エラーハンドリング 実装例
+
+#### ネットワークエラー
+
+```typescript
+try {
+  const response = await axios.post('/api/device/register', data);
+} catch (error) {
+  if (axios.isAxiosError(error)) {
+    if (error.response) {
+      // サーバーエラー (4xx, 5xx)
+      console.error('サーバーエラー:', error.response.status, error.response.data);
+      alert(`エラー: ${error.response.data.detail || error.response.data.message}`);
+    } else if (error.request) {
+      // ネットワークエラー (タイムアウト等)
+      console.error('ネットワークエラー:', error.message);
+      alert('サーバーに接続できません。ネットワーク接続を確認してください。');
+    }
+  }
+}
+```
+
+#### WebSocketエラー
+
+```typescript
+wsClient.on('error', (error) => {
+  console.error('WebSocketエラー:', error);
+  setWsStatus('error');
+});
+
+wsClient.on('close', (code, reason) => {
+  console.warn(`WebSocket切断: code=${code}, reason=${reason}`);
+  setWsStatus('disconnected');
+  
+  // 自動再接続 (最大3回)
+  if (reconnectAttempts < 3) {
+    setTimeout(() => {
+      reconnectWebSocket();
+    }, 2000 * (reconnectAttempts + 1)); // 指数バックオフ
+  }
+});
+```
+
+### パフォーマンス最適化 実装例
+
+#### WebSocket送信間隔
+
+```typescript
+useEffect(() => {
+  if (isPlaying) {
+    const interval = setInterval(() => {
+      sendSyncMessage();
+    }, 200); // 200ms固定（シーク中）
+    
+    return () => clearInterval(interval);
+  }
+}, [isPlaying, currentTime]);
+```
+
+#### 動画プリロード
+
+```typescript
+<video
+  ref={videoRef}
+  preload="metadata" // メタデータのみプリロード
+  onCanPlay={() => setVideoReady(true)}
+>
+  <source src={videoUrl} type="video/mp4" />
+</video>
+```
+
+#### 状態管理最適化
+
+```typescript
+// React.memoでコンポーネント再レンダリング抑制
+const VideoControls = React.memo(({ isPlaying, onPlayPause }) => {
+  return (
+    <button onClick={onPlayPause}>
+      {isPlaying ? '⏸️ 一時停止' : '▶️ 再生'}
+    </button>
+  );
+});
+
+// useMemoで計算結果をキャッシュ
+const formattedTime = useMemo(() => {
+  return formatTime(currentTime);
+}, [currentTime]);
+```
 
 ---
 

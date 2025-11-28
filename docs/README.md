@@ -1,7 +1,25 @@
 # 4DX@HOME システム仕様書
 
-> **最終更新**: 2025年11月14日  
-> **バージョン**: 2.0.0 (Award Day Updated Version)
+> **最終更新**: 2025年11月28日  
+> **バージョン**: 2.0.1 (Award Day Updated Version)
+
+---
+
+## 📑 目次
+
+1. [はじめに](#はじめに)
+   - [Award Day版での主な変更点](#-award-day版での主な変更点)
+2. [システム概要](#システム概要)
+3. [仕様書構成](#仕様書構成)
+4. [技術的特徴](#技術的特徴)
+5. [開発・デプロイ](#開発デプロイ)
+6. [API一覧](#api一覧)
+7. [パフォーマンス指標](#パフォーマンス指標)
+8. [トラブルシューティング](#トラブルシューティング)
+9. [今後の拡張計画](#今後の拡張計画)
+10. [ドキュメント更新履歴](#-ドキュメント更新履歴)
+
+---
 
 ## はじめに
 
@@ -117,7 +135,7 @@ graph TB
 **React + TypeScript Webアプリケーション (Render + Cloud Run統合版)**
 
 - **デプロイ**: Render Static Site (https://kz-2504.onrender.com)
-- **技術スタック**: React 18.3.1, TypeScript 5.0.0, Vite 5.0.0, Axios 1.6.0
+- **技術スタック**: React 18.3.1, TypeScript 5.9.3, Vite 7.1.9, Axios 1.10.0, TailwindCSS 4.1.14
 - **主要機能**: 
   - 4画面構成 (Home → Pairing → Select → Player)
   - Cloud Run API統合 (REST + WebSocket)
