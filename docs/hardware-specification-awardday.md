@@ -50,10 +50,21 @@
 |-----|------|
 | **設計ソフト** | Autodesk Fusion（3D CAD/CAM/CAE統合ソフトウェア） |
 | **フィラメント素材** | PLA（ポリ乳酸）- 生分解性・環境配慮型プラスチック |
-| **積層ピッチ** | 0.2mm |
-| **インフィル** | 20% |
 
 #### 1. EffectStation（環境エフェクトデバイス）
+
+<div align="center">
+<table>
+<tr>
+<td align="center"><b>📷 実物写真</b></td>
+<td align="center"><b>🖥️ 3Dモデル</b></td>
+</tr>
+<tr>
+<td><img src="../assets/images/AwardDay_EffectStation.JPG" width="300" alt="EffectStation実物"></td>
+<td><img src="../assets/images/AwardDay_EffectStation_3D_Model.png" width="300" alt="EffectStation 3Dモデル"></td>
+</tr>
+</table>
+</div>
 
 **3D設計データ**: `hardware/3DModel/4dx@home-stand.stl`（Autodesk Fusion設計）
 
@@ -68,6 +79,21 @@
 - **通信方式**: Wi-Fi (802.11n) + MQTT
 
 #### 2. ActionDrive（振動フィードバックデバイス）
+
+<div align="center">
+<table>
+<tr>
+<td align="center"><b>📷 実物写真</b></td>
+<td align="center"><b>🖥️ 3Dモデル</b></td>
+<td align="center"><b>🔧 内部構造</b></td>
+</tr>
+<tr>
+<td><img src="../assets/images/AwardDay_ActionDrive.jpg" width="250" alt="ActionDrive実物"></td>
+<td><img src="../assets/images/AwardDay_ActionDrive_3D_Model.png" width="250" alt="ActionDrive 3Dモデル"></td>
+<td><img src="../assets/images/AwardDay_ActionDrive_Contents1.png" width="250" alt="ActionDrive内部構造"></td>
+</tr>
+</table>
+</div>
 
 **3D設計データ**: `hardware/3DModel/Motor Case Ver 2.stl`（Autodesk Fusion設計）
 
