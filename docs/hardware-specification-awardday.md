@@ -96,10 +96,7 @@
 
 <b>🎬 動作デモ動画</b>
 
-<!-- TODO: 動画埋め込み - YouTube URLまたはGIF画像を追加 -->
-<!-- 例: [![ActionDrive動作デモ](https://img.youtube.com/vi/VIDEO_ID/0.jpg)](https://www.youtube.com/watch?v=VIDEO_ID) -->
-<!-- 例: <img src="../assets/images/ActionDrive_demo.gif" width="400" alt="ActionDrive動作デモ"> -->
-<p><i>🚧 動画準備中 - 振動動作のデモ映像をここに埋め込み予定</i></p>
+
 
 </div>
 
