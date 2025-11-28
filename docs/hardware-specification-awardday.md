@@ -101,7 +101,7 @@
 
 <b>🎬 モーター動作デモ動画</b>
 
-
+https://github.com/user-attachments/assets/097eefa0-2092-4617-baf1-f67269d655ce
 
 </div>
 
