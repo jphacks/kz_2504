@@ -249,7 +249,7 @@ flowchart LR
   - **設計ソフト**: Autodesk Fusion（3D CAD）
   - **素材**: PLAフィラメント（生分解性プラスチック）
   - **EffectStation**: 風・水・光・色の環境エフェクト統合筐体（卓上サイズ約29cm）
-  - **ActionDrive**: 振動モーター8個収納筐体（Motor Case Ver 2）
+  - **ActionDrive**: 振動モーター8個収納筐体（Motor-Case-Ver-2）
 - ![LED](https://img.shields.io/badge/RGB%20LED-PWM制御-rainbow) **RGB LED + 高輝度LED** - PWM制御による光の演出（3モード: ストロボ、閃光、照明）+ 色表現（RGB）
 - ![ファン](https://img.shields.io/badge/DCファン-風生成-lightblue) **DCファン** - PWM可変速制御による風生成装置（2モード: 瞬間風、持続風）
 - ![ポンプ](https://img.shields.io/badge/サーボ水噴射-水エフェクト-blue) **サーボモーター制御水噴射装置** - 100均霧吹きパーツと3Dプリント部品を組み合わせた独自機構、サーボモーター制御による瞬間噴射
@@ -317,7 +317,7 @@ flowchart LR
   → [`backend/app/services/continuous_sync_service.py`](./backend/app/services/continuous_sync_service.py)
 
 * **カスタムハードウェア設計**: 3Dプリンターによる2種類専用筐体設計（EffectStation、ActionDrive） ※事前開発  
-  → [`hardware/3DModel/4dx@home-stand.stl`](./hardware/3DModel/4dx@home-stand.stl), [`hardware/3DModel/Motor Case Ver 2.stl`](./hardware/3DModel/Motor Case Ver 2.stl)
+  → [`hardware/3DModel/4dx@home-stand.stl`](./hardware/3DModel/4dx@home-stand.stl), [`hardware/3DModel/Motor-Case-Ver-2.stl`](./hardware/3DModel/Motor-Case-Ver-2.stl)
 
 * **タイムライン管理システム**: 最適なタイミングでアクチュエーター制御を実行  
   → [`backend/app/services/sync_data_service.py`](./backend/app/services/sync_data_service.py), [`hardware/rpi_server/src/timeline/processor.py`](./hardware/rpi_server/src/timeline/processor.py)

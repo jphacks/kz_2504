@@ -71,7 +71,7 @@ https://github.com/user-attachments/assets/980f8eda-1dce-4137-88e9-89016a450ba4
 
 </div>
 
-**3D設計データ**: `hardware/3DModel/4dx@home-stand.stl`（Autodesk Fusion設計）
+**3D設計データ**: [`hardware/3DModel/4dx@home-stand.stl`](../hardware/3DModel/4dx@home-stand.stl)（Autodesk Fusion設計）
 
 - **機能**: 4種類の環境エフェクト（**水・風・光・色**）を提供
 - **サイズ**: 卓上サイズ（約29cm）
@@ -105,10 +105,10 @@ https://github.com/user-attachments/assets/fc3d9b6a-db3d-46b6-aa8a-104bd579f367
 
 </div>
 
-**3D設計データ**: `hardware/3DModel/Motor Case Ver 2.stl`（Autodesk Fusion設計）
+**3D設計データ**: [`hardware/3DModel/Motor-Case-Ver-2.stl`](../hardware/3DModel/Motor-Case-Ver-2.stl)（Autodesk Fusion設計）
 
 - **機能**: **振動**によるフィードバックを提供するクッション型デバイス
-- **制御マイコン**: ESP-12E × 2台（Motor Case Ver 2に格納）
+- **制御マイコン**: ESP-12E × 2台（Motor-Case-Ver-2に格納）
   - ESP-12E #3: Motor1 Control（4つの偏心モーター制御）
   - ESP-12E #4: Motor2 Control（4つの偏心モーター制御）
 - **搭載アクチュエーター**:
@@ -195,7 +195,7 @@ graph TB
             RGB[RGB LED Tape<br/>色彩エフェクト]
         end
         
-        subgraph "ActionDrive (Motor Case Ver 2)"
+        subgraph "ActionDrive (Motor-Case-Ver-2)"
             ESP3[ESP-12E #3<br/>Motor1 Control<br/>Wi-Fi]
             ESP4[ESP-12E #4<br/>Motor2 Control<br/>Wi-Fi]
             Motor1[Vibration Motors<br/>4個 背中用]
@@ -1029,7 +1029,7 @@ mosquitto_pub -h 172.18.28.55 -t /test -m "Hello"
 #### 2. 機体刷新
 - ✅ **3Dプリント筐体設計**:
   - `4dx@home-stand.stl` (EffectStation筐体)
-  - `Motor Case Ver 2.stl` (ActionDrive筐体)
+  - `Motor-Case-Ver-2.stl` (ActionDrive筐体)
 - ✅ **2デバイス構成**:
   - **EffectStation**: 風・水・光・色（ESP-12E × 2台）
   - **ActionDrive**: 振動×8モーター（ESP-12E × 2台）
