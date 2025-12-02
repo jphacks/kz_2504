@@ -89,35 +89,9 @@ Hack Day（2025年10月11-12日）時点の旧仕様書は、`archive/hackday-20
 
 ### アーキテクチャ図（最新版）
 
-```mermaid
-graph TB
-    subgraph "フロントエンド層"
-        Frontend[React 18.3.1 Frontend<br/>https://kz-2504.onrender.com]
-        DebugFrontend[Debug Frontend<br/>localhost:5173]
-    end
-    
-    subgraph "バックエンド層 (Cloud Run)"
-        CloudRun[FastAPI Backend<br/>Google Cloud Run<br/>asia-northeast1]
-    end
-    
-    subgraph "デバイス層"
-        RaspberryPi[Raspberry Pi Server<br/>WebSocket Client]
-        DebugHardware[Debug Hardware<br/>Simulator]
-    end
-    
-    subgraph "物理デバイス"
-        EffectStation[EffectStation<br/>風・水・光・色<br/>3Dプリント筐体]
-        ActionDrive[ActionDrive<br/>振動×8モーター<br/>3Dプリント筐体]
-    end
-    
-    Frontend -->|HTTPS/WSS| CloudRun
-    DebugFrontend -->|HTTPS/WSS| CloudRun
-    CloudRun -->|WebSocket| RaspberryPi
-    CloudRun -->|WebSocket| DebugHardware
-    
-    RaspberryPi -->|Wi-Fi + MQTT| EffectStation
-    RaspberryPi -->|Wi-Fi + MQTT| ActionDrive
-```
+<div align="center">
+<img src="../assets/images/AwardDay_Architecture_Diagram.png" width="700" alt="4DX@HOME システムアーキテクチャ図">
+</div>
 
 ### 主要機能
 - **AI動画解析**: GPT-4o-mini Visionによる自動4DX効果生成

@@ -123,48 +123,9 @@ https://github.com/user-attachments/assets/fc3d9b6a-db3d-46b6-aa8a-104bd579f367
 
 本システムは**完全無線通信**を採用しており、配線の取り回しを最小化しています。
 
-```mermaid
-flowchart TB
-    subgraph RPI["🍓 Raspberry Pi"]
-        MQTT[MQTT Broker<br/>Port 1883]
-        AP[Wi-Fi AP<br/>PiMQTT-AP]
-    end
-    
-    subgraph Effect["🌬️ EffectStation"]
-        ESP1[ESP#1<br/>Wind/Water]
-        ESP2[ESP#2<br/>Flash/Color]
-        FAN[DC Fan]
-        PUMP[Servo Pump]
-        LED[High-Brightness LED]
-        RGB[RGB LED Tape]
-    end
-    
-    subgraph Action["📳 ActionDrive"]
-        ESP3[ESP#3<br/>Motor1]
-        ESP4[ESP#4<br/>Motor2]
-        M1[Vibration Motors<br/>×4 背中用]
-        M2[Vibration Motors<br/>×4 お尻用]
-    end
-    
-    AP -.->|Wi-Fi 802.11n| ESP1
-    AP -.->|Wi-Fi 802.11n| ESP2
-    AP -.->|Wi-Fi 802.11n| ESP3
-    AP -.->|Wi-Fi 802.11n| ESP4
-    
-    MQTT -->|/4dx/wind| ESP1
-    MQTT -->|/4dx/water| ESP1
-    MQTT -->|/4dx/light| ESP2
-    MQTT -->|/4dx/color| ESP2
-    MQTT -->|/4dx/motor1/control| ESP3
-    MQTT -->|/4dx/motor2/control| ESP4
-    
-    ESP1 --> FAN
-    ESP1 --> PUMP
-    ESP2 --> LED
-    ESP2 --> RGB
-    ESP3 --> M1
-    ESP4 --> M2
-```
+<div align="center">
+<img src="../assets/images/AwardDay_Device_Diagram.png" width="700" alt="4DX@HOME デバイス構成図">
+</div>
 
 **Wi-Fi設定**:
 - SSID: `PiMQTT-AP`
@@ -173,50 +134,9 @@ flowchart TB
 
 ### システム全体構成
 
-```mermaid
-graph TB
-    subgraph "クラウド"
-        CloudRun[Cloud Run API<br/>FastAPI Server<br/>asia-northeast1]
-    end
-    
-    subgraph "ローカルネットワーク"
-        RaspberryPi[Raspberry Pi 3 Model B<br/>Device Hub Server<br/>Python 3.9+]
-        
-        subgraph "MQTT Broker"
-            Broker[Mosquitto MQTT Broker<br/>192.168.4.1:1883]
-        end
-        
-        subgraph "EffectStation (3Dプリント筐体)"
-            ESP1[ESP-12E #1<br/>Wind & Water Control<br/>Wi-Fi]
-            ESP2[ESP-12E #2<br/>Flash & Color Control<br/>Wi-Fi]
-            Fan[DC Fan 12V<br/>風エフェクト]
-            Water[Servo + Pump<br/>水エフェクト]
-            Flash[High-Brightness LED<br/>フラッシュエフェクト]
-            RGB[RGB LED Tape<br/>色彩エフェクト]
-        end
-        
-        subgraph "ActionDrive (Motor-Case-Ver-2)"
-            ESP3[ESP-12E #3<br/>Motor1 Control<br/>Wi-Fi]
-            ESP4[ESP-12E #4<br/>Motor2 Control<br/>Wi-Fi]
-            Motor1[Vibration Motors<br/>4個 背中用]
-            Motor2[Vibration Motors<br/>4個 お尻用]
-        end
-    end
-    
-    CloudRun -->|WebSocket<br/>wss://...| RaspberryPi
-    RaspberryPi -->|MQTT Publish<br/>Wi-Fi| Broker
-    Broker -->|MQTT Subscribe<br/>Wi-Fi| ESP1
-    Broker -->|MQTT Subscribe<br/>Wi-Fi| ESP2
-    Broker -->|MQTT Subscribe<br/>Wi-Fi| ESP3
-    Broker -->|MQTT Subscribe<br/>Wi-Fi| ESP4
-    
-    ESP1 --> Fan
-    ESP1 --> Water
-    ESP2 --> Flash
-    ESP2 --> RGB
-    ESP3 --> Motor1
-    ESP4 --> Motor2
-```
+<div align="center">
+<img src="../assets/images/AwardDay_Architecture_Diagram.png" width="700" alt="4DX@HOME システム全体構成図">
+</div>
 
 ---
 
