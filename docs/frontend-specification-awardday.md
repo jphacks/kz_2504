@@ -148,6 +148,35 @@ stateDiagram-v2
     PlayerPage --> PlayerPage: もう一度見る
 ```
 
+### 画面スクリーンショット一覧
+
+<div align="center">
+<table>
+<tr>
+<td align="center"><b>HomePage<br/>ランディング画面</b></td>
+<td align="center"><b>LoginPage<br/>ログイン画面</b></td>
+</tr>
+<tr>
+<td><img src="../assets/images/AwardDay_Web_Home.png" width="350" alt="HomePage - ランディング画面"></td>
+<td><img src="../assets/images/AwardDay_Web_Login.png" width="350" alt="LoginPage - ログイン画面"></td>
+</tr>
+<tr>
+<td align="center"><b>SelectPage<br/>動画選択画面</b></td>
+<td align="center"><b>VideoPreparationPage<br/>動画準備画面</b></td>
+</tr>
+<tr>
+<td><img src="../assets/images/AwardDay_Web_Select.png" width="350" alt="SelectPage - 動画選択画面"></td>
+<td><img src="../assets/images/AwardDay_Web_Video_Preparation.png" width="350" alt="VideoPreparationPage - 動画準備画面"></td>
+</tr>
+<tr>
+<td align="center" colspan="2"><b>PlayerPage<br/>動画再生画面</b></td>
+</tr>
+<tr>
+<td colspan="2" align="center"><img src="../assets/images/AwardDay_Web_Player.png" width="500" alt="PlayerPage - 動画再生画面"></td>
+</tr>
+</table>
+</div>
+
 ### 1. HomePage - ホーム画面（ランディング）
 
 **パス**: `/` (ルート)
