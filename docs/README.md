@@ -145,6 +145,14 @@ Hack Day（2025年10月11-12日）時点の旧仕様書は、`archive/hackday-20
 - **アーキテクチャ**: Raspberry Pi Hub → MQTT Broker → ESP-12E Devices
 - **物理デバイス**: Wind, Flash, LED Color, Motor1, Motor2
 
+#### 📸 [ギャラリー](./gallery.md)
+**プロジェクト写真・動画ギャラリー**
+
+- 紹介動画（YouTube、デバイス動作デモ）
+- Award Day写真（受賞、ピッチ、展示ブース、集合写真）
+- デバイス写真（EffectStation、ActionDrive）
+- アプリ画面スクリーンショット
+
 ---
 
 ### 📦 Hack Day版 (Version 1.0.0) - アーカイブ

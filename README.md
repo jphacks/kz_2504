@@ -4,11 +4,18 @@
 
   [![4DX@HOME デモ動画](https://img.youtube.com/vi/t1n5mQZU_nM/maxresdefault.jpg)](https://youtu.be/t1n5mQZU_nM)
   
-  **👆 クリックして動画を再生 👆**
+  **クリックして動画を再生**
   
   [![YouTube](https://img.shields.io/badge/▶%20YouTube-紹介動画を見る-FF0000?style=for-the-badge&logo=youtube&logoColor=white)](https://youtu.be/t1n5mQZU_nM)
 
-  <br>
+  ---
+
+  ### クイックリンク
+  
+  [![技術仕様書](https://img.shields.io/badge/技術仕様書-詳細ドキュメント-blue?style=for-the-badge)](./docs/README.md)
+  [![ギャラリー](https://img.shields.io/badge/ギャラリー-写真%20%26%20動画-green?style=for-the-badge)](./docs/gallery.md)
+
+  ---
 
   [![JPHacks 2025](https://img.shields.io/badge/JPHacks%202025-Best%20Hackday%20Award-gold?style=for-the-badge&logo=trophy)](https://jphacks.com/information/hackday-result-2025/#:~:text=GitHub-,HackDay%20Audience%20Award,-KZ_2504)
   [![JPHacks 2025](https://img.shields.io/badge/JPHacks%202025-Award%20Day%20Finalist-blue?style=for-the-badge&logo=star)](https://jphacks.com/information/award-finalists2025/#:~:text=4DX%40HOME%EF%BC%88KZ_2504%EF%BC%9AWILD%20C%40RD%EF%BC%89)
@@ -28,29 +35,32 @@
   ULSコンサルティング株式会社賞  
   株式会社PLAY賞  
   株式会社東海理化賞
+
 </div>
 
 ---
 
-## 📑 目次
+## 目次
 
-1. [Live Demo](#-live-demo)
-2. [製品概要](#製品概要)
-   - [背景（製品開発のきっかけ・課題など）](#背景製品開発のきっかけ課題など)
-   - [製品説明](#製品説明具体的な製品の説明)
-   - [特長](#特長)
-   - [解決出来ること](#解決出来ること)
-   - [今後の展望](#今後の展望)
-   - [注力したこと](#注力したことこだわり等)
-3. [技術仕様書](#技術仕様書)
-4. [開発技術](#開発技術)
-   - [活用した技術](#活用した技術)
-   - [独自技術](#独自技術)
-5. [参考文献](#参考文献)
+- [Live Demo](#-live-demo)
+- [製品概要](#製品概要)
+  - [背景（製品開発のきっかけ・課題など）](#背景製品開発のきっかけ課題など)
+  - [製品説明](#製品説明具体的な製品の説明)
+  - [システム構成](#システム構成)
+  - [特長](#特長)
+  - [解決出来ること](#解決出来ること)
+  - [今後の展望](#今後の展望)
+  - [注力したこと](#注力したことこだわり等)
+- [技術仕様書](#技術仕様書)
+- [ギャラリー](#-ギャラリー)
+- [開発技術](#開発技術)
+  - [活用した技術](#活用した技術)
+  - [独自技術](#独自技術)
+- [参考文献](#参考文献)
 
 ---
 
-## 🌐 Live Demo
+## Live Demo
 **Webアプリ**: https://kz-2504.onrender.com
 
 ## 製品概要
@@ -99,12 +109,15 @@ Google Cloud Run上のFastAPI + WebSocketによる**ミリ秒精度のリアル�
 - **多様な効果対応**: 振動（16パターン）、光（3モード）、風（2モード）、水（瞬間噴射）、色彩（RGB）
 - **完全無線制御**: Raspberry Pi Hub経由でWi-Fi + MQTTによる無線デバイス制御
 
-**システム構成：**
-- **動画解析エンジン** (Python + OpenCV + Gemini 2.5 Pro): 動画からタイムラインJSON自動生成
-- **Webアプリ** (React 18.3.1 + TypeScript 5.9.3): 動画再生とセッション管理、WebSocketリアルタイム通信
-- **Cloud Run API** (FastAPI 0.104.1 + WebSocket): RESTful API、セッション管理、リアルタイム同期処理（Google Cloud Run on asia-northeast1）
-- **デバイスハブ** (Raspberry Pi 3 Model B): Cloud Run WebSocket通信、タイムライン管理、MQTT Broker、Wi-Fiアクセスポイント
-- **アクチュエーター** (ESP-12E × 4台): 振動・光・風・水・色の5種類物理効果を無線制御（Wi-Fi + MQTT）
+### システム構成
+
+| コンポーネント | 技術スタック | 役割 |
+|:--|:--|:--|
+| **動画解析エンジン** | Python + OpenCV + Gemini 2.5 Pro | 動画からタイムラインJSON自動生成 |
+| **Webアプリ** | React 18.3.1 + TypeScript 5.9.3 | 動画再生・セッション管理・WebSocket通信 |
+| **Cloud Run API** | FastAPI 0.104.1 + WebSocket | RESTful API・セッション管理・リアルタイム同期 |
+| **デバイスハブ** | Raspberry Pi 3 Model B | WebSocket通信・タイムライン管理・MQTT Broker |
+| **アクチュエーター** | ESP-12E × 4台 | 振動・光・風・水・色の5種類物理効果 |
 
 **3層アーキテクチャ：**
 
@@ -138,27 +151,27 @@ Google Cloud Run上のFastAPI + WebSocketによる**ミリ秒精度のリアル�
 
 ### 今後の展望
 
-#### 🚀 もっと賢く、もっと便利に
+#### もっと賢く、もっと便利に
 - **AIの進化**: シーンの理解精度を高め、より「ちょうどいい」タイミングで効果を発動
 - **お気に入り動画に対応**: 自分の持っている動画をアップロードして4DX化
 - **あなた好みに調整**: 効果の強さや種類を自分好みにカスタマイズ
 
-#### ⚡ もっと速く、もっと正確に
+#### もっと速く、もっと正確に
 - **ラグの解消**: 映像と効果のズレをさらに小さく、違和感のない体験へ
 - **AI学習の改善**: 爆発・雨・風などのシーンをより正確に判別
 - **あなた専用の最適化**: 使うほどにあなたの好みを学習し、ベストな体験を提案
 
-#### 🎵 音と連動する新体験
+#### 音と連動する新体験
 - **音楽に合わせて振動**: ライブ映像やMVで、ビートに合わせた振動体験
 - **効果音で臨場感UP**: 雷鳴で光り、銃声で振動、風の音で風が吹く
 - **立体的な音の演出**: 音の方向に合わせた効果で、360度の没入感
 
-#### ⌚ 身につける4DX
+#### 身につける4DX
 - **ネックバンド型**: 首元にひんやり感や振動を伝えるウェアラブルデバイス
 - **リストバンド型**: 手首で感じる心臓のドキドキや温度変化
 - **体の反応と連携**: あなたの心拍数に合わせて、緊張シーンをさらに盛り上げ
 
-#### 🌟 五感すべてで感じる未来
+#### 五感すべてで感じる未来
 - **香りの演出**: 森のシーンで木の香り、カフェのシーンでコーヒーの香り
 - **温度の変化**: 雪山で冷たさ、砂漠で暖かさを肌で感じる
 - **みんなで一緒に**: 離れた場所にいる友人・家族と同じ体験を共有
@@ -184,7 +197,7 @@ Google Cloud Run上のFastAPI + WebSocketによる**ミリ秒精度のリアル�
 
 詳細な技術仕様については、以下の専門仕様書をご参照ください：
 
-### 🆕 Award Day版 (Version 2.0.0) - 最新版
+### Award Day版 (Version 2.0.0) - 最新版
 **対象イベント**: JPHACKS 2025 Award Day (2025年11月9日開催)
 
 - **[総合仕様書](./docs/README.md)** - システム全体概要とAward Day変更履歴
@@ -192,114 +205,126 @@ Google Cloud Run上のFastAPI + WebSocketによる**ミリ秒精度のリアル�
 - **[バックエンド仕様書 (Award Day版)](./docs/backend-specification-awardday.md)** - FastAPI Cloud Run APIサーバー
 - **[ハードウェア仕様書 (Award Day版)](./docs/hardware-specification-awardday.md)** - Raspberry Pi Hub + ESP-12E 物理制御システム (Cloud Run統合版)
 
-### 📦 Hack Day版 (Version 1.0.0) - アーカイブ
+### Hack Day版 (Version 1.0.0) - アーカイブ
 **対象イベント**: JPHACKS 2025 Hack Day (2025年10月11-12日開催)
 
 - [フロントエンド仕様書 (Hack Day版)](./docs/archive/hackday-2025/frontend-specification.md)
 - [バックエンド仕様書 (Hack Day版)](./docs/archive/hackday-2025/backend-specification.md)
 - [ハードウェア仕様書 (Hack Day版)](./docs/archive/hackday-2025/hardware-specification.md)
 
+## ギャラリー
+
+Award Dayでの受賞写真、デバイス写真、アプリ画面スクリーンショット、紹介動画などはギャラリーページをご覧ください。
+
+**[ギャラリーページを見る](./docs/gallery.md)**
+
 ## 開発技術
 ### 活用した技術
-#### API・データ
-- ![Gemini](https://img.shields.io/badge/Google-Gemini%202.5%20Pro-blue) **Google Gemini 2.5 Pro (Vision API)** - マルチモーダルAIによる映像解析とシーン理解
-- ![WebSocket](https://img.shields.io/badge/WebSocket-WSS-blue) **WebSocket (WSS)** - リアルタイム双方向通信
-- ![JSON](https://img.shields.io/badge/JSON-データ形式-orange) **JSON形式の同期データ** - 動画タイムスタンプとアクチュエーター制御パラメータのマッピング
 
-#### フレームワーク・ライブラリ・モジュール
-- ![OpenCV](https://img.shields.io/badge/OpenCV-4.8.0-red) ![Python](https://img.shields.io/badge/Python-3.9+-blue) **AI・動画処理**: OpenCV (opencv-python), requests (Gemini API通信)
-- ![FastAPI](https://img.shields.io/badge/FastAPI-0.104.1-green) ![Uvicorn](https://img.shields.io/badge/Uvicorn-0.24.0-blue) **バックエンド**: FastAPI 0.104.1, Uvicorn 0.24.0, websockets 11.0.3, Pydantic 2.5.0, aiofiles 25.1.0
-- ![React](https://img.shields.io/badge/React-18.3.1-blue) ![TypeScript](https://img.shields.io/badge/TypeScript-5.9.3-blue) ![Vite](https://img.shields.io/badge/Vite-7.1.9-yellow) **フロントエンド**: React 18.3.1, TypeScript 5.9.3, Vite 7.1.9, React Router DOM 6.30.1, Tailwind CSS 4.1.14
-- ![Raspberry Pi](https://img.shields.io/badge/Raspberry%20Pi-3%20Model%20B-red) ![ESP-12E](https://img.shields.io/badge/ESP--12E-×4台-blue) **デバイス**: Python 3.9+ (Raspberry Pi), Flask 3.0.0, websockets 12.0, paho-mqtt 1.6.1, ESP-12E (C++, Arduino IDE)
+#### API・データ
+
+| 技術 | 用途 |
+|:--|:--|
+| ![Gemini](https://img.shields.io/badge/Google-Gemini%202.5%20Pro-blue) | マルチモーダルAIによる映像解析とシーン理解 |
+| ![WebSocket](https://img.shields.io/badge/WebSocket-WSS-blue) | リアルタイム双方向通信 |
+| ![JSON](https://img.shields.io/badge/JSON-データ形式-orange) | 動画タイムスタンプとアクチュエーター制御パラメータのマッピング |
+
+#### フレームワーク・ライブラリ
+
+| カテゴリ | 技術スタック |
+|:--|:--|
+| **AI・動画処理** | ![OpenCV](https://img.shields.io/badge/OpenCV-4.8.0-red) ![Python](https://img.shields.io/badge/Python-3.9+-blue) OpenCV, requests |
+| **バックエンド** | ![FastAPI](https://img.shields.io/badge/FastAPI-0.104.1-green) ![Uvicorn](https://img.shields.io/badge/Uvicorn-0.24.0-blue) FastAPI, Uvicorn, websockets, Pydantic |
+| **フロントエンド** | ![React](https://img.shields.io/badge/React-18.3.1-blue) ![TypeScript](https://img.shields.io/badge/TypeScript-5.9.3-blue) ![Vite](https://img.shields.io/badge/Vite-7.1.9-yellow) React, TypeScript, Vite, Tailwind CSS |
+| **デバイス** | ![Raspberry Pi](https://img.shields.io/badge/Raspberry%20Pi-3%20Model%20B-red) ![ESP-12E](https://img.shields.io/badge/ESP--12E-×4台-blue) Python, Flask, paho-mqtt, Arduino IDE |
 
 #### クラウド・ホスティング
-- ![Google Cloud](https://img.shields.io/badge/Google%20Cloud-Run-blue) **Google Cloud Run** - バックエンドAPIホスティング（asia-northeast1）
-- ![Render](https://img.shields.io/badge/Render-Static%20Site-purple) **Render** - フロントエンドWebアプリホスティング
+
+| サービス | 用途 |
+|:--|:--|
+| ![Google Cloud](https://img.shields.io/badge/Google%20Cloud-Run-blue) | バックエンドAPIホスティング（asia-northeast1） |
+| ![Render](https://img.shields.io/badge/Render-Static%20Site-purple) | フロントエンドWebアプリホスティング |
 
 #### デバイス
-- ![Raspberry Pi](https://img.shields.io/badge/Raspberry%20Pi-3%20Model%20B-red) **Raspberry Pi 3 Model B** - デバイスハブとして、Cloud Run WebSocket通信、タイムライン管理、MQTT Broker、Wi-Fiアクセスポイント機能を担当
-- ![ESP-12E](https://img.shields.io/badge/ESP--12E-×4台-blue) **ESP-12E × 4台** - Wi-Fi + MQTT経由で以下を無線制御
-  - ESP#1: Wind & Water Control（風・水エフェクト統合）
-  - ESP#2: Flash & LED Color Control（光・色エフェクト統合）
-  - ESP#3: Motor1 Control（振動モーター4個・背中）
-  - ESP#4: Motor2 Control（振動モーター4個・お尻）
-- ![振動](https://img.shields.io/badge/振動モーター-8個-purple) **偏心モーター × 8個** - 強度別4ピン制御（STRONG, MEDIUM_STRONG, MEDIUM_WEAK, WEAK）、16種類の振動パターン
-- ![3Dプリント](https://img.shields.io/badge/3Dプリント-2種類筐体-orange) **3Dプリント専用筐体**
-  - **設計ソフト**: Autodesk Fusion（3D CAD）
-  - **素材**: PLAフィラメント（生分解性プラスチック）
-  - **EffectStation**: 風・水・光・色の環境エフェクト統合筐体（卓上サイズ約29cm）
-  - **ActionDrive**: 振動モーター8個収納筐体（Motor-Case-Ver-2）
-- ![LED](https://img.shields.io/badge/RGB%20LED-PWM制御-rainbow) **RGB LED + 高輝度LED** - PWM制御による光の演出（3モード: ストロボ、閃光、照明）+ 色表現（RGB）
-- ![ファン](https://img.shields.io/badge/DCファン-風生成-lightblue) **DCファン** - PWM可変速制御による風生成装置（2モード: 瞬間風、持続風）
-- ![ポンプ](https://img.shields.io/badge/サーボ水噴射-水エフェクト-blue) **サーボモーター制御水噴射装置** - 100均霧吹きパーツと3Dプリント部品を組み合わせた独自機構、サーボモーター制御による瞬間噴射
+
+| デバイス | 説明 |
+|:--|:--|
+| ![Raspberry Pi](https://img.shields.io/badge/Raspberry%20Pi-3%20Model%20B-red) | デバイスハブ: WebSocket通信、MQTT Broker、Wi-Fiアクセスポイント |
+| ![ESP-12E](https://img.shields.io/badge/ESP--12E-×4台-blue) | 風・水・光・色・振動を無線制御（Wi-Fi + MQTT） |
+| ![振動](https://img.shields.io/badge/振動モーター-8個-purple) | 偏心モーター × 8個、16種類の振動パターン |
+| ![3Dプリント](https://img.shields.io/badge/3Dプリント-2種類筐体-orange) | EffectStation（環境エフェクト）、ActionDrive（振動） |
+| ![LED](https://img.shields.io/badge/RGB%20LED-PWM制御-rainbow) | 光の演出（3モード）+ RGB色表現 |
+| ![ファン](https://img.shields.io/badge/DCファン-風生成-lightblue) | PWM可変速制御（2モード: 瞬間風、持続風） |
+| ![ポンプ](https://img.shields.io/badge/サーボ水噴射-水エフェクト-blue) | サーボモーター制御による瞬間噴射 |
 
 #### 通信プロトコル
-- ![WebSocket](https://img.shields.io/badge/WebSocket-WSS-blue) **WebSocket (WSS)** - Frontend ↔ Cloud Run API、Cloud Run API ↔ Raspberry Pi間のリアルタイム双方向通信
-- ![MQTT](https://img.shields.io/badge/MQTT-TCP/IP-green) **MQTT over TCP/IP** - Raspberry Pi ↔ ESP-12E × 4台間の無線デバイス制御（Port 1883）
-- ![Wi-Fi](https://img.shields.io/badge/Wi--Fi-802.11n-yellow) **Wi-Fi (802.11n)** - Raspberry Pi (SSID: PiMQTT-AP, IP: 192.168.4.1) がアクセスポイントとして機能
+
+| プロトコル | 用途 |
+|:--|:--|
+| ![WebSocket](https://img.shields.io/badge/WebSocket-WSS-blue) | Frontend ↔ Cloud Run API ↔ Raspberry Pi 間の双方向通信 |
+| ![MQTT](https://img.shields.io/badge/MQTT-TCP/IP-green) | Raspberry Pi ↔ ESP-12E × 4台間の無線デバイス制御 |
+| ![Wi-Fi](https://img.shields.io/badge/Wi--Fi-802.11n-yellow) | Raspberry Pi がアクセスポイント（SSID: PiMQTT-AP） |
 
 #### 対応効果
-- ![振動](https://img.shields.io/badge/振動-16パターン-purple) **振動（vibration）**: 16種類の振動パターン（カーチェイス、衝突、恐竜の足音〜咆哮グラデーションなど） - ESP-12E × 2台 MQTT制御
-- ![光](https://img.shields.io/badge/光-3モード-yellow) **光（flash）**: ストロボ（strobe）、閃光（burst）、照明（steady） - ESP-12E MQTT制御、PWM調光
-- ![風](https://img.shields.io/badge/風-2モード-lightblue) **風（wind）**: 一瞬の風（burst）、長い風（long） - ESP-12E MQTT制御、DCファンPWM可変速
-- ![水](https://img.shields.io/badge/水-瞬間噴射-blue) **水（water）**: 水しぶき（splash） - ESP-12E MQTT制御、サーボモーター駆動
-- ![色](https://img.shields.io/badge/色-RGB-rainbow) **色（color）**: 赤（red）、緑（green）、青（blue） - ESP-12E MQTT制御、RGB LED
+
+| 効果 | 詳細 |
+|:--|:--|
+| ![振動](https://img.shields.io/badge/振動-16パターン-purple) | カーチェイス、衝突、恐竜の足音など16種類 |
+| ![光](https://img.shields.io/badge/光-3モード-yellow) | ストロボ、閃光、照明（PWM調光） |
+| ![風](https://img.shields.io/badge/風-2モード-lightblue) | 瞬間風、持続風（DCファンPWM制御） |
+| ![水](https://img.shields.io/badge/水-瞬間噴射-blue) | 水しぶき（サーボモーター駆動） |
+| ![色](https://img.shields.io/badge/色-RGB-rainbow) | 赤・緑・青（RGB LED） |
 
 ### 独自技術
-#### ハッカソンで開発した独自機能・技術
 
-**🆕 Award Day追加機能:**
-* **エンドツーエンド連携の完全実装**:
-  - デバイス認証システム（製品コードDH001/DH002/DH003認証）のフロントエンド統合  
-    → [`frontend/4dathome-app/src/pages/VideoPreparationPage.tsx`](./frontend/4dathome-app/src/pages/VideoPreparationPage.tsx)
-  - タイムラインJSON動的送信（`POST /api/preparation/upload-timeline/{session_id}`）  
-    → [`backend/app/api/preparation.py`](./backend/app/api/preparation.py), [`frontend/4dathome-app/src/pages/VideoPreparationPage.tsx`](./frontend/4dathome-app/src/pages/VideoPreparationPage.tsx)
-  - デバイステスト統合（VideoPreparationPageと連携）  
-    → [`frontend/4dathome-app/src/pages/VideoPreparationPage.tsx`](./frontend/4dathome-app/src/pages/VideoPreparationPage.tsx), [`backend/app/api/preparation.py`](./backend/app/api/preparation.py)
-  - 200ms間隔高精度時間同期制御（`VITE_SYNC_INTERVAL_MS`）  
-    → [`frontend/4dathome-app/src/pages/PlayerPage.tsx`](./frontend/4dathome-app/src/pages/PlayerPage.tsx), [`backend/app/services/continuous_sync_service.py`](./backend/app/services/continuous_sync_service.py)
-  - ストップ処理完全実装（`POST /api/playback/stop/{session_id}` + WebSocket `stop_signal`）  
-    → [`backend/app/api/playback_control.py`](./backend/app/api/playback_control.py), [`frontend/4dathome-app/src/pages/PlayerPage.tsx`](./frontend/4dathome-app/src/pages/PlayerPage.tsx)
+本プロジェクトで開発・実装した独自技術の一覧です。
 
-* **本番フロー画面実装**: 4画面構成の完全な体験フロー（Home → Login → Select → Prepare → Player）  
-  → [`frontend/4dathome-app/src/pages/HomePage.tsx`](./frontend/4dathome-app/src/pages/HomePage.tsx), [`frontend/4dathome-app/src/pages/LoginPage.tsx`](./frontend/4dathome-app/src/pages/LoginPage.tsx), [`frontend/4dathome-app/src/pages/SelectPage.tsx`](./frontend/4dathome-app/src/pages/SelectPage.tsx), [`frontend/4dathome-app/src/pages/VideoPreparationPage.tsx`](./frontend/4dathome-app/src/pages/VideoPreparationPage.tsx), [`frontend/4dathome-app/src/pages/PlayerPage.tsx`](./frontend/4dathome-app/src/pages/PlayerPage.tsx)
+#### AI映像解析システム
 
-* **ハードウェア完全無線化**: Arduino全廃、ESP-12E × 4台統一（Wi-Fi + MQTT）  
-  → [`hardware/actuators/4DX_WATER_WIND.ino`](./hardware/actuators/4DX_WATER_WIND.ino), [`hardware/actuators/4DX_LIGHTS.ino`](./hardware/actuators/4DX_LIGHTS.ino), [`hardware/actuators/4DX_MOTOR_MQTT.ino`](./hardware/actuators/4DX_MOTOR_MQTT.ino)
+| 技術 | 概要 |
+|:--|:--|
+| **Gemini 2.5 Pro映像解析** | 動画を4FPSでフレーム抽出し、120枚を一括でマルチモーダルAIに入力。シーンの文脈を理解し、5種類のエフェクト×24種類のアクションから最適な組み合わせを自動選択 |
+| **タイムラインJSON自動生成** | 映像解析結果を時系列イベントデータ（タイムスタンプ + エフェクト種別 + パラメータ）に変換。人手による設定なしで任意の動画を4DX化 |
 
-* **Raspberry Pi自動起動システム**: systemdサービス化、電源投入で即座稼働  
-  → [`hardware/rpi_server/main.py`](./hardware/rpi_server/main.py)
+#### リアルタイム同期システム
 
-* **WebSocket自動再接続**: `CloudRunWebSocketClient`による指数バックオフ再接続  
-  → [`hardware/rpi_server/src/api/websocket_client.py`](./hardware/rpi_server/src/api/websocket_client.py)
+| 技術 | 概要 | 仕様書 |
+|:--|:--|:--|
+| **200ms間隔連続同期** | WebSocketで200ms間隔の同期メッセージを送信し、動画再生位置とデバイス動作を±100ms以内で同期 | [バックエンド仕様書](./docs/backend-specification-awardday.md#websocket通信) |
+| **3層中継アーキテクチャ** | Frontend → Cloud Run API → Raspberry Pi Hub の3層構成により、インターネット経由でもローカルデバイスをリアルタイム制御 | [総合仕様書](./docs/README.md#システム構成) |
+| **セッションコード方式ペアリング** | 6桁のセッションコードでWebアプリとデバイスを紐付け。複数セッションの同時運用に対応 | [フロントエンド仕様書](./docs/frontend-specification-awardday.md#セッションidデバイスid管理) |
 
-* **動的タイムライン処理**: JSON受信→パース→イベント実行パイプライン  
-  → [`hardware/rpi_server/src/timeline/processor.py`](./hardware/rpi_server/src/timeline/processor.py), [`hardware/rpi_server/src/timeline/cache_manager.py`](./hardware/rpi_server/src/timeline/cache_manager.py)
+#### カスタムハードウェア
 
-* **通信ログシステム**: `CommunicationLogger`による全通信トレース  
-  → [`hardware/rpi_server/src/utils/communication_logger.py`](./hardware/rpi_server/src/utils/communication_logger.py)
+| 技術 | 概要 | 仕様書 |
+|:--|:--|:--|
+| **EffectStation（環境エフェクト統合筐体）** | 風・水・光・色の4種類エフェクトを1台に統合した3Dプリント筐体（卓上サイズ約29cm）。100均霧吹き + サーボモーターによる独自水噴射機構 | [ハードウェア仕様書](./docs/hardware-specification-awardday.md#1-effectstation環境エフェクトデバイス) |
+| **ActionDrive（振動フィードバック筐体）** | 偏心モーター8個を搭載したクッション型デバイス。背中4個 + お尻4個の配置で16種類の振動パターンを実現 | [ハードウェア仕様書](./docs/hardware-specification-awardday.md#2-actiondrive振動フィードバックデバイス) |
+| **ESP-12E完全無線化** | Arduino廃止、ESP-12E × 4台に統一。Raspberry PiをMQTT Broker兼Wi-Fiアクセスポイントとして構成し、配線レス化 | [ハードウェア仕様書](./docs/hardware-specification-awardday.md#2-mqtt通信-raspberry-pi--esp-12e-devices) |
 
-* **Flask監視ダッシュボード**: デバイス状態・通信履歴のリアルタイム表示（localhost:5000）  
-  → [`hardware/rpi_server/src/server/app.py`](./hardware/rpi_server/src/server/app.py)
+#### 通信・制御システム
 
-**Hack Day開発機能:**
-* **AI動画解析エンジン**: Gemini 2.5 Proによる映像解析（4FPS、120枚同時分析）  
-  → [`tools/sync-generator/analyze_video.py`](./tools/sync-generator/analyze_video.py), [`tools/sync-generator/generator.py`](./tools/sync-generator/generator.py)
+| 技術 | 概要 | 仕様書 |
+|:--|:--|:--|
+| **タイムラインイベント実行エンジン** | 受信したタイムラインJSONをパースし、現在再生時刻に基づいて適切なタイミングでMQTTコマンドを発行 | [ハードウェア仕様書](./docs/hardware-specification-awardday.md#タイムライン処理) |
+| **WebSocket自動再接続** | 指数バックオフアルゴリズムによる自動再接続。ネットワーク断からの自動復旧 | [総合仕様書](./docs/README.md#award-day-変更履歴-hack-day--award-day) |
+| **Raspberry Pi自動起動** | systemdサービス化により、電源投入のみで全システムが自動起動。運用時のセットアップ不要 | [ハードウェア仕様書](./docs/hardware-specification-awardday.md#起動運用) |
 
-* **3層アーキテクチャ構築**: Frontend (Render) ↔ Cloud Run API ↔ Raspberry Pi Hub  
-  → [`backend/app/main.py`](./backend/app/main.py), [`hardware/rpi_server/main.py`](./hardware/rpi_server/main.py)
+#### 関連ファイル
 
-* **セッションコード方式ペアリング**: FastAPI + Pydanticによるセッションコード管理  
-  → [`backend/app/api/device_registration.py`](./backend/app/api/device_registration.py), [`backend/app/models/device.py`](./backend/app/models/device.py)
+<details>
+<summary>クリックして展開</summary>
 
-* **高精度リアルタイム同期**: WebSocket双方向通信による±100ms以内同期  
-  → [`backend/app/services/continuous_sync_service.py`](./backend/app/services/continuous_sync_service.py)
+| カテゴリ | ファイル |
+|:--|:--|
+| AI映像解析 | [`analyze_video.py`](./tools/sync-generator/analyze_video.py), [`generator.py`](./tools/sync-generator/generator.py) |
+| 同期システム | [`continuous_sync_service.py`](./backend/app/services/continuous_sync_service.py), [`PlayerPage.tsx`](./frontend/4dathome-app/src/pages/PlayerPage.tsx) |
+| デバイス登録 | [`device_registration.py`](./backend/app/api/device_registration.py), [`VideoPreparationPage.tsx`](./frontend/4dathome-app/src/pages/VideoPreparationPage.tsx) |
+| ハードウェア制御 | [`4DX_WATER_WIND.ino`](./hardware/actuators/4DX_WATER_WIND.ino), [`4DX_LIGHTS.ino`](./hardware/actuators/4DX_LIGHTS.ino), [`4DX_MOTOR_MQTT.ino`](./hardware/actuators/4DX_MOTOR_MQTT.ino) |
+| タイムライン処理 | [`processor.py`](./hardware/rpi_server/src/timeline/processor.py), [`cache_manager.py`](./hardware/rpi_server/src/timeline/cache_manager.py) |
+| 3Dモデル | [`4dx@home-stand.stl`](./hardware/3DModel/4dx@home-stand.stl), [`Motor-Case-Ver-2.stl`](./hardware/3DModel/Motor-Case-Ver-2.stl) |
 
-* **カスタムハードウェア設計**: 3Dプリンターによる2種類専用筐体設計（EffectStation、ActionDrive） ※事前開発  
-  → [`hardware/3DModel/4dx@home-stand.stl`](./hardware/3DModel/4dx@home-stand.stl), [`hardware/3DModel/Motor-Case-Ver-2.stl`](./hardware/3DModel/Motor-Case-Ver-2.stl)
-
-* **タイムライン管理システム**: 最適なタイミングでアクチュエーター制御を実行  
-  → [`backend/app/services/sync_data_service.py`](./backend/app/services/sync_data_service.py), [`hardware/rpi_server/src/timeline/processor.py`](./hardware/rpi_server/src/timeline/processor.py)
+</details>
 
 ---
 
