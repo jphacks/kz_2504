@@ -1,4 +1,4 @@
-# ※Hack Day時点での内容です（修正作業中）
+# ※Hack Day時点での内容です
 
 # 4DX@HOME - あなたのおうちで「最高の映像」が「最強の体験」へ。
 
@@ -90,11 +90,11 @@ WebSocketによる**ミリ秒精度のリアルタイム通信**で動画と物�
 
 詳細な技術仕様については、以下の専門仕様書をご参照ください：
 
-- **[フロントエンド仕様書](./docs/frontend-specification.md)** - React + TypeScript Webアプリケーション
-- **[バックエンド仕様書](./docs/backend-specification.md)** - FastAPI WebサーバーとAPI
-- **[ハードウェア仕様書](./docs/hardware-specification.md)** - Raspberry Pi + Arduino 物理制御システム
+- **[フロントエンド仕様書](./docs/archive/hackday-2025/frontend-specification.md)** - React + TypeScript Webアプリケーション
+- **[バックエンド仕様書](./docs/archive/hackday-2025/backend-specification.md)** - FastAPI WebサーバーとAPI
+- **[ハードウェア仕様書](./docs/archive/hackday-2025/hardware-specification.md)** - Raspberry Pi + Arduino 物理制御システム
 - **[AI動画解析システム](./tools/sync-generator/README.md)** - GPT-4o-mini Visionによる4DXタイムライン自動生成
-- **[総合仕様書](./docs/README.md)** - システム全体概要とセットアップガイド
+- **[総合仕様書](./docs/archive/hackday-2025/README.md)** - システム全体概要とセットアップガイド
 
 ## 開発技術
 ### 活用した技術
@@ -139,13 +139,13 @@ WebSocketによる**ミリ秒精度のリアルタイム通信**で動画と物�
 * **高精度リアルタイム同期**: WebSocket双方向通信による±50ms以内同期  
   → [`backend/app/services/continuous_sync_service.py`](./backend/app/services/continuous_sync_service.py)
 * **ハイブリッド通信アーキテクチャ**: WebSocket（同期制御）+ シリアル通信（Arduino制御）+ MQTT（振動制御）の統合システム  
-  → [`hardware/raspberry_pi_client.py`](./hardware/raspberry_pi_client.py), [`hardware/hardware_server.py`](./hardware/hardware_server.py), [`hardware/vibration.ino`](./hardware/vibration.ino)
+  → [`hardware/archive/raspberry_pi_client.py`](./hardware/archive/raspberry_pi_client.py), [`hardware/archive/hardware_server.py`](./hardware/archive/hardware_server.py), [`hardware/archive/vibration.ino`](./hardware/archive/vibration.ino)
 * **カスタムハードウェア設計**: 3Dプリンターによる偏心モーター専用ケース設計、クッション内蔵型振動システム ※事前開発  
-  → [`assets/images/Cushion_Motor_Case_3D_Model.png`](./assets/images/Cushion_Motor_Case_3D_Model.png), [`hardware/vibration.ino`](./hardware/vibration.ino)
+  → [`assets/images/Cushion_Motor_Case_3D_Model.png`](./assets/images/Cushion_Motor_Case_3D_Model.png), [`hardware/archive/vibration.ino`](./hardware/archive/vibration.ino)
 * **物理デバイス統合**: 木工製固定台によるデバイス群の安定配置、配線管理とメンテナンス性を両立 ※木工部分は事前開発  
-  → [`hardware/lights.ino`](./hardware/lights.ino), [`hardware/water.ino`](./hardware/water.ino), [`assets/images/Woodworking_Workbench.png`](./assets/images/Woodworking_Workbench.png)
+  → [`hardware/archive/lights.ino`](./hardware/archive/lights.ino), [`hardware/archive/water.ino`](./hardware/archive/water.ino), [`assets/images/Woodworking_Workbench.png`](./assets/images/Woodworking_Workbench.png)
 * **タイムライン管理システム**: 最適なタイミングでアクチュエーター制御を実行  
-  → [`backend/app/services/sync_data_service.py`](./backend/app/services/sync_data_service.py), [`hardware/hardware_server.py`](./hardware/hardware_server.py)
+  → [`backend/app/services/sync_data_service.py`](./backend/app/services/sync_data_service.py), [`hardware/archive/hardware_server.py`](./hardware/archive/hardware_server.py)
 
 ## 事前開発について
 
