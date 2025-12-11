@@ -40,9 +40,9 @@
 ### システム構成
 
 ```mermaid
-flowchart TB
+flowchart LR
     subgraph Frontend["🌐 Frontend (React + Vite)"]
-        direction TB
+        direction LR
         HP[HomePage<br/>ランディング]
         LP[LoginPage<br/>ログイン]
         SP[SelectPage<br/>動画選択]
