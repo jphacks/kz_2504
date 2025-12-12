@@ -1,0 +1,31 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+ENV/
+
+# 動画ファイル（ユーザーが配置するため無視）
+videos/*.mp4
+videos/*.avi
+videos/*.mov
+!videos/.gitkeep
+
+# 結果ファイル
+results/*.json
+!results/.gitkeep
+
+# 環境変数
+.env
+
+# API Keys
+*api_key*
+*secret*
+
+# OS
+.DS_Store
+Thumbs.db
+
