@@ -1,4 +1,4 @@
-# ※Award Day時点での内容です
+> ※JPHACKS 2025 Award Dayでの内容です
 
 # 4DX@HOME - あなたのおうちで「最高の映像」が「最強の体験」へ。
 
