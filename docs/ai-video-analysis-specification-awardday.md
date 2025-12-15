@@ -105,37 +105,23 @@ MP4動画 → AI解析（Gemini 2.5 Pro）→ タイムラインJSON → 4DX体�
 ## システム構成
 
 ```mermaid
-flowchart TB
+flowchart LR
     subgraph Input["ユーザー入力"]
         MP4[MP4動画ファイル]
     end
     
-    subgraph Analyze["解析モード - analyze_video_gemini.py"]
-        A1[1. 動画読み込み<br/>OpenCV]
-        A2[2. フレーム抽出<br/>0.25秒間隔]
-        A3[3. 画像リサイズ<br/>640px幅]
-        A4[4. バッチ処理<br/>100枚ずつ]
-        A5[5. 並列API呼び出し<br/>最大10同時]
-        A6[6. Gemini 2.5 Pro 解析]
-        A7[7. キャプション + 効果JSON生成]
-        A8[8. 最小継続時間チェック]
-        A9[9. タイムラインJSON出力]
-        
-        A1 --> A2 --> A3 --> A4 --> A5 --> A6 --> A7 --> A8 --> A9
+    subgraph Analyze["解析モード"]
+        A1[1. 動画読み込み] --> A2[2. フレーム抽出] --> A3[3. リサイズ]
+        A3 --> A4[4. バッチ処理] --> A5[5. 並列API] --> A6[6. Gemini解析]
+        A6 --> A7[7. JSON生成] --> A8[8. 最小継続時間] --> A9[9. 出力]
     end
     
     subgraph Output["出力"]
-        JSON[results/{video_name}_timeline.json]
+        JSON["results/video_name_timeline.json"]
     end
     
-    subgraph Playback["視聴用再生モード - playback_video.py"]
-        P1[動画 + JSON読み込み]
-        P2[リアルタイム再生]
-        P3[タイムスタンプ同期]
-        P4[効果パネル表示]
-        P5[デバイス制御信号送信]
-        
-        P1 --> P2 --> P3 --> P4 --> P5
+    subgraph Playback["再生モード"]
+        P1[動画+JSON] --> P2[再生] --> P3[同期] --> P4[表示] --> P5[制御]
     end
     
     MP4 --> A1
@@ -178,17 +164,12 @@ connotation_tools/
 ### 処理フロー
 
 ```mermaid
-flowchart TB
-    A[MP4動画] --> B[OpenCVで読み込み]
-    B --> C[フレーム抽出<br/>0.25秒間隔]
-    C --> D[640px幅にリサイズ]
-    D --> E[バッチ分割<br/>100枚ずつ]
-    E --> F[並列API呼び出し<br/>最大10同時]
-    F --> G[Gemini 2.5 Pro 解析]
-    G --> H[キャプション + 効果JSON]
-    H --> I[最小継続時間チェック]
-    I --> J[短すぎる効果を延長/削除]
-    J --> K[タイムラインJSON出力]
+flowchart LR
+    A[MP4動画] --> B[OpenCV読み込み] --> C[フレーム抽出<br/>0.25秒間隔]
+    C --> D[640pxリサイズ] --> E[バッチ分割<br/>100枚]
+    E --> F[並列API<br/>最大10同時] --> G[Gemini 2.5 Pro]
+    G --> H[キャプション+効果JSON] --> I[最小継続時間]
+    I --> J[効果延長/削除] --> K[タイムラインJSON]
 ```
 
 ### 設定パラメータ
