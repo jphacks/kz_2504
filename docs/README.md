@@ -94,7 +94,7 @@ Hack Day（2025年10月11-12日）時点の旧仕様書は、`archive/hackday-20
 </div>
 
 ### 主要機能
-- **AI動画解析**: GPT-4o-mini Visionによる自動4DX効果生成
+- **AI動画解析**: Gemini 2.5 Pro Visionによる自動4DX効果生成
 - **リアルタイム同期**: ±50ms以内の高精度同期
 - **多様な物理効果**: 振動・光・風・水・色の5種類
 - **セッション管理**: 4桁コードによる簡単ペアリング
@@ -144,6 +144,19 @@ Hack Day（2025年10月11-12日）時点の旧仕様書は、`archive/hackday-20
   - Flask監視ダッシュボード (localhost:5000)
 - **アーキテクチャ**: Raspberry Pi Hub → MQTT Broker → ESP-12E Devices
 - **物理デバイス**: Wind, Flash, LED Color, Motor1, Motor2
+
+#### 🤖 [AI動画解析仕様書 (Award Day版)](./ai-video-analysis-specification-awardday.md)
+**Gemini 2.5 Pro Vision 4DXタイムライン自動生成システム**
+
+- **技術スタック**: Python 3.9+, OpenCV 4.8.0, Google Generative AI SDK
+- **主要機能**:
+  - 0.25秒間隔フレームサンプリング（4FPS）
+  - 100フレームバッチ処理（25秒分/回）
+  - 16種類の振動パターン + 光・風・水・色効果
+  - 効果の結合・継続時間最適化
+  - JSON形式タイムライン出力
+- **AIモデル**: Gemini 2.5 Pro (gemini-2.5-pro-preview-05-06)
+- **出力形式**: 24種類のアクションタイプ対応タイムラインJSON
 
 #### 📸 [ギャラリー](./gallery.md)
 **プロジェクト写真・動画ギャラリー**
@@ -356,7 +369,7 @@ gantt
 ```
 
 ### Phase 1: 機能拡張
-- **AI動画解析**: GPT-4o-mini Vision API統合
+- **AI動画解析**: Gemini 2.5 Pro Vision API統合済み
 - **多動画対応**: ユーザーアップロード機能
 - **カスタマイズ**: ユーザー設定・プロファイル
 

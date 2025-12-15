@@ -93,7 +93,7 @@ WebSocketによる**ミリ秒精度のリアルタイム通信**で動画と物�
 - **[フロントエンド仕様書](./docs/archive/hackday-2025/frontend-specification.md)** - React + TypeScript Webアプリケーション
 - **[バックエンド仕様書](./docs/archive/hackday-2025/backend-specification.md)** - FastAPI WebサーバーとAPI
 - **[ハードウェア仕様書](./docs/archive/hackday-2025/hardware-specification.md)** - Raspberry Pi + Arduino 物理制御システム
-- **[AI動画解析システム](./tools/sync-generator/README.md)** - GPT-4o-mini Visionによる4DXタイムライン自動生成
+- **[AI動画解析システム](./connotation_tools/archive/sync-generator/README.md)** - GPT-4o-mini Visionによる4DXタイムライン自動生成
 - **[総合仕様書](./docs/archive/hackday-2025/README.md)** - システム全体概要とセットアップガイド
 
 ## 開発技術
@@ -131,9 +131,9 @@ WebSocketによる**ミリ秒精度のリアルタイム通信**で動画と物�
 ### 独自技術
 #### ハッカソンで開発した独自機能・技術
 * **AI動画解析エンジン**: GPT-4o-mini Visionのバッチ処理（15枚同時）による効率的な映像解析と、ルールベース判定による高精度な効果タイムライン生成  
-  → [`tools/sync-generator/analyze_video.py`](./tools/sync-generator/analyze_video.py), [`tools/sync-generator/generator.py`](./tools/sync-generator/generator.py)
+  → [`connotation_tools/archive/sync-generator/analyze_video.py`](./connotation_tools/archive/sync-generator/analyze_video.py), [`connotation_tools/archive/sync-generator/generator.py`](./connotation_tools/archive/sync-generator/generator.py)
 * **最小継続時間制御システム**: 効果のチラつき防止のため、各効果に最小継続時間を設定し、安定した体験を提供  
-  → [`tools/sync-generator/analyze_video.py`](./tools/sync-generator/analyze_video.py)
+  → [`connotation_tools/archive/sync-generator/analyze_video.py`](./connotation_tools/archive/sync-generator/analyze_video.py)
 * **セッションコード方式ペアリング**: FastAPI + Pydanticによるセッションコード管理、自動デバイス登録システム  
   → [`backend/app/api/device_registration.py`](./backend/app/api/device_registration.py), [`backend/app/models/device.py`](./backend/app/models/device.py)
 * **高精度リアルタイム同期**: WebSocket双方向通信による±50ms以内同期  

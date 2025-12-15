@@ -204,6 +204,7 @@ Google Cloud Run上のFastAPI + WebSocketによる**ミリ秒精度のリアル�
 - **[フロントエンド仕様書 (Award Day版)](./docs/frontend-specification-awardday.md)** - React + TypeScript Webアプリケーション (Render + Cloud Run統合版)
 - **[バックエンド仕様書 (Award Day版)](./docs/backend-specification-awardday.md)** - FastAPI Cloud Run APIサーバー
 - **[ハードウェア仕様書 (Award Day版)](./docs/hardware-specification-awardday.md)** - Raspberry Pi Hub + ESP-12E 物理制御システム (Cloud Run統合版)
+- **[AI動画解析仕様書 (Award Day版)](./docs/ai-video-analysis-specification-awardday.md)** - Gemini 2.5 Pro タイムライン自動生成システム
 
 ### Hack Day版 (Version 1.0.0) - アーカイブ
 **対象イベント**: JPHACKS 2025 Hack Day (2025年10月11-12日開催)
@@ -281,10 +282,11 @@ Award Dayでの受賞写真、デバイス写真、アプリ画面スクリー�
 
 #### AI映像解析システム
 
-| 技術 | 概要 |
-|:--|:--|
-| **Gemini 2.5 Pro映像解析** | 動画を4FPSでフレーム抽出し、120枚を一括でマルチモーダルAIに入力。シーンの文脈を理解し、5種類のエフェクト×24種類のアクションから最適な組み合わせを自動選択 |
-| **タイムラインJSON自動生成** | 映像解析結果を時系列イベントデータ（タイムスタンプ + エフェクト種別 + パラメータ）に変換。人手による設定なしで任意の動画を4DX化 |
+| 技術 | 概要 | 仕様書 |
+|:--|:--|:--|
+| **Gemini 2.5 Pro映像解析** | 動画を4FPSでフレーム抽出し、100枚を一括でマルチモーダルAIに入力。シーンの文脈を理解し、5種類のエフェクト×24種類のアクションから最適な組み合わせを自動選択 | [AI動画解析仕様書](./docs/ai-video-analysis-specification-awardday.md#処理フロー) |
+| **タイムラインJSON自動生成** | 映像解析結果を時系列イベントデータ（タイムスタンプ + エフェクト種別 + パラメータ）に変換。人手による設定なしで任意の動画を4DX化 | [AI動画解析仕様書](./docs/ai-video-analysis-specification-awardday.md#出力json形式) |
+| **効果結合・最適化** | 隣接する同一効果の結合、最小継続時間の適用、チラつき防止処理を実装。安定した体験を提供 | [AI動画解析仕様書](./docs/ai-video-analysis-specification-awardday.md#効果の結合と最適化) |
 
 #### リアルタイム同期システム
 
@@ -317,7 +319,7 @@ Award Dayでの受賞写真、デバイス写真、アプリ画面スクリー�
 
 | カテゴリ | ファイル |
 |:--|:--|
-| AI映像解析 | [`analyze_video.py`](./tools/sync-generator/analyze_video.py), [`generator.py`](./tools/sync-generator/generator.py) |
+| AI映像解析 | [`analyze_video_gemini.py`](./connotation_tools/analyze_video_gemini.py), [`prompts.py`](./connotation_tools/prompts.py) |
 | 同期システム | [`continuous_sync_service.py`](./backend/app/services/continuous_sync_service.py), [`PlayerPage.tsx`](./frontend/4dathome-app/src/pages/PlayerPage.tsx) |
 | デバイス登録 | [`device_registration.py`](./backend/app/api/device_registration.py), [`VideoPreparationPage.tsx`](./frontend/4dathome-app/src/pages/VideoPreparationPage.tsx) |
 | ハードウェア制御 | [`4DX_WATER_WIND.ino`](./hardware/actuators/4DX_WATER_WIND.ino), [`4DX_LIGHTS.ino`](./hardware/actuators/4DX_LIGHTS.ino), [`4DX_MOTOR_MQTT.ino`](./hardware/actuators/4DX_MOTOR_MQTT.ino) |
