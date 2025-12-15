@@ -201,7 +201,7 @@ MAX_REQUEST_SIZE=16777216
 ### モジュール関係図
 
 ```mermaid
-flowchart LR
+flowchart TB
     subgraph Entry["エントリーポイント"]
         main[main.py]
     end

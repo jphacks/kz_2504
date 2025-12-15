@@ -293,7 +293,7 @@ flowchart LR
 ### デバイス制御プロトコル (MQTT)
 
 ```mermaid
-flowchart LR
+flowchart TB
     PI[Raspberry Pi<br/>MQTT Broker] --> T1["/4dx/motor1/control"]
     PI --> T2["/4dx/motor2/control"]
     PI --> T3["/4dx/wind"]

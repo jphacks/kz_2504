@@ -105,7 +105,7 @@ MP4動画 → AI解析（Gemini 2.5 Pro）→ タイムラインJSON → 4DX体�
 ## システム構成
 
 ```mermaid
-flowchart LR
+flowchart TB
     subgraph Input["ユーザー入力"]
         MP4[MP4動画ファイル]
     end
@@ -164,7 +164,7 @@ connotation_tools/
 ### 処理フロー
 
 ```mermaid
-flowchart LR
+flowchart TB
     A[MP4動画] --> B[OpenCV読み込み] --> C[フレーム抽出<br/>0.25秒間隔]
     C --> D[640pxリサイズ] --> E[バッチ分割<br/>100枚]
     E --> F[並列API<br/>最大10同時] --> G[Gemini 2.5 Pro]

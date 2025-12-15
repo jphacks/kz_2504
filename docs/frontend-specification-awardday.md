@@ -399,7 +399,7 @@ flowchart LR
 ## ルーティング構成
 
 ```mermaid
-flowchart LR
+flowchart TB
     subgraph Public["パブリック"]
         R1["/ 🏠 HomePage"]
         R2["/login 🔐 LoginPage"]

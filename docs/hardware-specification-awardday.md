@@ -238,7 +238,7 @@ const unsigned long HEARTBEAT_MS = 10000; // 10秒間隔
 #### モジュール構成図
 
 ```mermaid
-flowchart LR
+flowchart TB
     subgraph Main["メイン"]
         M[main.py]
         C[config.py]
