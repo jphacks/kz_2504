@@ -238,7 +238,7 @@ const unsigned long HEARTBEAT_MS = 10000; // 10秒間隔
 #### モジュール構成図
 
 ```mermaid
-flowchart TB
+flowchart LR
     subgraph Main["メイン"]
         M[main.py]
         C[config.py]
@@ -558,7 +558,7 @@ MQTT_KEEPALIVE = 60
 ### 処理フロー
 
 ```mermaid
-flowchart TB
+flowchart LR
     subgraph Input["入力"]
         JSON[Timeline JSON]
         TIME[current_time]
@@ -715,7 +715,7 @@ sequenceDiagram
 ### 起動フロー
 
 ```mermaid
-flowchart TB
+flowchart LR
     subgraph Boot["起動プロセス"]
         A[電源投入] --> B[systemdサービス起動]
         B --> C[main.py 実行]

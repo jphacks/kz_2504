@@ -399,7 +399,7 @@ flowchart LR
 ## ルーティング構成
 
 ```mermaid
-flowchart TB
+flowchart LR
     subgraph Public["パブリック"]
         R1["/ 🏠 HomePage"]
         R2["/login 🔐 LoginPage"]
@@ -450,7 +450,7 @@ flowchart TB
 ### エンドポイント
 
 ```mermaid
-flowchart TB
+flowchart LR
     subgraph Frontend["フロントエンド"]
         Prep[VideoPreparationPage]
         Player[PlayerPage]

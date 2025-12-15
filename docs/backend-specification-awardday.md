@@ -41,7 +41,7 @@
 ### システム構成
 
 ```mermaid
-flowchart TB
+flowchart LR
     subgraph Frontend["🌐 フロントエンド層"]
         FE[React Frontend<br/>kz-2504.onrender.com]
     end
@@ -201,7 +201,7 @@ MAX_REQUEST_SIZE=16777216
 ### モジュール関係図
 
 ```mermaid
-flowchart TB
+flowchart LR
     subgraph Entry["エントリーポイント"]
         main[main.py]
     end
