@@ -13,7 +13,7 @@
     - results/video_timeline.json (タイムラインJSON)
 """
 
-import os, sys, cv2, json, time, threading, warnings, contextlib, math
+import os, sys, cv2, json, time, threading, warnings, contextlib, math, bisect
 from typing import Dict, List, Tuple, Optional
 from pathlib import Path
 import numpy as np
@@ -35,7 +35,8 @@ os.environ['OPENCV_LOG_LEVEL'] = 'FATAL'
 os.environ['OPENCV_FFMPEG_CAPTURE_OPTIONS'] = 'loglevel;fatal'
 os.environ['OPENCV_VIDEOIO_DEBUG'] = '0'
 warnings.filterwarnings('ignore')
-cv2.setLogLevel(0)
+if hasattr(cv2, "setLogLevel"):
+    cv2.setLogLevel(0)
 
 @contextlib.contextmanager
 def suppress_stderr():
@@ -55,8 +56,11 @@ def suppress_stderr():
 SCRIPT_DIR = Path(__file__).parent.absolute()
 VIDEOS_DIR = str(SCRIPT_DIR / "videos")
 RESULTS_DIR = str(SCRIPT_DIR / "results")
+EDITOR_RESULTS_DIR = str(SCRIPT_DIR / "editor_results")
 WINDOW_NAME = "Scene Playback - 体感型動画再生"
-TIMING_OFFSET = -0.5  # タイミング調整（秒）：正の値で信号を遅らせる、負の値で早める
+TIMING_OFFSET = -2.5 # タイミング調整（秒）：正の値で信号を遅らせる、負の値で早める
+WATER_STREAM_INTERVAL = 0.3  # 水の連続噴射: SPLASH連射の間隔（秒）
+COLOR_BORDER_THICKNESS = 12  # 色表示時のフレーム枠の太さ（px）
 
 # ===== 効果信号送信（デバイス制御用） =====
 class EffectController:
@@ -66,6 +70,9 @@ class EffectController:
         self.active_effects = {}
         self.shot_effects = {}  # shot系の発射を一時的に表示: {key: (start_time, end_time)}
         self.lock = threading.Lock()
+        self._water_stream_event = threading.Event()
+        self._water_stream_thread = None
+        self._last_led_command = None
         
         # 全効果の定義（表示順）- 4DX@HOME仕様
         self.all_effects = [
@@ -76,7 +83,9 @@ class EffectController:
             # 風
             ("wind", "burst", "💨 風"),
             # 水・ミスト
+            ("water", "stream", "💦 水（連続）"),
             ("water", "burst", "💦 水しぶき"),
+            ("mist", "stream", "🌫️ ミスト（連続）"),
             ("mist", "burst", "🌫️ ミスト"),
             # 色
             ("color", "pink", "🩷 ピンク"),
@@ -108,20 +117,30 @@ class EffectController:
     
     def start_effect(self, effect: str, mode: str, timestamp: float):
         """効果を開始"""
+        needs_led_update = False
         with self.lock:
             key = (effect, mode)
             self.active_effects[key] = timestamp
             # ログは表示しない（表で確認）
             self._send_signal("START", effect, mode)
+            if effect in ("color", "flash", "led_strength", "led_transition"):
+                needs_led_update = True
+        if needs_led_update:
+            self._send_led_update()
     
     def stop_effect(self, effect: str, mode: str, timestamp: float):
         """効果を停止"""
+        needs_led_update = False
         with self.lock:
             key = (effect, mode)
             if key in self.active_effects:
                 del self.active_effects[key]
             # ログは表示しない（表で確認）
             self._send_signal("STOP", effect, mode)
+            if effect in ("color", "flash", "led_strength", "led_transition"):
+                needs_led_update = True
+        if needs_led_update:
+            self._send_led_update()
     
     def shot_effect(self, effect: str, mode: str, timestamp: float):
         """効果を一度だけ発射（shot系）"""
@@ -142,7 +161,9 @@ class EffectController:
             # 風
             "wind:burst": "💨 風",
             # 水・ミスト
+            "water:stream": "💦 水（連続）",
             "water:burst": "💦 水しぶき",
+            "mist:stream": "🌫️ ミスト（連続）",
             "mist:burst": "🌫️ ミスト",
             # 色
             "color:pink": "🩷 ピンク",
@@ -236,7 +257,119 @@ class EffectController:
             ser.write(f"{action}:{effect}:{mode}\n".encode())
         """
         # 現時点ではコンソール出力のみ
-        pass
+        command = None
+        if effect == "wind" and mode == "burst":
+            command = "FAN,1" if action == "START" else "FAN,0" if action == "STOP" else None
+        elif effect == "water" and mode == "burst" and action == "SHOT":
+            command = "SPLASH"
+        elif effect == "water" and mode == "stream":
+            if action == "START":
+                self._start_water_stream()
+            elif action == "STOP":
+                self._stop_water_stream()
+        elif effect == "mist" and mode == "burst" and action == "SHOT":
+            command = "MIST,1"
+        elif effect == "mist" and mode == "stream":
+            command = "MIST,2" if action == "START" else "MIST,0" if action == "STOP" else None
+
+        if command:
+            print(f"[CMD] {command}")
+
+    def _start_water_stream(self):
+        if self._water_stream_event.is_set():
+            return
+        self._water_stream_event.set()
+        self._water_stream_thread = threading.Thread(
+            target=self._water_stream_loop,
+            name="water_stream",
+            daemon=True,
+        )
+        self._water_stream_thread.start()
+
+    def _stop_water_stream(self):
+        self._water_stream_event.clear()
+
+    def _water_stream_loop(self):
+        while self._water_stream_event.is_set():
+            print("[CMD] SPLASH")
+            time.sleep(WATER_STREAM_INTERVAL)
+
+    def _send_led_update(self):
+        color_id, strength, light, transition = self._compute_led_state()
+        command = f"LED,{color_id},{strength},{light},{transition}"
+        if command == self._last_led_command:
+            return
+        self._last_led_command = command
+        print(f"[CMD] {command}")
+
+    def _compute_led_state(self) -> Tuple[int, int, int, int]:
+        color_name = self.get_active_color()
+        flash_mode = self.get_active_flash()
+        strength_mode = self.get_active_led_strength()
+        transition_mode = self.get_active_led_transition()
+
+        color_id = self._color_name_to_id(color_name)
+        strength = self._strength_mode_to_value(strength_mode, color_name)
+        light = self._flash_mode_to_value(flash_mode)
+        transition = self._transition_mode_to_value(transition_mode)
+        return color_id, strength, light, transition
+
+    def _color_name_to_id(self, color_name: Optional[str]) -> int:
+        if color_name is None:
+            return 11  # 消灯
+        color_map = {
+            "pink": 0,
+            "red": 1,
+            "orange": 2,
+            "yellow": 3,
+            "yellow_green": 4,
+            "green": 5,
+            "dark_green": 6,
+            "cyan": 7,
+            "blue": 8,
+            "purple": 9,
+            "white": 10,
+        }
+        return color_map.get(color_name, 11)
+
+    def _strength_mode_to_value(self, mode: Optional[str], color_name: Optional[str]) -> int:
+        if color_name is None:
+            return 0
+        if mode is None:
+            return 2  # デフォルト強
+        mapping = {
+            "off": 0,
+            "weak": 1,
+            "strong": 2,
+            "0": 0,
+            "1": 1,
+            "2": 2,
+        }
+        return mapping.get(mode, 2)
+
+    def _flash_mode_to_value(self, mode: Optional[str]) -> int:
+        if mode is None:
+            return 0
+        mapping = {
+            "steady": 0,
+            "blink": 1,
+            "breathe": 2,
+            "0": 0,
+            "1": 1,
+            "2": 2,
+        }
+        return mapping.get(mode, 0)
+
+    def _transition_mode_to_value(self, mode: Optional[str]) -> int:
+        if mode is None:
+            return 0
+        mapping = {
+            "instant": 0,
+            "fade": 1,
+            "0": 0,
+            "1": 1,
+        }
+        return mapping.get(mode, 0)
     
     def get_active_effects(self) -> List[str]:
         """現在アクティブな効果のリストを取得"""
@@ -298,11 +431,32 @@ class EffectController:
                 if effect == "flash":
                     return mode
             return None
+
+    def get_active_led_strength(self) -> Optional[str]:
+        """現在アクティブなLED強さを取得"""
+        with self.lock:
+            for (effect, mode) in self.active_effects.keys():
+                if effect == "led_strength":
+                    return mode
+            return None
+
+    def get_active_led_transition(self) -> Optional[str]:
+        """現在アクティブなLED変化を取得"""
+        with self.lock:
+            for (effect, mode) in self.active_effects.keys():
+                if effect == "led_transition":
+                    return mode
+            return None
     
     def is_wind_active(self) -> bool:
         """風がアクティブかどうか"""
         with self.lock:
             return ("wind", "burst") in self.active_effects
+
+    def is_effect_active(self, effect: str) -> bool:
+        """指定効果がアクティブかどうか（modeは問わない）"""
+        with self.lock:
+            return any(eff == effect for (eff, _mode) in self.active_effects.keys())
     
     def stop_all(self):
         """すべての効果を停止"""
@@ -311,6 +465,7 @@ class EffectController:
                 self._send_signal("STOP", effect, mode)
             self.active_effects.clear()
             self.shot_effects.clear()
+            self._stop_water_stream()
 
 # ===== タイムライン処理 =====
 class TimelinePlayer:
@@ -321,11 +476,13 @@ class TimelinePlayer:
             data = json.load(f)
         
         self.events = data.get("events", [])
+        self.event_times = []
         self.current_index = 0
         self.controller = EffectController()
         
         # イベントを時刻順にソート
         self.events.sort(key=lambda e: e.get("t", 0))
+        self.event_times = [e.get("t", 0) for e in self.events]
     
     def process_events_at_time(self, current_time: float, timing_offset: float = 0.0):
         """現在時刻に対応するイベントを処理"""
@@ -355,6 +512,15 @@ class TimelinePlayer:
                 self.controller.shot_effect(effect, mode, event_time)
             
             self.current_index += 1
+
+    def get_action_time_display(self, current_time: float) -> Optional[float]:
+        """JSONに記載された時刻から現在に近い値を取得"""
+        if not self.event_times:
+            return None
+        idx = bisect.bisect_right(self.event_times, current_time) - 1
+        if idx < 0:
+            return None
+        return self.event_times[idx]
     
     def reset(self):
         """タイムラインを最初から再生"""
@@ -463,6 +629,31 @@ def draw_vibration_icon(img: np.ndarray, x: int, y: int, size: int,
         cv2.line(img, (center_x - wave_width // 2, wave_center_y), 
                 (center_x + wave_width // 2, wave_center_y), (150, 150, 150), 1)
     
+    return img
+
+def get_color_bgr(color_name: Optional[str]) -> Optional[Tuple[int, int, int]]:
+    if not color_name:
+        return None
+    color_map = {
+        "pink": (203, 105, 255),
+        "red": (0, 0, 255),
+        "orange": (0, 100, 255),
+        "yellow": (0, 255, 255),
+        "yellow_green": (0, 255, 150),
+        "green": (0, 255, 0),
+        "dark_green": (0, 100, 0),
+        "cyan": (255, 255, 0),
+        "blue": (255, 0, 0),
+        "purple": (255, 0, 255),
+        "white": (255, 255, 255),
+    }
+    return color_map.get(color_name)
+
+def apply_color_border(img: np.ndarray, color_bgr: Tuple[int, int, int], thickness: int) -> np.ndarray:
+    if thickness <= 0:
+        return img
+    h, w = img.shape[:2]
+    cv2.rectangle(img, (0, 0), (w - 1, h - 1), color_bgr, thickness)
     return img
 
 def draw_water_icon(img: np.ndarray, x: int, y: int, size: int, 
@@ -602,7 +793,10 @@ def draw_effect_panel(img: np.ndarray, controller: EffectController, current_tim
     y_offset += 10
     y_offset = draw_section_header("WATER", y_offset)
     
-    water_active, water_start_time = controller.get_shot_effect_active("water", current_time)
+    water_stream = controller.is_effect_active("water")
+    water_shot, water_shot_time = controller.get_shot_effect_active("water", current_time)
+    water_active = water_stream or water_shot
+    water_start_time = water_shot_time if water_shot else None
     icon_size = 80
     icon_x = panel_x + 30
     draw_water_icon(img, icon_x, y_offset, icon_size, water_active, current_time, water_start_time)
@@ -613,6 +807,9 @@ def draw_effect_panel(img: np.ndarray, controller: EffectController, current_tim
         if water_start_time:
             cv2.putText(img, "SPLASH!", (icon_x + icon_size + 15, label_y + 20), 
                        cv2.FONT_HERSHEY_SIMPLEX, 0.5, (200, 230, 255), 1)
+        elif water_stream:
+            cv2.putText(img, "STREAM", (icon_x + icon_size + 15, label_y + 20),
+                       cv2.FONT_HERSHEY_SIMPLEX, 0.5, (200, 230, 255), 1)
     else:
         cv2.putText(img, "OFF", (icon_x + icon_size + 15, label_y), 
                    cv2.FONT_HERSHEY_SIMPLEX, 0.6, (120, 120, 120), 2)
@@ -622,7 +819,10 @@ def draw_effect_panel(img: np.ndarray, controller: EffectController, current_tim
     y_offset += 10
     y_offset = draw_section_header("MIST", y_offset)
     
-    mist_active, mist_start_time = controller.get_shot_effect_active("mist", current_time)
+    mist_stream = controller.is_effect_active("mist")
+    mist_shot, mist_shot_time = controller.get_shot_effect_active("mist", current_time)
+    mist_active = mist_stream or mist_shot
+    mist_start_time = mist_shot_time if mist_shot else None
     icon_size = 80
     icon_x = panel_x + 30
     draw_water_icon(img, icon_x, y_offset, icon_size, mist_active, current_time, mist_start_time)
@@ -632,6 +832,9 @@ def draw_effect_panel(img: np.ndarray, controller: EffectController, current_tim
                    cv2.FONT_HERSHEY_SIMPLEX, 0.6, (200, 200, 200), 2)
         if mist_start_time:
             cv2.putText(img, "MIST!", (icon_x + icon_size + 15, label_y + 20), 
+                       cv2.FONT_HERSHEY_SIMPLEX, 0.5, (220, 220, 220), 1)
+        elif mist_stream:
+            cv2.putText(img, "STREAM", (icon_x + icon_size + 15, label_y + 20),
                        cv2.FONT_HERSHEY_SIMPLEX, 0.5, (220, 220, 220), 1)
     else:
         cv2.putText(img, "OFF", (icon_x + icon_size + 15, label_y), 
@@ -648,20 +851,7 @@ def draw_effect_panel(img: np.ndarray, controller: EffectController, current_tim
     center_x, center_y = icon_x + icon_size // 2, y_offset + icon_size // 2
     
     if active_color:
-        color_map = {
-            "pink": (203, 105, 255),
-            "red": (0, 0, 255),
-            "orange": (0, 100, 255),
-            "yellow": (0, 255, 255),
-            "yellow_green": (0, 255, 150),
-            "green": (0, 255, 0),
-            "dark_green": (0, 100, 0),
-            "cyan": (255, 255, 0),
-            "blue": (255, 0, 0),
-            "purple": (255, 0, 255),
-            "white": (255, 255, 255),
-        }
-        color_bgr = color_map.get(active_color, (255, 255, 255))
+        color_bgr = get_color_bgr(active_color) or (255, 255, 255)
         overlay = img.copy()
         cv2.circle(overlay, (center_x, center_y), icon_size // 2, color_bgr, -1)
         cv2.addWeighted(overlay, 0.8, img, 0.2, 0, img)
@@ -787,7 +977,7 @@ def get_video_info(video_path: str):
         cap.release()
     return fps, total_frames, duration
 
-def playback_video(video_path: str):
+def playback_video(video_path: str, timeline_override: Optional[str] = None):
     """動画を再生しながら効果を発動"""
     
     # 動画ファイルの存在確認
@@ -795,14 +985,24 @@ def playback_video(video_path: str):
         raise FileNotFoundError(f"動画ファイルが見つかりません: {video_path}")
     
     # タイムラインJSONのパスを決定
-    video_name = Path(video_path).stem
-    timeline_path = os.path.join(RESULTS_DIR, f"{video_name}_timeline.json")
-    
+    if timeline_override:
+        timeline_path = timeline_override
+    else:
+        video_name = Path(video_path).stem
+        timeline_path = os.path.join(RESULTS_DIR, f"{video_name}_timeline.json")
+        if not os.path.exists(timeline_path):
+            editor_timeline_path = os.path.join(EDITOR_RESULTS_DIR, f"{video_name}_timeline.json")
+            if os.path.exists(editor_timeline_path):
+                timeline_path = editor_timeline_path
+            else:
+                raise FileNotFoundError(
+                    f"タイムラインファイルが見つかりません: {timeline_path}\n"
+                    f"先に解析モード (analyze_video_gemini.py) を実行するか、"
+                    f"エディタでJSONを作成してください。"
+                )
+
     if not os.path.exists(timeline_path):
-        raise FileNotFoundError(
-            f"タイムラインファイルが見つかりません: {timeline_path}\n"
-            f"先に解析モード (analyze_video.py) を実行してください。"
-        )
+        raise FileNotFoundError(f"タイムラインファイルが見つかりません: {timeline_path}")
     
     # タイムラインを読み込み
     player = TimelinePlayer(timeline_path)
@@ -820,6 +1020,7 @@ def playback_video(video_path: str):
     audio_playing = False
     audio_start_time = None
     audio_sound = None
+    audio_channel = None
     temp_audio_file = None
     
     print(f"\n🎬 動画再生開始！")
@@ -886,8 +1087,10 @@ def playback_video(video_path: str):
     paused = False
     start_time = time.time()
     pause_offset = 0.0
-    frame_delay = int(1000 / fps)
+    frame_delay = max(1, int(1000 / fps))
     last_table_update = 0.0
+    frame_index = 0
+    last_frame_time = 0.0
     
     # 音声再生開始
     if audio_sound:
@@ -897,6 +1100,7 @@ def playback_video(video_path: str):
             audio_start_time = time.time()
         except Exception as e:
             print(f"⚠️ 音声再生開始エラー: {e}")
+            audio_channel = None
     
     # 初期表示
     player.controller.print_status_table(0.0)
@@ -904,17 +1108,49 @@ def playback_video(video_path: str):
     try:
         while True:
             if not paused:
-                current_time = time.time() - start_time - pause_offset
-                
-                # 対応するフレームに移動
-                with suppress_stderr():
-                    target_frame = int(current_time * fps)
-                    cap.set(cv2.CAP_PROP_POS_FRAMES, target_frame)
-                    ret, frame = cap.read()
-                
-                if not ret or current_time > duration:
+                # 実時間（壁時計）に合わせて強制同期
+                wall_time = time.time() - start_time - pause_offset
+                if wall_time < 0:
+                    wall_time = 0.0
+
+                pos_msec = cap.get(cv2.CAP_PROP_POS_MSEC)
+                pos_time = (pos_msec / 1000.0) if pos_msec and pos_msec > 0 else None
+
+                # ずれが大きい場合はシークで補正
+                if pos_time is None or abs(pos_time - wall_time) > 0.12:
+                    with suppress_stderr():
+                        cap.set(cv2.CAP_PROP_POS_MSEC, wall_time * 1000.0)
+                        ret, frame = cap.read()
+                    if not ret:
+                        break
+                    frame_index = max(0, int(wall_time * fps))
+                else:
+                    desired_frame = int(wall_time * fps)
+                    if desired_frame < 0:
+                        desired_frame = 0
+                    if desired_frame <= frame_index:
+                        desired_frame = frame_index + 1
+
+                    # スキップ（grab）で追いつく
+                    while frame_index < desired_frame - 1:
+                        with suppress_stderr():
+                            if not cap.grab():
+                                break
+                        frame_index += 1
+
+                    with suppress_stderr():
+                        ret, frame = cap.read()
+                    if not ret:
+                        break
+                    frame_index += 1
+
+                # イベント基準は壁時計に固定
+                current_time = wall_time
+
+                last_frame_time = current_time
+                if current_time > duration:
                     break
-                
+
                 # タイムラインイベントを処理（オフセット適用）
                 player.process_events_at_time(current_time, TIMING_OFFSET)
                 
@@ -925,6 +1161,10 @@ def playback_video(video_path: str):
                 
                 # アクティブな効果を表示
                 display_frame = frame.copy()
+                active_color = player.controller.get_active_color()
+                color_bgr = get_color_bgr(active_color)
+                if color_bgr:
+                    apply_color_border(display_frame, color_bgr, COLOR_BORDER_THICKNESS)
                 
                 # 時刻表示
                 time_text = f"Time: {current_time:.2f}s / {duration:.2f}s"
@@ -932,6 +1172,16 @@ def playback_video(video_path: str):
                            cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255, 255, 255), 2)
                 cv2.putText(display_frame, time_text, (10, 30), 
                            cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 0, 0), 1)
+
+                # アクション時刻（JSONに記載された時間）
+                action_time = player.get_action_time_display(current_time)
+                action_time_text = "Action: --"
+                if action_time is not None:
+                    action_time_text = f"Action: {action_time:.2f}s"
+                cv2.putText(display_frame, action_time_text, (10, 55),
+                           cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255, 255, 255), 2)
+                cv2.putText(display_frame, action_time_text, (10, 55),
+                           cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 0, 0), 1)
                 
                 # 効果パネルを描画
                 frame_height, frame_width = display_frame.shape[:2]
@@ -960,6 +1210,8 @@ def playback_video(video_path: str):
             elif key == ord('r'):  # R
                 player.reset()
                 cap.set(cv2.CAP_PROP_POS_FRAMES, 0)
+                frame_index = 0
+                last_frame_time = 0.0
                 start_time = time.time()
                 pause_offset = 0.0
                 paused = False
@@ -969,6 +1221,7 @@ def playback_video(video_path: str):
                     try:
                         audio_channel = audio_sound.play(loops=0)
                         audio_start_time = time.time()
+                        audio_playing = True
                     except:
                         pass
     
@@ -1002,23 +1255,28 @@ if __name__ == "__main__":
     import sys
     
     if len(sys.argv) < 2:
-        print("使い方: python playback_video.py <動画ファイル>")
-        print(f"\n解析済み動画 ({RESULTS_DIR}/):")
+        print("使い方: python playback_video.py <動画ファイル> [タイムラインJSON]")
+        print(f"\n解析済み動画 ({RESULTS_DIR}/, {EDITOR_RESULTS_DIR}/):")
+        json_files = []
         if os.path.exists(RESULTS_DIR):
-            json_files = [f.replace('_timeline.json', '.mp4') 
-                         for f in os.listdir(RESULTS_DIR) if f.endswith('_timeline.json')]
-            if json_files:
-                for f in json_files:
-                    print(f"  - {f}")
-            else:
-                print(f"  （先に analyze_video.py を実行してください）")
+            json_files.extend([f.replace('_timeline.json', '.mp4') 
+                              for f in os.listdir(RESULTS_DIR) if f.endswith('_timeline.json')])
+        if os.path.exists(EDITOR_RESULTS_DIR):
+            json_files.extend([f.replace('_timeline.json', '.mp4') 
+                              for f in os.listdir(EDITOR_RESULTS_DIR) if f.endswith('_timeline.json')])
+        if json_files:
+            for f in json_files:
+                print(f"  - {f}")
+        else:
+            print("  （先に analyze_video_gemini.py を実行してください）")
         sys.exit(1)
     
     video_file = sys.argv[1]
+    timeline_file = sys.argv[2] if len(sys.argv) >= 3 else None
     
     # videosディレクトリ内のファイル名のみの場合はパスを追加
     if not os.path.exists(video_file) and os.path.exists(os.path.join(VIDEOS_DIR, video_file)):
         video_file = os.path.join(VIDEOS_DIR, video_file)
     
-    playback_video(video_file)
+    playback_video(video_file, timeline_override=timeline_file)
 

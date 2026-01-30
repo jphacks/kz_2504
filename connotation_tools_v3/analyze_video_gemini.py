@@ -2,7 +2,7 @@
 """
 【解析モード】ローカル動画シーン解析（MP4専用）- Gemini版
 - MP4動画ファイルを読み込み
-- 0.5秒間隔でフレームをスクリーンショット
+- 0.25秒間隔でフレームをスクリーンショット
 - Google Geminiで各フレームをキャプション化
 - 効果（光/風/水/色/衝撃）をJSON形式で出力
 
@@ -33,7 +33,8 @@ os.environ['OPENCV_LOG_LEVEL'] = 'FATAL'
 os.environ['OPENCV_FFMPEG_CAPTURE_OPTIONS'] = 'loglevel;fatal'
 os.environ['OPENCV_VIDEOIO_DEBUG'] = '0'
 warnings.filterwarnings('ignore')
-cv2.setLogLevel(0)
+if hasattr(cv2, "setLogLevel"):
+    cv2.setLogLevel(0)
 
 @contextlib.contextmanager
 def suppress_stderr():
@@ -61,7 +62,7 @@ PROMPT_NAME = "4dx_home_v3"     # 使用するプロンプト名（4DX@HOME 3世
 MAX_CONCURRENT_REQUESTS = 10     # 同時実行数の上限（Gemini APIの並列リクエスト数）
 
 # 直接書きたい場合はここにキー文字列を入れる（例: "AIza..."）。空文字なら無効。
-HARD_CODED_GEMINI_API_KEY = "/"
+HARD_CODED_GEMINI_API_KEY = "AIzaSyDuwGNfeAfoMcxwN2Ko2r3X7_3iyG0yQ7E"
 # 優先順: ハードコード > 環境変数
 GEMINI_API_KEY = HARD_CODED_GEMINI_API_KEY or os.getenv("GEMINI_API_KEY")
 
@@ -144,7 +145,7 @@ RULES = [
     
     # 爆発の瞬間
     (["爆発する瞬間","爆発の瞬間","爆発が発生","爆発した","explosion occurs","explodes","detonates"],
-     [("vibration","strong"), ("flash","burst"), ("color","red")]),
+     [("vibration","strong"), ("flash","blink"), ("color","red")]),
     
     # 着地の瞬間
     (["着地する瞬間","着地の瞬間","地面に叩きつけ","lands","touches down","hits ground"],
@@ -183,15 +184,15 @@ RULES = [
     # === 光の効果 ===
     # 雷（チカチカ）
     (["雷","稲妻","雷鳴","lightning","thunder"],
-     [("flash","strobe")]),
+     [("flash","blink")]),
     
     # 爆発（光 + 振動 + 炎の色）
     (["爆発","閃光","爆破","炸裂","explosion","explode","blast","detonation"],
-     [("flash","burst"), ("vibration","strong"), ("color","red")]),
+     [("flash","blink"), ("vibration","strong"), ("color","red")]),
     
     # 火花（光 + 振動）
     (["火花","スパーク","火の粉","spark","sparks","sparking"],
-     [("flash","burst"), ("vibration","strong")]),
+     [("flash","blink"), ("vibration","strong")]),
     
     # 炎が見える（光 + 振動 + 赤色）
     (["炎が見える","炎が上がる","燃えている","炎","flames","fire","burning"],
@@ -208,7 +209,7 @@ RULES = [
     
     # 継続的な風
     (["風","砂埃","煙","疾走","スピード","wind","dust","smoke","speed","fast"],
-     [("wind","long")]),
+     [("wind","burst")]),
     
     # === 水・飛沫 ===
     # 唾・息の飛沫
@@ -218,6 +219,10 @@ RULES = [
     # 水しぶき・波
     (["水","水しぶき","波","噴射","スプレー","濡れる","雨","汗","blood","water","splash","spray","wave","wet","rain"],
      [("water","burst")]),
+    
+    # === ミスト ===
+    (["霧","蒸気","煙","白い噴霧","mist","steam","fog","smoke"],
+     [("mist","burst")]),
     
     # === 色 ===
     (["赤","炎","火","オレンジ","血","red","flame","fire","orange","blood"],
@@ -448,26 +453,67 @@ def get_effect_display_name(effect: str, mode: str) -> str:
         "vibration:heartbeat": "💓ドキドキ",
         # 風・水・ミスト
         "wind:burst": "💨風",
+        "water:stream": "💦水（連続）",
         "water:burst": "💦水しぶき",
+        "mist:stream": "🌫️ミスト（連続）",
         "mist:burst": "🌫️ミスト",
+        # LED
+        "led_strength:off": "💡強さ:消灯",
+        "led_strength:weak": "💡強さ:弱",
+        "led_strength:strong": "💡強さ:強",
+        "led_transition:instant": "💡変化:一瞬",
+        "led_transition:fade": "💡変化:フェード",
     }
     return effect_names.get(f"{effect}:{mode}", f"{effect}:{mode}")
+
+def normalize_led_strength(mode) -> str:
+    """LED強さの正規化: 0/1/2 または off/weak/strong"""
+    mapping = {
+        0: "off",
+        1: "weak",
+        2: "strong",
+        "0": "off",
+        "1": "weak",
+        "2": "strong",
+        "off": "off",
+        "weak": "weak",
+        "strong": "strong",
+    }
+    return mapping.get(mode, "strong")
+
+def normalize_led_transition(mode) -> str:
+    """LED変化の正規化: 0/1 または instant/fade"""
+    mapping = {
+        0: "instant",
+        1: "fade",
+        "0": "instant",
+        "1": "fade",
+        "instant": "instant",
+        "fade": "fade",
+    }
+    return mapping.get(mode, "instant")
 
 def decide_effects_from_json(effects_dict: Dict) -> List[Tuple[str,str]]:
     """JSON形式の効果情報から効果リストを生成（4DX@HOME仕様）"""
     chosen: List[Tuple[str,str]] = []
     
     # 各効果タイプをチェック
-    for effect_type in ["flash", "color", "vibration", "water", "wind", "mist"]:
+    for effect_type in ["flash", "color", "vibration", "water", "wind", "mist", "led_strength", "led_transition"]:
         mode = effects_dict.get(effect_type)
         if mode and mode != "null" and mode is not None:
             # 互換モードの正規化
             if effect_type == "flash" and mode in ("slow_blink", "fast_blink"):
                 mode = "blink"
-            if effect_type in ("water", "wind", "mist") and mode == "on":
+            if effect_type in ("water", "mist") and mode in ("on", "long"):
+                mode = "stream"
+            if effect_type == "wind" and mode == "on":
                 mode = "burst"
             if effect_type == "color" and mode == "off":
                 continue
+            if effect_type == "led_strength":
+                mode = normalize_led_strength(mode)
+            if effect_type == "led_transition":
+                mode = normalize_led_transition(mode)
             chosen.append((effect_type, mode))
     
     return chosen
@@ -528,7 +574,9 @@ def decide_effects(caption: str, effects_dict: Dict = None) -> List[Tuple[str,st
             normalized.append((e, "down_strong"))
         elif e == "vibration" and m == "long":
             normalized.append((e, "down_mid_weak"))
-        elif e in ["water", "wind", "mist"] and m in ["on", "long"]:
+        elif e in ["water", "mist"] and m in ["on", "long"]:
+            normalized.append((e, "stream"))
+        elif e == "wind" and m == "on":
             normalized.append((e, "burst"))
         elif e == "color" and m == "off":
             continue
@@ -548,22 +596,22 @@ def diff_events(prev_eff: List[Tuple[str,str]], curr_eff: List[Tuple[str,str]], 
     """
     前回との差分で start/stop を生成（4DX@HOME仕様）
     最小継続時間を考慮して、短すぎる効果は継続させる
-    水・ミストは shot アクション、風は start/stop で制御
+    水・ミストは burst のみ shot、それ以外は start/stop で制御
     """
     events = []
     ps, cs = set(prev_eff), set(curr_eff)
     
-    # 水・ミストの効果を特別処理（一度きりの発射）
-    shot_effects = {eff for eff in (cs - ps) if eff[0] in ("water", "mist")}
+    # 水・ミストのburstは一度きりの発射
+    shot_effects = {eff for eff in (cs - ps) if eff[0] in ("water", "mist") and eff[1] == "burst"}
     for eff in shot_effects:
         events.append({"t": round(t,3), "action":"shot", "effect":eff[0], "mode":"burst"})
         # csから削除（start/stopの対象外）
         cs.discard(eff)
     
-    # 水以外の効果を処理
+    # shot以外の効果を処理
     # 停止候補の効果
     for eff in (ps - cs):
-        if eff[0] in ("water", "mist"):
+        if eff[0] in ("water", "mist") and eff[1] == "burst":
             continue  # shot は既に処理済み
         
         effect_key = f"{eff[0]}:{eff[1]}"
@@ -587,15 +635,15 @@ def diff_events(prev_eff: List[Tuple[str,str]], curr_eff: List[Tuple[str,str]], 
             # 継続させる
             cs.add(eff)
         else:
-        # 停止
-        events.append({"t": round(t,3), "action":"stop", "effect":eff[0], "mode":eff[1]})
+            # 停止
+            events.append({"t": round(t,3), "action":"stop", "effect":eff[0], "mode":eff[1]})
             # 開始時刻を削除
             if eff in effect_start_times:
                 del effect_start_times[eff]
     
-    # 新規開始の効果（水・ミスト以外）
+    # 新規開始の効果（shot以外）
     for eff in (cs - ps):
-        if eff[0] in ("water", "mist"):
+        if eff[0] in ("water", "mist") and eff[1] == "burst":
             continue  # shot は既に処理済み
         
         events.append({"t": round(t,3), "action":"start","effect":eff[0], "mode":eff[1]})
