@@ -64,26 +64,32 @@ class EffectController:
     
     def __init__(self):
         self.active_effects = {}
-        self.water_shots = {}  # 水の発射を一時的に表示: {key: (start_time, end_time)}
+        self.shot_effects = {}  # shot系の発射を一時的に表示: {key: (start_time, end_time)}
         self.lock = threading.Lock()
         
         # 全効果の定義（表示順）- 4DX@HOME仕様
         self.all_effects = [
             # 光
             ("flash", "steady", "💡 点灯"),
-            ("flash", "slow_blink", "💡 遅い点滅"),
-            ("flash", "fast_blink", "⚡ 早い点滅"),
+            ("flash", "blink", "⚡ 点滅"),
+            ("flash", "breathe", "💡 呼吸"),
             # 風
             ("wind", "burst", "💨 風"),
-            # 水
+            # 水・ミスト
             ("water", "burst", "💦 水しぶき"),
+            ("mist", "burst", "🌫️ ミスト"),
             # 色
+            ("color", "pink", "🩷 ピンク"),
             ("color", "red", "🔴 赤"),
-            ("color", "green", "🟢 緑"),
-            ("color", "blue", "🔵 青"),
+            ("color", "orange", "🟠 オレンジ"),
             ("color", "yellow", "🟡 黄色"),
+            ("color", "yellow_green", "🟢 黄緑"),
+            ("color", "green", "🟢 緑"),
+            ("color", "dark_green", "🟢 深緑"),
             ("color", "cyan", "🔷 シアン"),
+            ("color", "blue", "🔵 青"),
             ("color", "purple", "🟣 紫"),
+            ("color", "white", "⚪ 白"),
             # 振動（上=背中、下=おしり）
             ("vibration", "up_strong", "📳 上:強（背中）"),
             ("vibration", "up_mid_strong", "📳 上:中強（背中）"),
@@ -118,12 +124,12 @@ class EffectController:
             self._send_signal("STOP", effect, mode)
     
     def shot_effect(self, effect: str, mode: str, timestamp: float):
-        """効果を一度だけ発射（水専用）"""
+        """効果を一度だけ発射（shot系）"""
         with self.lock:
             key = (effect, mode)
             # 0.5秒間だけ表に表示
             end_time = timestamp + 0.5
-            self.water_shots[key] = (timestamp, end_time)
+            self.shot_effects[key] = (timestamp, end_time)
         self._send_signal("SHOT", effect, mode)
     
     def _get_effect_name(self, effect: str, mode: str) -> str:
@@ -131,19 +137,25 @@ class EffectController:
         effect_names = {
             # 光
             "flash:steady": "💡 点灯",
-            "flash:slow_blink": "💡 遅い点滅",
-            "flash:fast_blink": "⚡ 早い点滅",
+            "flash:blink": "⚡ 点滅",
+            "flash:breathe": "💡 呼吸",
             # 風
             "wind:burst": "💨 風",
-            # 水
+            # 水・ミスト
             "water:burst": "💦 水しぶき",
+            "mist:burst": "🌫️ ミスト",
             # 色
+            "color:pink": "🩷 ピンク",
             "color:red": "🔴 赤",
+            "color:orange": "🟠 オレンジ",
+            "color:yellow_green": "🟢 黄緑",
             "color:green": "🟢 緑",
+            "color:dark_green": "🟢 深緑",
             "color:blue": "🔵 青",
             "color:yellow": "🟡 黄色",
             "color:cyan": "🔷 シアン",
             "color:purple": "🟣 紫",
+            "color:white": "⚪ 白",
             # 振動
             "vibration:up_strong": "📳 上:強（背中）",
             "vibration:up_mid_strong": "📳 上:中強（背中）",
@@ -165,9 +177,9 @@ class EffectController:
         """現在の効果状態を表形式で表示"""
         with self.lock:
             # 期限切れの水shotを削除
-            expired_shots = [k for k, (start_time, end_time) in self.water_shots.items() if current_time > end_time]
+            expired_shots = [k for k, (start_time, end_time) in self.shot_effects.items() if current_time > end_time]
             for k in expired_shots:
-                del self.water_shots[k]
+                del self.shot_effects[k]
             
             # カーソルを上に移動して上書き表示
             # 前回の表示をクリア
@@ -190,8 +202,8 @@ class EffectController:
                     duration = current_time - start_time
                     status = "🟢 ON "
                     duration_str = f"{duration:.1f}秒"
-                # 水の発射（一時表示）
-                elif key in self.water_shots:
+                # shot系の発射（一時表示）
+                elif key in self.shot_effects:
                     status = "💧 発射"
                     duration_str = "一瞬"
                 else:
@@ -256,17 +268,19 @@ class EffectController:
             
             return up_intensity, down_intensity, special_mode
     
-    def get_water_shots_active(self, current_time: float) -> Tuple[bool, Optional[float]]:
-        """水が発射中かどうかと発射開始時刻を返す: (is_active, start_time)"""
+    def get_shot_effect_active(self, effect: str, current_time: float) -> Tuple[bool, Optional[float]]:
+        """指定のshotエフェクトが発射中かどうかと開始時刻を返す"""
         with self.lock:
-            expired_shots = [k for k, (start_time, end_time) in self.water_shots.items() if current_time > end_time]
+            expired_shots = [k for k, (start_time, end_time) in self.shot_effects.items() if current_time > end_time]
             for k in expired_shots:
-                del self.water_shots[k]
+                del self.shot_effects[k]
             
-            if len(self.water_shots) > 0:
-                # 最新の発射開始時刻を返す
-                start_times = [start_time for (start_time, end_time) in self.water_shots.values()]
-                return True, min(start_times) if start_times else None
+            start_times = [
+                start_time for (eff, _), (start_time, _end_time) in self.shot_effects.items()
+                if eff == effect
+            ]
+            if start_times:
+                return True, min(start_times)
             return False, None
     
     def get_active_color(self) -> Optional[str]:
@@ -296,7 +310,7 @@ class EffectController:
             for (effect, mode) in list(self.active_effects.keys()):
                 self._send_signal("STOP", effect, mode)
             self.active_effects.clear()
-            self.water_shots.clear()
+            self.shot_effects.clear()
 
 # ===== タイムライン処理 =====
 class TimelinePlayer:
@@ -588,7 +602,7 @@ def draw_effect_panel(img: np.ndarray, controller: EffectController, current_tim
     y_offset += 10
     y_offset = draw_section_header("WATER", y_offset)
     
-    water_active, water_start_time = controller.get_water_shots_active(current_time)
+    water_active, water_start_time = controller.get_shot_effect_active("water", current_time)
     icon_size = 80
     icon_x = panel_x + 30
     draw_water_icon(img, icon_x, y_offset, icon_size, water_active, current_time, water_start_time)
@@ -599,6 +613,26 @@ def draw_effect_panel(img: np.ndarray, controller: EffectController, current_tim
         if water_start_time:
             cv2.putText(img, "SPLASH!", (icon_x + icon_size + 15, label_y + 20), 
                        cv2.FONT_HERSHEY_SIMPLEX, 0.5, (200, 230, 255), 1)
+    else:
+        cv2.putText(img, "OFF", (icon_x + icon_size + 15, label_y), 
+                   cv2.FONT_HERSHEY_SIMPLEX, 0.6, (120, 120, 120), 2)
+    y_offset += icon_size + 20
+    
+    # ミストセクション
+    y_offset += 10
+    y_offset = draw_section_header("MIST", y_offset)
+    
+    mist_active, mist_start_time = controller.get_shot_effect_active("mist", current_time)
+    icon_size = 80
+    icon_x = panel_x + 30
+    draw_water_icon(img, icon_x, y_offset, icon_size, mist_active, current_time, mist_start_time)
+    label_y = y_offset + icon_size // 2
+    if mist_active:
+        cv2.putText(img, "ACTIVE", (icon_x + icon_size + 15, label_y), 
+                   cv2.FONT_HERSHEY_SIMPLEX, 0.6, (200, 200, 200), 2)
+        if mist_start_time:
+            cv2.putText(img, "MIST!", (icon_x + icon_size + 15, label_y + 20), 
+                       cv2.FONT_HERSHEY_SIMPLEX, 0.5, (220, 220, 220), 1)
     else:
         cv2.putText(img, "OFF", (icon_x + icon_size + 15, label_y), 
                    cv2.FONT_HERSHEY_SIMPLEX, 0.6, (120, 120, 120), 2)
@@ -615,12 +649,17 @@ def draw_effect_panel(img: np.ndarray, controller: EffectController, current_tim
     
     if active_color:
         color_map = {
+            "pink": (203, 105, 255),
             "red": (0, 0, 255),
-            "green": (0, 255, 0),
-            "blue": (255, 0, 0),
+            "orange": (0, 100, 255),
             "yellow": (0, 255, 255),
+            "yellow_green": (0, 255, 150),
+            "green": (0, 255, 0),
+            "dark_green": (0, 100, 0),
             "cyan": (255, 255, 0),
+            "blue": (255, 0, 0),
             "purple": (255, 0, 255),
+            "white": (255, 255, 255),
         }
         color_bgr = color_map.get(active_color, (255, 255, 255))
         overlay = img.copy()
@@ -653,12 +692,11 @@ def draw_effect_panel(img: np.ndarray, controller: EffectController, current_tim
     center_x, center_y = icon_x + icon_size // 2, y_offset + icon_size // 2
     
     if active_flash:
-        if active_flash == "fast_blink":
-            blink = int(current_time * 10) % 2
-            light_intensity = 255 if blink else 180
-        elif active_flash == "slow_blink":
-            blink = int(current_time * 2) % 2
-            light_intensity = 255 if blink else 180
+        if active_flash == "blink":
+            blink = int(current_time * 6) % 2
+            light_intensity = 255 if blink else 170
+        elif active_flash == "breathe":
+            light_intensity = int(180 + 60 * (1 + math.sin(current_time * 2.0)) / 2)
         else:  # steady
             light_intensity = 255
         overlay = img.copy()

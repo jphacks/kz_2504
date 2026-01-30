@@ -57,7 +57,7 @@ SAMPLE_INTERVAL = 0.25           # 0.25秒ごとにサンプリング（4DX@HOME
 BATCH_SIZE = 100                 # 一度に処理するフレーム数（4DX@HOME仕様、最大480枚まで対応可能）
 MODEL_NAME = "gemini-2.5-pro"    # Geminiモデル名（4DX@HOME仕様: gemini-2.5-pro固定）
 TARGET_WIDTH = 640               # API負荷軽減の縮小幅
-PROMPT_NAME = "4dx_home"        # 使用するプロンプト名（4DX@HOME専用プロンプト）
+PROMPT_NAME = "4dx_home_v3"     # 使用するプロンプト名（4DX@HOME 3世代目）
 MAX_CONCURRENT_REQUESTS = 10     # 同時実行数の上限（Gemini APIの並列リクエスト数）
 
 # 直接書きたい場合はここにキー文字列を入れる（例: "AIza..."）。空文字なら無効。
@@ -75,10 +75,12 @@ else:
 
 # ===== 効果ドメイン（4DX@HOME仕様）=====
 EFFECT_DOMAIN = {
-    "flash": ["steady", "slow_blink", "fast_blink"],  # 光: 点灯/遅い点滅/早い点滅
-    "wind": ["on"],                                    # 風: オン/オフ
-    "water": ["on"],                                   # 水しぶき: オン/オフ
-    "color": ["red", "green", "blue", "yellow", "cyan", "purple"],  # 色: 赤/緑/青/黄色/シアン/紫
+    "flash": ["steady", "blink", "breathe"],  # 光: 点灯/点滅/呼吸
+    "wind": ["burst"],                        # 風: burst
+    "color": [
+        "pink", "red", "orange", "yellow", "yellow_green", "green",
+        "dark_green", "cyan", "blue", "purple", "white"
+    ],  # 色: 12色（offは使用しない）
     "vibration": ["up_strong", "up_mid_strong", "up_mid_weak", "up_weak",  # 振動: 上の強/中強/中弱/弱（背中）
                   "down_strong", "down_mid_strong", "down_mid_weak", "down_weak",  # 下の強/中強/中弱/弱（おしり）
                   "up_down_strong", "up_down_mid_strong", "up_down_mid_weak", "up_down_weak",  # 上＆下同時（背中＆おしり、かなり強い）
@@ -104,22 +106,28 @@ MIN_DURATION = {
     
     # 光: 2-3秒程度ゆっくり変化（映像に合わせて）
     "flash:steady": 2.0,         # 点灯: 2秒以上
-    "flash:slow_blink": 2.0,     # 遅い点滅: 2秒以上
-    "flash:fast_blink": 1.0,     # 早い点滅: 1秒以上
+    "flash:blink": 1.0,          # 点滅: 1秒以上
+    "flash:breathe": 2.0,        # 呼吸: 2秒以上
     
     # 色: 2-3秒程度ゆっくり変化
+    "color:pink": 2.0,
     "color:red": 2.0,
-    "color:green": 2.0,
-    "color:blue": 2.0,
+    "color:orange": 2.0,
     "color:yellow": 2.0,
+    "color:yellow_green": 2.0,
+    "color:green": 2.0,
+    "color:dark_green": 2.0,
     "color:cyan": 2.0,
+    "color:blue": 2.0,
     "color:purple": 2.0,
+    "color:white": 2.0,
     
     # 風: 継続的に
-    "wind:on": 1.0,
+    "wind:burst": 1.0,
     
     # 水しぶき: 瞬間的
-    "water:on": 0.5,
+    "water:burst": 0.5,
+    "mist:burst": 0.5,
 }
 
 # ===== ルール: キャプション→効果（4DX@HOME仕様 - 新ルール）=====
@@ -414,15 +422,20 @@ def get_effect_display_name(effect: str, mode: str) -> str:
     effect_names = {
         # 光
         "flash:steady": "💡点灯",
-        "flash:slow_blink": "💡遅い点滅",
-        "flash:fast_blink": "⚡早い点滅",
+        "flash:blink": "⚡点滅",
+        "flash:breathe": "💡呼吸",
         # 色
+        "color:pink": "🩷ピンク",
         "color:red": "🔴赤",
-        "color:green": "🟢緑",
-        "color:blue": "🔵青",
+        "color:orange": "🟠オレンジ",
         "color:yellow": "🟡黄色",
+        "color:yellow_green": "🟢黄緑",
+        "color:green": "🟢緑",
+        "color:dark_green": "🟢深緑",
         "color:cyan": "🔷シアン",
+        "color:blue": "🔵青",
         "color:purple": "🟣紫",
+        "color:white": "⚪白",
         # 振動
         "vibration:up_strong": "📳上:強",
         "vibration:up_mid_strong": "📳上:中強",
@@ -433,9 +446,10 @@ def get_effect_display_name(effect: str, mode: str) -> str:
         "vibration:down_mid_weak": "📳下:中弱",
         "vibration:down_weak": "📳下:弱",
         "vibration:heartbeat": "💓ドキドキ",
-        # 風・水
-        "wind:on": "💨風",
-        "water:on": "💦水しぶき",
+        # 風・水・ミスト
+        "wind:burst": "💨風",
+        "water:burst": "💦水しぶき",
+        "mist:burst": "🌫️ミスト",
     }
     return effect_names.get(f"{effect}:{mode}", f"{effect}:{mode}")
 
@@ -444,16 +458,17 @@ def decide_effects_from_json(effects_dict: Dict) -> List[Tuple[str,str]]:
     chosen: List[Tuple[str,str]] = []
     
     # 各効果タイプをチェック
-    for effect_type in ["flash", "color", "vibration", "water", "wind"]:
+    for effect_type in ["flash", "color", "vibration", "water", "wind", "mist"]:
         mode = effects_dict.get(effect_type)
         if mode and mode != "null" and mode is not None:
-            # 水と風は内部で "on" として扱う（出力時に既存JSON形式に変換）
-            if effect_type == "water" and mode == "on":
-                chosen.append((effect_type, "on"))  # 内部処理用
-            elif effect_type == "wind" and mode == "on":
-                chosen.append((effect_type, "on"))  # 内部処理用、出力時に "burst" に変換
-            else:
-                chosen.append((effect_type, mode))
+            # 互換モードの正規化
+            if effect_type == "flash" and mode in ("slow_blink", "fast_blink"):
+                mode = "blink"
+            if effect_type in ("water", "wind", "mist") and mode == "on":
+                mode = "burst"
+            if effect_type == "color" and mode == "off":
+                continue
+            chosen.append((effect_type, mode))
     
     return chosen
 
@@ -504,6 +519,23 @@ def decide_effects(caption: str, effects_dict: Dict = None) -> List[Tuple[str,st
     if is_airborne and not is_riding:
         chosen = [(e, m) for e, m in chosen if not (e == "vibration" and m in ["long", "heartbeat"])]
     
+    # === モードの正規化（フォールバック用） ===
+    normalized: List[Tuple[str,str]] = []
+    for e, m in chosen:
+        if e == "flash" and m in ["strobe", "burst", "fast_blink", "slow_blink"]:
+            normalized.append((e, "blink"))
+        elif e == "vibration" and m == "strong":
+            normalized.append((e, "down_strong"))
+        elif e == "vibration" and m == "long":
+            normalized.append((e, "down_mid_weak"))
+        elif e in ["water", "wind", "mist"] and m in ["on", "long"]:
+            normalized.append((e, "burst"))
+        elif e == "color" and m == "off":
+            continue
+        else:
+            normalized.append((e, m))
+    chosen = normalized
+    
     # 重複除去
     seen, uniq = set(), []
     for e in chosen:
@@ -516,15 +548,14 @@ def diff_events(prev_eff: List[Tuple[str,str]], curr_eff: List[Tuple[str,str]], 
     """
     前回との差分で start/stop を生成（4DX@HOME仕様）
     最小継続時間を考慮して、短すぎる効果は継続させる
-    水は shot アクション、風は start/stop で制御（既存JSON形式に合わせる）
+    水・ミストは shot アクション、風は start/stop で制御
     """
     events = []
     ps, cs = set(prev_eff), set(curr_eff)
     
-    # 水の効果を特別処理（一度きりの発射 - 既存JSON形式に合わせる）
-    water_effects = {eff for eff in (cs - ps) if eff[0] == "water"}
-    for eff in water_effects:
-        # 水は "shot" アクションで一度だけ発火（既存JSON形式: "burst" モード）
+    # 水・ミストの効果を特別処理（一度きりの発射）
+    shot_effects = {eff for eff in (cs - ps) if eff[0] in ("water", "mist")}
+    for eff in shot_effects:
         events.append({"t": round(t,3), "action":"shot", "effect":eff[0], "mode":"burst"})
         # csから削除（start/stopの対象外）
         cs.discard(eff)
@@ -532,8 +563,8 @@ def diff_events(prev_eff: List[Tuple[str,str]], curr_eff: List[Tuple[str,str]], 
     # 水以外の効果を処理
     # 停止候補の効果
     for eff in (ps - cs):
-        if eff[0] == "water":
-            continue  # 水は既に処理済み
+        if eff[0] in ("water", "mist"):
+            continue  # shot は既に処理済み
         
         effect_key = f"{eff[0]}:{eff[1]}"
         start_time = effect_start_times.get(eff, 0.0)
@@ -545,7 +576,7 @@ def diff_events(prev_eff: List[Tuple[str,str]], curr_eff: List[Tuple[str,str]], 
         
         # 振動は複数のモードを同時に持てる
         # 光・色は上書き（同じタイプの別モードが来たら切り替え）
-        # 風は単一（on/off、既存JSON形式では "burst" モード）
+        # 風は単一（burst）
         can_coexist = (eff[0] == "vibration")
         
         # 上書きされたかどうか
@@ -556,26 +587,18 @@ def diff_events(prev_eff: List[Tuple[str,str]], curr_eff: List[Tuple[str,str]], 
             # 継続させる
             cs.add(eff)
         else:
-            # 停止（風の場合は "burst" モードに変換）
-            mode = eff[1]
-            if eff[0] == "wind" and mode == "on":
-                mode = "burst"  # 既存JSON形式に合わせる
-            events.append({"t": round(t,3), "action":"stop", "effect":eff[0], "mode":mode})
+        # 停止
+        events.append({"t": round(t,3), "action":"stop", "effect":eff[0], "mode":eff[1]})
             # 開始時刻を削除
             if eff in effect_start_times:
                 del effect_start_times[eff]
     
-    # 新規開始の効果（水以外）
+    # 新規開始の効果（水・ミスト以外）
     for eff in (cs - ps):
-        if eff[0] == "water":
-            continue  # 水は既に処理済み
+        if eff[0] in ("water", "mist"):
+            continue  # shot は既に処理済み
         
-        # 風の場合は "on" を "burst" に変換（既存JSON形式に合わせる）
-        mode = eff[1]
-        if eff[0] == "wind" and mode == "on":
-            mode = "burst"
-        
-        events.append({"t": round(t,3), "action":"start","effect":eff[0], "mode":mode})
+        events.append({"t": round(t,3), "action":"start","effect":eff[0], "mode":eff[1]})
         effect_start_times[eff] = t  # 開始時刻を記録
     
     return events, list(cs)
@@ -837,13 +860,11 @@ def analyze_video(video_path: str):
                     for e in events
                 )
                 if not already_stopped:
-                    # 風の場合は "on" を "burst" に変換（既存JSON形式に合わせる）
-                    output_mode = "burst" if (effect_type == "wind" and mode == "on") else mode
                     events.append({
                         "t": round(final_stop_time, 3),
                         "action": "stop",
                         "effect": effect_type,
-                        "mode": output_mode
+                        "mode": mode
                     })
     
     # 結果ディレクトリ作成
