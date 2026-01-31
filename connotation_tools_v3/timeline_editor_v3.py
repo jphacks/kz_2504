@@ -431,7 +431,7 @@ class EditorWindow(QMainWindow):
         help_text = (
             "<b>[←/→]</b>: 移動 | <b>[Shift+←/→]</b>: 10コマ移動 | <b>[PgUp/PgDn]</b>: 1秒移動<br>"
             "<b>[↓]</b>: 再生/停止 | <b>[R]</b>: 最初から | <b>[Enter/Ctrl+S]</b>: 保存<br>"
-            "<b>[W]</b>: 風 | <b>[M]</b>: 水(開始/停止) | <b>[Shift+M]</b>: 水(一瞬)<br>"
+            "<b>[W]</b>: 風 | <b>[M]</b>: 水(一瞬・shot)<br>"
             "<b>[F]</b>: ミスト(開始/停止) | <b>[Shift+F]</b>: ミスト(一瞬)<br>"
             "<b>[Z/X/C/V]</b>: 背中(弱/中弱/中強/強) | <b>[A/S/D/G]</b>: お尻(弱/中弱/中強/強)<br>"
             "<b>[Shift+Z/X/C/V]</b>: 上下同時(弱/中弱/中強/強) | <b>[H]</b>: ドキドキ<br>"
@@ -798,10 +798,8 @@ class EditorWindow(QMainWindow):
             self.update_display()
         elif key == Qt.Key.Key_W:
             self.toggle_wind()
-        elif key == Qt.Key.Key_M and mods & Qt.KeyboardModifier.ShiftModifier:
-            self.toggle_shot("water")
         elif key == Qt.Key.Key_M:
-            self.toggle_stream("water")
+            self.toggle_shot("water")
         elif key == Qt.Key.Key_F and mods & Qt.KeyboardModifier.ShiftModifier:
             self.toggle_shot("mist")
         elif key == Qt.Key.Key_F:
@@ -897,8 +895,7 @@ class EditorWindow(QMainWindow):
             curr_effects = set()
             if d.wind:
                 curr_effects.add(("wind", "burst"))
-            if d.water_on:
-                curr_effects.add(("water", "stream"))
+            # 水の stream（開始/停止）は出力しない。水は shot のみ。
             if d.mist_on:
                 curr_effects.add(("mist", "stream"))
             if d.flash:
