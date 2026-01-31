@@ -1,6 +1,11 @@
 {
   "events": [
     {
+      "t": 0.0,
+      "action": "caption",
+      "text": "ここで始まり"
+    },
+    {
       "t": 1.0,
       "action": "caption",
       "text": "車を運転しながら、男が無線機に向かって「急げ！」と叫ぶ。その表情には焦りと緊迫感が滲み出ており、一刻を争う事態であることが伝わってくる。"
@@ -3111,6 +3116,11 @@
     },
     {
       "t": 149.75,
+      "action": "caption",
+      "text": "ここで終わり"
+    },
+    {
+      "t": 149.75,
       "action": "stop",
       "effect": "vibration",
       "mode": "up_mid_weak"
@@ -3122,6 +3132,11 @@
       "mode": "up_weak"
     },
     {
+      "t": 150.0,
+      "action": "caption",
+      "text": "彼の視線は鋭く、状況を的確に判断しようとしている。高速で流れる背景が、レースの激しさを物語る。"
+    },
+    {
       "t": 150.5,
       "action": "stop",
       "effect": "vibration",
@@ -3132,6 +3147,11 @@
       "action": "start",
       "effect": "vibration",
       "mode": "up_mid_weak"
+    },
+    {
+      "t": 151.25,
+      "action": "caption",
+      "text": "１５１.５"
     },
     {
       "t": 151.25,
@@ -3144,6 +3164,11 @@
       "action": "start",
       "effect": "vibration",
       "mode": "up_mid_strong"
+    },
+    {
+      "t": 151.5,
+      "action": "caption",
+      "text": "彼の視線は鋭く、状況を的確に判断しようとしている。高速で流れる背景が、レースの激しさを物語る。"
     },
     {
       "t": 151.5,
