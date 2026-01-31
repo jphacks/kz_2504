@@ -13,18 +13,24 @@ from PyQt6.QtWidgets import (
 from PyQt6.QtCore import Qt, QTimer
 from PyQt6.QtGui import QPixmap
 
-# --- ライブラリインポート (エラー処理付き) ---
+# --- ライブラリインポート (librosa/moviepy はオプション: 無くてもエディタは起動、音声メトリクスだけ無効) ---
+LIBROSA_AVAILABLE = False
+MOVIEPY_AVAILABLE = False
 try:
     import librosa
-    # MoviePy v2.x / v1.x 両対応
+    LIBROSA_AVAILABLE = True
+except ImportError:
+    print("⚠️ librosa がありません。音声メトリクス（音量・ベース等）は無効です。")
+try:
     try:
         from moviepy import VideoFileClip
     except ImportError:
         from moviepy.editor import VideoFileClip
-except ImportError as e:
-    print(f"エラー: 必要なライブラリが見つかりません ({e})。")
-    print("pip install librosa moviepy numpy を実行してください。")
-    sys.exit(1)
+    MOVIEPY_AVAILABLE = True
+except ImportError:
+    print("⚠️ moviepy がありません。音声メトリクスは無効です。")
+if not (LIBROSA_AVAILABLE and MOVIEPY_AVAILABLE):
+    print("   → エディタは使えます。音声解析を使う場合は: brew install cmake のあと pip install librosa moviepy")
 
 # --- 設定・定数 ---
 SCRIPT_DIR = Path(__file__).parent.absolute()
@@ -237,6 +243,9 @@ class VideoProcessor:
 
     def _analyze_audio_advanced(self):
         print("音声詳細解析中 (Librosa使用)... これには時間がかかります")
+        if not (LIBROSA_AVAILABLE and MOVIEPY_AVAILABLE):
+            self._fill_empty_metrics(len(self.frame_paths))
+            return
         try:
             temp_wav = "temp_audio.wav"
             clip = VideoFileClip(self.video_path)
