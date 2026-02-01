@@ -2,7 +2,14 @@
 
 # 4DX@HOME - あなたのおうちで「最高の映像」が「最強の体験」へ。
 
+[![Android App (技育博)](https://img.shields.io/badge/Android_App-Android_版はこちら-0078d4?style=for-the-badge&logo=github)](https://github.com/wildcard-project/4d-at-home-android)
+
+※現在は Android アプリとして継続開発中です
+
+---
+
 <div align="center">
+  <br>
 
   [![4DX@HOME デモ動画](https://img.youtube.com/vi/t1n5mQZU_nM/maxresdefault.jpg)](https://youtu.be/t1n5mQZU_nM)
   
