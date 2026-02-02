@@ -97,7 +97,7 @@
 **必須フィールド:**
 - `t` (float): 時刻（秒）
 - `action` (string): `"shot"`
-- `effect` (string): 効果タイプ（通常は`"water"` / `"mist"`）
+- `effect` (string): 効果タイプ（例: `"water"` / `"mist"` / `"led_strength"` / `"led_transition"`）
 - `mode` (string): 効果モード（通常は`"burst"`）
 
 **例:**
@@ -180,6 +180,9 @@
 
 色の効果を制御します。一度に1つの色のみ有効です（新しい色を開始すると、前の色は自動的に停止されます）。
 
+**【変更】** LED制御コマンドは `color` と `flash`、`led_strength`、`led_transition` を組み合わせて送信されます。
+消灯は `color` を停止するか、`led_strength` を `off` にします（専用の消灯コマンドは不要です）。
+
 **利用可能なモード（mode）:**
 - `pink`: ピンク
 - `red`: 赤
@@ -208,12 +211,15 @@
 
 ### 4. `water` - 水
 
-水しぶきの効果を制御します。通常は`shot`アクションで一度だけ発射します。
+水しぶきの効果を制御します。
+
+**【変更】** `water`は`start`/`stop`にも対応しました。
 
 **利用可能なモード（mode）:**
 - `burst`: 水しぶき（一度きりの発射）
+- `stream`: 水（連続噴射）
 
-**使用例:**
+**使用例（shot）:**
 ```json
 {
   "t": 3.0,
@@ -223,7 +229,74 @@
 }
 ```
 
-**注意:** `water`は通常`shot`アクションでのみ使用します。`start`/`stop`は使用しません。
+**使用例（start/stop）:**
+```json
+{
+  "t": 3.0,
+  "action": "start",
+  "effect": "water",
+  "mode": "stream"
+}
+```
+```json
+{
+  "t": 5.0,
+  "action": "stop",
+  "effect": "water",
+  "mode": "stream"
+}
+```
+
+**注意:** `burst`は`shot`、`stream`は`start`/`stop`で使用します。
+
+---
+
+### 4.5 `led_strength` - LED強さ
+
+LEDの明るさ（強さ）を制御します。
+
+**【変更】** LED制御コマンドに対応しました。
+
+**利用可能なモード（mode）:**
+- `off`: 消灯（0）
+- `weak`: 弱（20%）
+- `strong`: 強（100%）
+
+**使用例:**
+```json
+{
+  "t": 3.0,
+  "action": "start",
+  "effect": "led_strength",
+  "mode": "weak"
+}
+```
+
+**注意:** 明示しない場合は `strong` 扱いになります。
+
+---
+
+### 4.6 `led_transition` - LED変化
+
+LEDの色変化方法を制御します。
+
+**【変更】** LED制御コマンドに対応しました。
+
+**利用可能なモード（mode）:**
+- `instant`: 一瞬（パッと変わる）
+- `fade`: フェード（フワッと変わる）
+
+**使用例:**
+```json
+{
+  "t": 3.0,
+  "action": "start",
+  "effect": "led_transition",
+  "mode": "fade"
+}
+```
+
+**注意:** 明示しない場合は `instant` 扱いになります。
 
 ---
 
@@ -248,12 +321,15 @@
 
 ### 6. `mist` - ミスト
 
-ミスト（霧・蒸気・煙・白い噴霧）の効果を制御します。通常は`shot`アクションで一度だけ発射します。
+ミスト（霧・蒸気・煙・白い噴霧）の効果を制御します。
+
+**【変更】** `mist`は`start`/`stop`にも対応しました。
 
 **利用可能なモード（mode）:**
 - `burst`: ミスト噴射（一度きりの発射）
+- `stream`: ミスト（連続噴射）
 
-**使用例:**
+**使用例（shot）:**
 ```json
 {
   "t": 2.0,
@@ -263,7 +339,25 @@
 }
 ```
 
-**注意:** `mist`は通常`shot`アクションでのみ使用します。`start`/`stop`は使用しません。
+**使用例（start/stop）:**
+```json
+{
+  "t": 2.0,
+  "action": "start",
+  "effect": "mist",
+  "mode": "stream"
+}
+```
+```json
+{
+  "t": 4.0,
+  "action": "stop",
+  "effect": "mist",
+  "mode": "stream"
+}
+```
+
+**注意:** `burst`は`shot`、`stream`は`start`/`stop`で使用します。
 
 ---
 
@@ -424,9 +518,32 @@
 | `color` | `blue` | 青 | `start`/`stop` |
 | `color` | `purple` | 紫 | `start`/`stop` |
 | `color` | `white` | 白 | `start`/`stop` |
+| `led_strength` | `off` | LED消灯 | `start`/`stop` |
+| `led_strength` | `weak` | LED弱 | `start`/`stop` |
+| `led_strength` | `strong` | LED強 | `start`/`stop` |
+| `led_transition` | `instant` | 変化:一瞬 | `start`/`stop` |
+| `led_transition` | `fade` | 変化:フェード | `start`/`stop` |
 | `water` | `burst` | 水しぶき | `shot` |
+| `water` | `stream` | 水（連続噴射） | `start`/`stop` |
 | `wind` | `burst` | 風 | `start`/`stop` |
 | `mist` | `burst` | ミスト | `shot` |
+| `mist` | `stream` | ミスト（連続噴射） | `start`/`stop` |
+
+---
+
+## 🛰️ デバイスコマンド対応（【変更】）
+
+本システムは以下のコマンド形式に対応します（`playback_video.py` 内で送信）。
+
+- `FAN,1` / `FAN,0` : 風 ON/OFF（`wind:burst` の `start/stop`）
+- `SPLASH` : 水しぶき一発（`water:burst` の `shot`）
+- `MIST,1` : ミスト一瞬（`mist:burst` の `shot`）
+- `MIST,2` / `MIST,0` : ミスト継続 ON/OFF（`mist:stream` の `start/stop`）
+- `LED,色,強さ,光り方,変化` : LED制御（`color` / `flash` / `led_strength` / `led_transition`）
+
+**補足:**
+- `water:stream` は `SPLASH` を一定間隔で連射します。
+- 消灯は `color` 停止 or `led_strength:off` で表現します（専用コマンド不要）。
 
 ---
 
