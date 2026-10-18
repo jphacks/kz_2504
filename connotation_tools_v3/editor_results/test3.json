@@ -1,0 +1,3508 @@
+{
+  "events": [
+    {
+      "t": 0.0,
+      "action": "start",
+      "effect": "vibration",
+      "mode": "down_weak"
+    },
+    {
+      "t": 1.0,
+      "action": "start",
+      "effect": "wind",
+      "mode": "burst"
+    },
+    {
+      "t": 1.0,
+      "action": "stop",
+      "effect": "vibration",
+      "mode": "down_weak"
+    },
+    {
+      "t": 2.75,
+      "action": "start",
+      "effect": "vibration",
+      "mode": "down_weak"
+    },
+    {
+      "t": 2.75,
+      "action": "stop",
+      "effect": "wind",
+      "mode": "burst"
+    },
+    {
+      "t": 4.75,
+      "action": "stop",
+      "effect": "vibration",
+      "mode": "down_weak"
+    },
+    {
+      "t": 5.0,
+      "action": "start",
+      "effect": "vibration",
+      "mode": "down_mid_strong"
+    },
+    {
+      "t": 5.25,
+      "action": "start",
+      "effect": "vibration",
+      "mode": "down_weak"
+    },
+    {
+      "t": 5.25,
+      "action": "stop",
+      "effect": "vibration",
+      "mode": "down_mid_strong"
+    },
+    {
+      "t": 5.5,
+      "action": "start",
+      "effect": "vibration",
+      "mode": "down_mid_weak"
+    },
+    {
+      "t": 5.5,
+      "action": "stop",
+      "effect": "vibration",
+      "mode": "down_weak"
+    },
+    {
+      "t": 5.75,
+      "action": "start",
+      "effect": "vibration",
+      "mode": "down_weak"
+    },
+    {
+      "t": 5.75,
+      "action": "stop",
+      "effect": "vibration",
+      "mode": "down_mid_weak"
+    },
+    {
+      "t": 6.25,
+      "action": "stop",
+      "effect": "vibration",
+      "mode": "down_weak"
+    },
+    {
+      "t": 6.75,
+      "action": "start",
+      "effect": "vibration",
+      "mode": "down_weak"
+    },
+    {
+      "t": 8.0,
+      "action": "start",
+      "effect": "vibration",
+      "mode": "down_mid_weak"
+    },
+    {
+      "t": 8.0,
+      "action": "stop",
+      "effect": "vibration",
+      "mode": "down_weak"
+    },
+    {
+      "t": 8.25,
+      "action": "stop",
+      "effect": "vibration",
+      "mode": "down_mid_weak"
+    },
+    {
+      "t": 8.5,
+      "action": "start",
+      "effect": "vibration",
+      "mode": "down_mid_weak"
+    },
+    {
+      "t": 9.0,
+      "action": "stop",
+      "effect": "vibration",
+      "mode": "down_mid_weak"
+    },
+    {
+      "t": 9.75,
+      "action": "start",
+      "effect": "vibration",
+      "mode": "down_weak"
+    },
+    {
+      "t": 11.25,
+      "action": "start",
+      "effect": "vibration",
+      "mode": "down_strong"
+    },
+    {
+      "t": 11.25,
+      "action": "stop",
+      "effect": "vibration",
+      "mode": "down_weak"
+    },
+    {
+      "t": 11.5,
+      "action": "start",
+      "effect": "vibration",
+      "mode": "up_strong"
+    },
+    {
+      "t": 11.75,
+      "action": "start",
+      "effect": "vibration",
+      "mode": "down_weak"
+    },
+    {
+      "t": 11.75,
+      "action": "stop",
+      "effect": "vibration",
+      "mode": "down_strong"
+    },
+    {
+      "t": 12.0,
+      "action": "start",
+      "effect": "vibration",
+      "mode": "up_mid_strong"
+    },
+    {
+      "t": 12.0,
+      "action": "stop",
+      "effect": "vibration",
+      "mode": "up_strong"
+    },
+    {
+      "t": 12.25,
+      "action": "start",
+      "effect": "vibration",
+      "mode": "down_strong"
+    },
+    {
+      "t": 12.25,
+      "action": "start",
+      "effect": "vibration",
+      "mode": "up_strong"
+    },
+    {
+      "t": 12.25,
+      "action": "stop",
+      "effect": "vibration",
+      "mode": "down_weak"
+    },
+    {
+      "t": 12.25,
+      "action": "stop",
+      "effect": "vibration",
+      "mode": "up_mid_strong"
+    },
+    {
+      "t": 12.5,
+      "action": "stop",
+      "effect": "vibration",
+      "mode": "down_strong"
+    },
+    {
+      "t": 12.5,
+      "action": "stop",
+      "effect": "vibration",
+      "mode": "up_strong"
+    },
+    {
+      "t": 12.75,
+      "action": "start",
+      "effect": "vibration",
+      "mode": "down_weak"
+    },
+    {
+      "t": 14.0,
+      "action": "start",
+      "effect": "vibration",
+      "mode": "down_mid_weak"
+    },
+    {
+      "t": 14.0,
+      "action": "stop",
+      "effect": "vibration",
+      "mode": "down_weak"
+    },
+    {
+      "t": 14.5,
+      "action": "start",
+      "effect": "vibration",
+      "mode": "down_weak"
+    },
+    {
+      "t": 14.5,
+      "action": "stop",
+      "effect": "vibration",
+      "mode": "down_mid_weak"
+    },
+    {
+      "t": 15.25,
+      "action": "start",
+      "effect": "vibration",
+      "mode": "down_mid_weak"
+    },
+    {
+      "t": 15.25,
+      "action": "stop",
+      "effect": "vibration",
+      "mode": "down_weak"
+    },
+    {
+      "t": 15.5,
+      "action": "start",
+      "effect": "vibration",
+      "mode": "down_weak"
+    },
+    {
+      "t": 15.5,
+      "action": "stop",
+      "effect": "vibration",
+      "mode": "down_mid_weak"
+    },
+    {
+      "t": 16.25,
+      "action": "stop",
+      "effect": "vibration",
+      "mode": "down_weak"
+    },
+    {
+      "t": 22.75,
+      "action": "start",
+      "effect": "vibration",
+      "mode": "down_strong"
+    },
+    {
+      "t": 23.0,
+      "action": "start",
+      "effect": "vibration",
+      "mode": "up_mid_weak"
+    },
+    {
+      "t": 23.25,
+      "action": "start",
+      "effect": "vibration",
+      "mode": "down_weak"
+    },
+    {
+      "t": 23.25,
+      "action": "start",
+      "effect": "vibration",
+      "mode": "up_mid_strong"
+    },
+    {
+      "t": 23.25,
+      "action": "stop",
+      "effect": "vibration",
+      "mode": "down_strong"
+    },
+    {
+      "t": 23.25,
+      "action": "stop",
+      "effect": "vibration",
+      "mode": "up_mid_weak"
+    },
+    {
+      "t": 23.75,
+      "action": "start",
+      "effect": "vibration",
+      "mode": "down_strong"
+    },
+    {
+      "t": 23.75,
+      "action": "start",
+      "effect": "vibration",
+      "mode": "up_weak"
+    },
+    {
+      "t": 23.75,
+      "action": "stop",
+      "effect": "vibration",
+      "mode": "down_weak"
+    },
+    {
+      "t": 23.75,
+      "action": "stop",
+      "effect": "vibration",
+      "mode": "up_mid_strong"
+    },
+    {
+      "t": 24.25,
+      "action": "start",
+      "effect": "vibration",
+      "mode": "down_mid_strong"
+    },
+    {
+      "t": 24.25,
+      "action": "start",
+      "effect": "vibration",
+      "mode": "up_mid_weak"
+    },
+    {
+      "t": 24.25,
+      "action": "stop",
+      "effect": "vibration",
+      "mode": "down_strong"
+    },
+    {
+      "t": 24.25,
+      "action": "stop",
+      "effect": "vibration",
+      "mode": "up_weak"
+    },
+    {
+      "t": 24.5,
+      "action": "start",
+      "effect": "vibration",
+      "mode": "down_mid_weak"
+    },
+    {
+      "t": 24.5,
+      "action": "start",
+      "effect": "vibration",
+      "mode": "up_mid_strong"
+    },
+    {
+      "t": 24.5,
+      "action": "stop",
+      "effect": "vibration",
+      "mode": "down_mid_strong"
+    },
+    {
+      "t": 24.5,
+      "action": "stop",
+      "effect": "vibration",
+      "mode": "up_mid_weak"
+    },
+    {
+      "t": 24.75,
+      "action": "start",
+      "effect": "vibration",
+      "mode": "down_mid_strong"
+    },
+    {
+      "t": 24.75,
+      "action": "stop",
+      "effect": "vibration",
+      "mode": "down_mid_weak"
+    },
+    {
+      "t": 25.0,
+      "action": "start",
+      "effect": "vibration",
+      "mode": "down_strong"
+    },
+    {
+      "t": 25.0,
+      "action": "start",
+      "effect": "vibration",
+      "mode": "up_mid_weak"
+    },
+    {
+      "t": 25.0,
+      "action": "stop",
+      "effect": "vibration",
+      "mode": "down_mid_strong"
+    },
+    {
+      "t": 25.0,
+      "action": "stop",
+      "effect": "vibration",
+      "mode": "up_mid_strong"
+    },
+    {
+      "t": 25.25,
+      "action": "start",
+      "effect": "vibration",
+      "mode": "down_mid_weak"
+    },
+    {
+      "t": 25.25,
+      "action": "start",
+      "effect": "vibration",
+      "mode": "up_strong"
+    },
+    {
+      "t": 25.25,
+      "action": "stop",
+      "effect": "vibration",
+      "mode": "down_strong"
+    },
+    {
+      "t": 25.25,
+      "action": "stop",
+      "effect": "vibration",
+      "mode": "up_mid_weak"
+    },
+    {
+      "t": 25.5,
+      "action": "start",
+      "effect": "vibration",
+      "mode": "down_mid_strong"
+    },
+    {
+      "t": 25.5,
+      "action": "start",
+      "effect": "vibration",
+      "mode": "up_mid_weak"
+    },
+    {
+      "t": 25.5,
+      "action": "stop",
+      "effect": "vibration",
+      "mode": "down_mid_weak"
+    },
+    {
+      "t": 25.5,
+      "action": "stop",
+      "effect": "vibration",
+      "mode": "up_strong"
+    },
+    {
+      "t": 25.75,
+      "action": "start",
+      "effect": "vibration",
+      "mode": "up_weak"
+    },
+    {
+      "t": 25.75,
+      "action": "stop",
+      "effect": "vibration",
+      "mode": "up_mid_weak"
+    },
+    {
+      "t": 26.0,
+      "action": "start",
+      "effect": "vibration",
+      "mode": "down_mid_weak"
+    },
+    {
+      "t": 26.0,
+      "action": "stop",
+      "effect": "vibration",
+      "mode": "down_mid_strong"
+    },
+    {
+      "t": 26.25,
+      "action": "start",
+      "effect": "vibration",
+      "mode": "down_weak"
+    },
+    {
+      "t": 26.25,
+      "action": "stop",
+      "effect": "vibration",
+      "mode": "down_mid_weak"
+    },
+    {
+      "t": 26.25,
+      "action": "stop",
+      "effect": "vibration",
+      "mode": "up_weak"
+    },
+    {
+      "t": 26.5,
+      "action": "start",
+      "effect": "vibration",
+      "mode": "down_mid_weak"
+    },
+    {
+      "t": 26.5,
+      "action": "stop",
+      "effect": "vibration",
+      "mode": "down_weak"
+    },
+    {
+      "t": 26.75,
+      "action": "start",
+      "effect": "vibration",
+      "mode": "down_mid_strong"
+    },
+    {
+      "t": 26.75,
+      "action": "stop",
+      "effect": "vibration",
+      "mode": "down_mid_weak"
+    },
+    {
+      "t": 27.0,
+      "action": "start",
+      "effect": "vibration",
+      "mode": "down_mid_weak"
+    },
+    {
+      "t": 27.0,
+      "action": "stop",
+      "effect": "vibration",
+      "mode": "down_mid_strong"
+    },
+    {
+      "t": 27.25,
+      "action": "stop",
+      "effect": "vibration",
+      "mode": "down_mid_weak"
+    },
+    {
+      "t": 27.5,
+      "action": "start",
+      "effect": "vibration",
+      "mode": "up_mid_weak"
+    },
+    {
+      "t": 27.75,
+      "action": "start",
+      "effect": "vibration",
+      "mode": "down_mid_weak"
+    },
+    {
+      "t": 28.0,
+      "action": "start",
+      "effect": "vibration",
+      "mode": "down_weak"
+    },
+    {
+      "t": 28.0,
+      "action": "stop",
+      "effect": "vibration",
+      "mode": "down_mid_weak"
+    },
+    {
+      "t": 28.25,
+      "action": "stop",
+      "effect": "vibration",
+      "mode": "down_weak"
+    },
+    {
+      "t": 28.25,
+      "action": "stop",
+      "effect": "vibration",
+      "mode": "up_mid_weak"
+    },
+    {
+      "t": 28.5,
+      "action": "start",
+      "effect": "color",
+      "mode": "orange"
+    },
+    {
+      "t": 28.5,
+      "action": "start",
+      "effect": "flash",
+      "mode": "steady"
+    },
+    {
+      "t": 28.5,
+      "action": "start",
+      "effect": "mist",
+      "mode": "stream"
+    },
+    {
+      "t": 28.5,
+      "action": "start",
+      "effect": "vibration",
+      "mode": "down_strong"
+    },
+    {
+      "t": 28.5,
+      "action": "start",
+      "effect": "vibration",
+      "mode": "up_strong"
+    },
+    {
+      "t": 28.5,
+      "action": "start",
+      "effect": "wind",
+      "mode": "burst"
+    },
+    {
+      "t": 29.25,
+      "action": "start",
+      "effect": "color",
+      "mode": "red"
+    },
+    {
+      "t": 29.25,
+      "action": "stop",
+      "effect": "color",
+      "mode": "orange"
+    },
+    {
+      "t": 29.5,
+      "action": "start",
+      "effect": "color",
+      "mode": "yellow"
+    },
+    {
+      "t": 29.5,
+      "action": "stop",
+      "effect": "color",
+      "mode": "red"
+    },
+    {
+      "t": 29.75,
+      "action": "start",
+      "effect": "color",
+      "mode": "orange"
+    },
+    {
+      "t": 29.75,
+      "action": "stop",
+      "effect": "color",
+      "mode": "yellow"
+    },
+    {
+      "t": 30.25,
+      "action": "start",
+      "effect": "vibration",
+      "mode": "down_mid_strong"
+    },
+    {
+      "t": 30.25,
+      "action": "start",
+      "effect": "vibration",
+      "mode": "up_mid_strong"
+    },
+    {
+      "t": 30.25,
+      "action": "stop",
+      "effect": "vibration",
+      "mode": "down_strong"
+    },
+    {
+      "t": 30.25,
+      "action": "stop",
+      "effect": "vibration",
+      "mode": "up_strong"
+    },
+    {
+      "t": 30.25,
+      "action": "stop",
+      "effect": "wind",
+      "mode": "burst"
+    },
+    {
+      "t": 30.75,
+      "action": "start",
+      "effect": "vibration",
+      "mode": "down_mid_weak"
+    },
+    {
+      "t": 30.75,
+      "action": "stop",
+      "effect": "vibration",
+      "mode": "down_mid_strong"
+    },
+    {
+      "t": 31.0,
+      "action": "start",
+      "effect": "vibration",
+      "mode": "down_mid_strong"
+    },
+    {
+      "t": 31.0,
+      "action": "stop",
+      "effect": "vibration",
+      "mode": "down_mid_weak"
+    },
+    {
+      "t": 31.75,
+      "action": "start",
+      "effect": "vibration",
+      "mode": "down_weak"
+    },
+    {
+      "t": 31.75,
+      "action": "start",
+      "effect": "vibration",
+      "mode": "up_weak"
+    },
+    {
+      "t": 31.75,
+      "action": "stop",
+      "effect": "color",
+      "mode": "orange"
+    },
+    {
+      "t": 31.75,
+      "action": "stop",
+      "effect": "flash",
+      "mode": "steady"
+    },
+    {
+      "t": 31.75,
+      "action": "stop",
+      "effect": "mist",
+      "mode": "stream"
+    },
+    {
+      "t": 31.75,
+      "action": "stop",
+      "effect": "vibration",
+      "mode": "down_mid_strong"
+    },
+    {
+      "t": 31.75,
+      "action": "stop",
+      "effect": "vibration",
+      "mode": "up_mid_strong"
+    },
+    {
+      "t": 32.0,
+      "action": "stop",
+      "effect": "vibration",
+      "mode": "up_weak"
+    },
+    {
+      "t": 32.25,
+      "action": "start",
+      "effect": "vibration",
+      "mode": "down_strong"
+    },
+    {
+      "t": 32.25,
+      "action": "start",
+      "effect": "vibration",
+      "mode": "up_strong"
+    },
+    {
+      "t": 32.25,
+      "action": "stop",
+      "effect": "vibration",
+      "mode": "down_weak"
+    },
+    {
+      "t": 32.75,
+      "action": "start",
+      "effect": "vibration",
+      "mode": "down_mid_strong"
+    },
+    {
+      "t": 32.75,
+      "action": "stop",
+      "effect": "vibration",
+      "mode": "down_strong"
+    },
+    {
+      "t": 33.0,
+      "action": "start",
+      "effect": "vibration",
+      "mode": "down_strong"
+    },
+    {
+      "t": 33.0,
+      "action": "stop",
+      "effect": "vibration",
+      "mode": "down_mid_strong"
+    },
+    {
+      "t": 33.0,
+      "action": "stop",
+      "effect": "vibration",
+      "mode": "up_strong"
+    },
+    {
+      "t": 33.25,
+      "action": "start",
+      "effect": "vibration",
+      "mode": "down_weak"
+    },
+    {
+      "t": 33.25,
+      "action": "stop",
+      "effect": "vibration",
+      "mode": "down_strong"
+    },
+    {
+      "t": 33.75,
+      "action": "stop",
+      "effect": "vibration",
+      "mode": "down_weak"
+    },
+    {
+      "t": 34.0,
+      "action": "start",
+      "effect": "vibration",
+      "mode": "up_strong"
+    },
+    {
+      "t": 34.25,
+      "action": "stop",
+      "effect": "vibration",
+      "mode": "up_strong"
+    },
+    {
+      "t": 36.0,
+      "action": "shot",
+      "effect": "water",
+      "mode": "burst"
+    },
+    {
+      "t": 36.0,
+      "action": "start",
+      "effect": "mist",
+      "mode": "stream"
+    },
+    {
+      "t": 36.0,
+      "action": "start",
+      "effect": "vibration",
+      "mode": "down_mid_strong"
+    },
+    {
+      "t": 36.25,
+      "action": "start",
+      "effect": "vibration",
+      "mode": "up_mid_weak"
+    },
+    {
+      "t": 36.5,
+      "action": "start",
+      "effect": "color",
+      "mode": "white"
+    },
+    {
+      "t": 36.5,
+      "action": "start",
+      "effect": "vibration",
+      "mode": "up_mid_strong"
+    },
+    {
+      "t": 36.5,
+      "action": "stop",
+      "effect": "vibration",
+      "mode": "up_mid_weak"
+    },
+    {
+      "t": 36.75,
+      "action": "start",
+      "effect": "flash",
+      "mode": "steady"
+    },
+    {
+      "t": 36.75,
+      "action": "stop",
+      "effect": "vibration",
+      "mode": "down_mid_strong"
+    },
+    {
+      "t": 36.75,
+      "action": "stop",
+      "effect": "vibration",
+      "mode": "up_mid_strong"
+    },
+    {
+      "t": 38.5,
+      "action": "start",
+      "effect": "wind",
+      "mode": "burst"
+    },
+    {
+      "t": 38.5,
+      "action": "stop",
+      "effect": "flash",
+      "mode": "steady"
+    },
+    {
+      "t": 38.75,
+      "action": "start",
+      "effect": "vibration",
+      "mode": "down_weak"
+    },
+    {
+      "t": 40.25,
+      "action": "stop",
+      "effect": "color",
+      "mode": "white"
+    },
+    {
+      "t": 40.25,
+      "action": "stop",
+      "effect": "mist",
+      "mode": "stream"
+    },
+    {
+      "t": 40.25,
+      "action": "stop",
+      "effect": "vibration",
+      "mode": "down_weak"
+    },
+    {
+      "t": 40.25,
+      "action": "stop",
+      "effect": "wind",
+      "mode": "burst"
+    },
+    {
+      "t": 44.5,
+      "action": "start",
+      "effect": "vibration",
+      "mode": "down_weak"
+    },
+    {
+      "t": 45.25,
+      "action": "start",
+      "effect": "vibration",
+      "mode": "down_mid_weak"
+    },
+    {
+      "t": 45.25,
+      "action": "stop",
+      "effect": "vibration",
+      "mode": "down_weak"
+    },
+    {
+      "t": 45.75,
+      "action": "start",
+      "effect": "vibration",
+      "mode": "down_weak"
+    },
+    {
+      "t": 45.75,
+      "action": "stop",
+      "effect": "vibration",
+      "mode": "down_mid_weak"
+    },
+    {
+      "t": 46.0,
+      "action": "start",
+      "effect": "vibration",
+      "mode": "up_mid_weak"
+    },
+    {
+      "t": 46.25,
+      "action": "start",
+      "effect": "vibration",
+      "mode": "up_strong"
+    },
+    {
+      "t": 46.25,
+      "action": "stop",
+      "effect": "vibration",
+      "mode": "up_mid_weak"
+    },
+    {
+      "t": 46.5,
+      "action": "stop",
+      "effect": "vibration",
+      "mode": "down_weak"
+    },
+    {
+      "t": 46.75,
+      "action": "stop",
+      "effect": "vibration",
+      "mode": "up_strong"
+    },
+    {
+      "t": 47.0,
+      "action": "shot",
+      "effect": "water",
+      "mode": "burst"
+    },
+    {
+      "t": 47.0,
+      "action": "start",
+      "effect": "color",
+      "mode": "dark_green"
+    },
+    {
+      "t": 47.0,
+      "action": "start",
+      "effect": "flash",
+      "mode": "steady"
+    },
+    {
+      "t": 47.0,
+      "action": "start",
+      "effect": "mist",
+      "mode": "stream"
+    },
+    {
+      "t": 49.5,
+      "action": "stop",
+      "effect": "color",
+      "mode": "dark_green"
+    },
+    {
+      "t": 49.5,
+      "action": "stop",
+      "effect": "flash",
+      "mode": "steady"
+    },
+    {
+      "t": 49.5,
+      "action": "stop",
+      "effect": "mist",
+      "mode": "stream"
+    },
+    {
+      "t": 50.0,
+      "action": "start",
+      "effect": "color",
+      "mode": "cyan"
+    },
+    {
+      "t": 50.0,
+      "action": "start",
+      "effect": "flash",
+      "mode": "steady"
+    },
+    {
+      "t": 53.0,
+      "action": "stop",
+      "effect": "color",
+      "mode": "cyan"
+    },
+    {
+      "t": 53.0,
+      "action": "stop",
+      "effect": "flash",
+      "mode": "steady"
+    },
+    {
+      "t": 53.75,
+      "action": "start",
+      "effect": "vibration",
+      "mode": "down_mid_strong"
+    },
+    {
+      "t": 54.0,
+      "action": "start",
+      "effect": "vibration",
+      "mode": "up_mid_weak"
+    },
+    {
+      "t": 54.25,
+      "action": "start",
+      "effect": "vibration",
+      "mode": "down_mid_weak"
+    },
+    {
+      "t": 54.25,
+      "action": "start",
+      "effect": "vibration",
+      "mode": "up_mid_strong"
+    },
+    {
+      "t": 54.25,
+      "action": "stop",
+      "effect": "vibration",
+      "mode": "down_mid_strong"
+    },
+    {
+      "t": 54.25,
+      "action": "stop",
+      "effect": "vibration",
+      "mode": "up_mid_weak"
+    },
+    {
+      "t": 54.75,
+      "action": "start",
+      "effect": "vibration",
+      "mode": "up_mid_weak"
+    },
+    {
+      "t": 54.75,
+      "action": "stop",
+      "effect": "vibration",
+      "mode": "up_mid_strong"
+    },
+    {
+      "t": 55.0,
+      "action": "start",
+      "effect": "vibration",
+      "mode": "down_weak"
+    },
+    {
+      "t": 55.0,
+      "action": "stop",
+      "effect": "vibration",
+      "mode": "down_mid_weak"
+    },
+    {
+      "t": 55.25,
+      "action": "start",
+      "effect": "vibration",
+      "mode": "up_strong"
+    },
+    {
+      "t": 55.25,
+      "action": "stop",
+      "effect": "vibration",
+      "mode": "up_mid_weak"
+    },
+    {
+      "t": 55.5,
+      "action": "start",
+      "effect": "vibration",
+      "mode": "down_mid_strong"
+    },
+    {
+      "t": 55.5,
+      "action": "stop",
+      "effect": "vibration",
+      "mode": "down_weak"
+    },
+    {
+      "t": 56.0,
+      "action": "start",
+      "effect": "vibration",
+      "mode": "up_weak"
+    },
+    {
+      "t": 56.0,
+      "action": "stop",
+      "effect": "vibration",
+      "mode": "up_strong"
+    },
+    {
+      "t": 56.25,
+      "action": "start",
+      "effect": "vibration",
+      "mode": "up_mid_weak"
+    },
+    {
+      "t": 56.25,
+      "action": "stop",
+      "effect": "vibration",
+      "mode": "up_weak"
+    },
+    {
+      "t": 56.75,
+      "action": "start",
+      "effect": "vibration",
+      "mode": "down_mid_weak"
+    },
+    {
+      "t": 56.75,
+      "action": "stop",
+      "effect": "vibration",
+      "mode": "down_mid_strong"
+    },
+    {
+      "t": 56.75,
+      "action": "stop",
+      "effect": "vibration",
+      "mode": "up_mid_weak"
+    },
+    {
+      "t": 57.0,
+      "action": "stop",
+      "effect": "vibration",
+      "mode": "down_mid_weak"
+    },
+    {
+      "t": 58.25,
+      "action": "start",
+      "effect": "vibration",
+      "mode": "down_weak"
+    },
+    {
+      "t": 60.0,
+      "action": "stop",
+      "effect": "vibration",
+      "mode": "down_weak"
+    },
+    {
+      "t": 60.5,
+      "action": "start",
+      "effect": "color",
+      "mode": "yellow"
+    },
+    {
+      "t": 60.5,
+      "action": "start",
+      "effect": "flash",
+      "mode": "steady"
+    },
+    {
+      "t": 60.5,
+      "action": "start",
+      "effect": "vibration",
+      "mode": "up_strong"
+    },
+    {
+      "t": 60.75,
+      "action": "start",
+      "effect": "color",
+      "mode": "orange"
+    },
+    {
+      "t": 60.75,
+      "action": "start",
+      "effect": "vibration",
+      "mode": "down_strong"
+    },
+    {
+      "t": 60.75,
+      "action": "stop",
+      "effect": "color",
+      "mode": "yellow"
+    },
+    {
+      "t": 61.25,
+      "action": "start",
+      "effect": "vibration",
+      "mode": "up_mid_weak"
+    },
+    {
+      "t": 61.25,
+      "action": "stop",
+      "effect": "vibration",
+      "mode": "up_strong"
+    },
+    {
+      "t": 61.75,
+      "action": "start",
+      "effect": "vibration",
+      "mode": "up_mid_strong"
+    },
+    {
+      "t": 61.75,
+      "action": "stop",
+      "effect": "vibration",
+      "mode": "up_mid_weak"
+    },
+    {
+      "t": 62.25,
+      "action": "stop",
+      "effect": "color",
+      "mode": "orange"
+    },
+    {
+      "t": 62.25,
+      "action": "stop",
+      "effect": "flash",
+      "mode": "steady"
+    },
+    {
+      "t": 62.5,
+      "action": "start",
+      "effect": "vibration",
+      "mode": "down_weak"
+    },
+    {
+      "t": 62.5,
+      "action": "stop",
+      "effect": "vibration",
+      "mode": "down_strong"
+    },
+    {
+      "t": 62.5,
+      "action": "stop",
+      "effect": "vibration",
+      "mode": "up_mid_strong"
+    },
+    {
+      "t": 62.75,
+      "action": "start",
+      "effect": "color",
+      "mode": "green"
+    },
+    {
+      "t": 62.75,
+      "action": "start",
+      "effect": "flash",
+      "mode": "breathe"
+    },
+    {
+      "t": 62.75,
+      "action": "start",
+      "effect": "vibration",
+      "mode": "heartbeat"
+    },
+    {
+      "t": 62.75,
+      "action": "stop",
+      "effect": "vibration",
+      "mode": "down_weak"
+    },
+    {
+      "t": 63.0,
+      "action": "start",
+      "effect": "color",
+      "mode": "yellow_green"
+    },
+    {
+      "t": 63.0,
+      "action": "stop",
+      "effect": "color",
+      "mode": "green"
+    },
+    {
+      "t": 63.25,
+      "action": "start",
+      "effect": "color",
+      "mode": "red"
+    },
+    {
+      "t": 63.25,
+      "action": "stop",
+      "effect": "color",
+      "mode": "yellow_green"
+    },
+    {
+      "t": 63.5,
+      "action": "start",
+      "effect": "color",
+      "mode": "blue"
+    },
+    {
+      "t": 63.5,
+      "action": "stop",
+      "effect": "color",
+      "mode": "red"
+    },
+    {
+      "t": 63.75,
+      "action": "start",
+      "effect": "color",
+      "mode": "yellow_green"
+    },
+    {
+      "t": 63.75,
+      "action": "stop",
+      "effect": "color",
+      "mode": "blue"
+    },
+    {
+      "t": 64.0,
+      "action": "start",
+      "effect": "color",
+      "mode": "purple"
+    },
+    {
+      "t": 64.0,
+      "action": "stop",
+      "effect": "color",
+      "mode": "yellow_green"
+    },
+    {
+      "t": 64.5,
+      "action": "start",
+      "effect": "color",
+      "mode": "orange"
+    },
+    {
+      "t": 64.5,
+      "action": "stop",
+      "effect": "color",
+      "mode": "purple"
+    },
+    {
+      "t": 65.0,
+      "action": "start",
+      "effect": "color",
+      "mode": "red"
+    },
+    {
+      "t": 65.0,
+      "action": "stop",
+      "effect": "color",
+      "mode": "orange"
+    },
+    {
+      "t": 65.5,
+      "action": "start",
+      "effect": "color",
+      "mode": "blue"
+    },
+    {
+      "t": 65.5,
+      "action": "stop",
+      "effect": "color",
+      "mode": "red"
+    },
+    {
+      "t": 65.75,
+      "action": "start",
+      "effect": "color",
+      "mode": "yellow_green"
+    },
+    {
+      "t": 65.75,
+      "action": "stop",
+      "effect": "color",
+      "mode": "blue"
+    },
+    {
+      "t": 66.5,
+      "action": "start",
+      "effect": "color",
+      "mode": "purple"
+    },
+    {
+      "t": 66.5,
+      "action": "stop",
+      "effect": "color",
+      "mode": "yellow_green"
+    },
+    {
+      "t": 66.75,
+      "action": "start",
+      "effect": "color",
+      "mode": "dark_green"
+    },
+    {
+      "t": 66.75,
+      "action": "stop",
+      "effect": "color",
+      "mode": "purple"
+    },
+    {
+      "t": 67.25,
+      "action": "start",
+      "effect": "color",
+      "mode": "cyan"
+    },
+    {
+      "t": 67.25,
+      "action": "stop",
+      "effect": "color",
+      "mode": "dark_green"
+    },
+    {
+      "t": 67.75,
+      "action": "start",
+      "effect": "color",
+      "mode": "yellow"
+    },
+    {
+      "t": 67.75,
+      "action": "stop",
+      "effect": "color",
+      "mode": "cyan"
+    },
+    {
+      "t": 68.5,
+      "action": "start",
+      "effect": "color",
+      "mode": "blue"
+    },
+    {
+      "t": 68.5,
+      "action": "stop",
+      "effect": "color",
+      "mode": "yellow"
+    },
+    {
+      "t": 69.0,
+      "action": "start",
+      "effect": "color",
+      "mode": "red"
+    },
+    {
+      "t": 69.0,
+      "action": "stop",
+      "effect": "color",
+      "mode": "blue"
+    },
+    {
+      "t": 69.75,
+      "action": "start",
+      "effect": "color",
+      "mode": "green"
+    },
+    {
+      "t": 69.75,
+      "action": "stop",
+      "effect": "color",
+      "mode": "red"
+    },
+    {
+      "t": 70.75,
+      "action": "start",
+      "effect": "color",
+      "mode": "red"
+    },
+    {
+      "t": 70.75,
+      "action": "stop",
+      "effect": "color",
+      "mode": "green"
+    },
+    {
+      "t": 71.5,
+      "action": "start",
+      "effect": "color",
+      "mode": "purple"
+    },
+    {
+      "t": 71.5,
+      "action": "stop",
+      "effect": "color",
+      "mode": "red"
+    },
+    {
+      "t": 72.25,
+      "action": "start",
+      "effect": "color",
+      "mode": "yellow"
+    },
+    {
+      "t": 72.25,
+      "action": "stop",
+      "effect": "color",
+      "mode": "purple"
+    },
+    {
+      "t": 72.5,
+      "action": "stop",
+      "effect": "color",
+      "mode": "yellow"
+    },
+    {
+      "t": 72.5,
+      "action": "stop",
+      "effect": "flash",
+      "mode": "breathe"
+    },
+    {
+      "t": 72.5,
+      "action": "stop",
+      "effect": "vibration",
+      "mode": "heartbeat"
+    },
+    {
+      "t": 77.0,
+      "action": "start",
+      "effect": "color",
+      "mode": "blue"
+    },
+    {
+      "t": 77.0,
+      "action": "start",
+      "effect": "flash",
+      "mode": "steady"
+    },
+    {
+      "t": 77.0,
+      "action": "start",
+      "effect": "vibration",
+      "mode": "down_mid_strong"
+    },
+    {
+      "t": 77.25,
+      "action": "start",
+      "effect": "vibration",
+      "mode": "down_mid_weak"
+    },
+    {
+      "t": 77.25,
+      "action": "stop",
+      "effect": "vibration",
+      "mode": "down_mid_strong"
+    },
+    {
+      "t": 77.5,
+      "action": "start",
+      "effect": "vibration",
+      "mode": "up_mid_weak"
+    },
+    {
+      "t": 77.5,
+      "action": "stop",
+      "effect": "flash",
+      "mode": "steady"
+    },
+    {
+      "t": 77.75,
+      "action": "start",
+      "effect": "vibration",
+      "mode": "down_mid_strong"
+    },
+    {
+      "t": 77.75,
+      "action": "stop",
+      "effect": "vibration",
+      "mode": "down_mid_weak"
+    },
+    {
+      "t": 78.0,
+      "action": "start",
+      "effect": "vibration",
+      "mode": "down_weak"
+    },
+    {
+      "t": 78.0,
+      "action": "stop",
+      "effect": "vibration",
+      "mode": "down_mid_strong"
+    },
+    {
+      "t": 78.25,
+      "action": "start",
+      "effect": "flash",
+      "mode": "steady"
+    },
+    {
+      "t": 78.25,
+      "action": "start",
+      "effect": "vibration",
+      "mode": "down_strong"
+    },
+    {
+      "t": 78.25,
+      "action": "stop",
+      "effect": "vibration",
+      "mode": "down_weak"
+    },
+    {
+      "t": 78.5,
+      "action": "start",
+      "effect": "mist",
+      "mode": "stream"
+    },
+    {
+      "t": 78.5,
+      "action": "start",
+      "effect": "vibration",
+      "mode": "down_weak"
+    },
+    {
+      "t": 78.5,
+      "action": "stop",
+      "effect": "vibration",
+      "mode": "down_strong"
+    },
+    {
+      "t": 78.5,
+      "action": "stop",
+      "effect": "vibration",
+      "mode": "up_mid_weak"
+    },
+    {
+      "t": 78.75,
+      "action": "start",
+      "effect": "vibration",
+      "mode": "down_strong"
+    },
+    {
+      "t": 78.75,
+      "action": "start",
+      "effect": "vibration",
+      "mode": "up_mid_strong"
+    },
+    {
+      "t": 78.75,
+      "action": "stop",
+      "effect": "flash",
+      "mode": "steady"
+    },
+    {
+      "t": 78.75,
+      "action": "stop",
+      "effect": "vibration",
+      "mode": "down_weak"
+    },
+    {
+      "t": 79.0,
+      "action": "start",
+      "effect": "flash",
+      "mode": "steady"
+    },
+    {
+      "t": 79.0,
+      "action": "start",
+      "effect": "vibration",
+      "mode": "down_weak"
+    },
+    {
+      "t": 79.0,
+      "action": "start",
+      "effect": "vibration",
+      "mode": "up_mid_weak"
+    },
+    {
+      "t": 79.0,
+      "action": "stop",
+      "effect": "vibration",
+      "mode": "down_strong"
+    },
+    {
+      "t": 79.0,
+      "action": "stop",
+      "effect": "vibration",
+      "mode": "up_mid_strong"
+    },
+    {
+      "t": 79.25,
+      "action": "start",
+      "effect": "vibration",
+      "mode": "down_strong"
+    },
+    {
+      "t": 79.25,
+      "action": "start",
+      "effect": "vibration",
+      "mode": "up_strong"
+    },
+    {
+      "t": 79.25,
+      "action": "stop",
+      "effect": "vibration",
+      "mode": "down_weak"
+    },
+    {
+      "t": 79.25,
+      "action": "stop",
+      "effect": "vibration",
+      "mode": "up_mid_weak"
+    },
+    {
+      "t": 79.5,
+      "action": "start",
+      "effect": "vibration",
+      "mode": "down_weak"
+    },
+    {
+      "t": 79.5,
+      "action": "stop",
+      "effect": "vibration",
+      "mode": "down_strong"
+    },
+    {
+      "t": 79.75,
+      "action": "start",
+      "effect": "vibration",
+      "mode": "up_mid_weak"
+    },
+    {
+      "t": 79.75,
+      "action": "stop",
+      "effect": "vibration",
+      "mode": "up_strong"
+    },
+    {
+      "t": 80.0,
+      "action": "start",
+      "effect": "vibration",
+      "mode": "up_mid_strong"
+    },
+    {
+      "t": 80.0,
+      "action": "stop",
+      "effect": "vibration",
+      "mode": "down_weak"
+    },
+    {
+      "t": 80.0,
+      "action": "stop",
+      "effect": "vibration",
+      "mode": "up_mid_weak"
+    },
+    {
+      "t": 80.25,
+      "action": "start",
+      "effect": "vibration",
+      "mode": "down_strong"
+    },
+    {
+      "t": 80.5,
+      "action": "start",
+      "effect": "vibration",
+      "mode": "up_strong"
+    },
+    {
+      "t": 80.5,
+      "action": "stop",
+      "effect": "vibration",
+      "mode": "up_mid_strong"
+    },
+    {
+      "t": 80.75,
+      "action": "start",
+      "effect": "vibration",
+      "mode": "up_mid_weak"
+    },
+    {
+      "t": 80.75,
+      "action": "stop",
+      "effect": "flash",
+      "mode": "steady"
+    },
+    {
+      "t": 80.75,
+      "action": "stop",
+      "effect": "vibration",
+      "mode": "up_strong"
+    },
+    {
+      "t": 81.0,
+      "action": "start",
+      "effect": "flash",
+      "mode": "breathe"
+    },
+    {
+      "t": 81.0,
+      "action": "start",
+      "effect": "vibration",
+      "mode": "up_mid_strong"
+    },
+    {
+      "t": 81.0,
+      "action": "stop",
+      "effect": "vibration",
+      "mode": "down_strong"
+    },
+    {
+      "t": 81.0,
+      "action": "stop",
+      "effect": "vibration",
+      "mode": "up_mid_weak"
+    },
+    {
+      "t": 81.25,
+      "action": "start",
+      "effect": "flash",
+      "mode": "steady"
+    },
+    {
+      "t": 81.25,
+      "action": "start",
+      "effect": "vibration",
+      "mode": "up_mid_weak"
+    },
+    {
+      "t": 81.25,
+      "action": "stop",
+      "effect": "flash",
+      "mode": "breathe"
+    },
+    {
+      "t": 81.25,
+      "action": "stop",
+      "effect": "vibration",
+      "mode": "up_mid_strong"
+    },
+    {
+      "t": 81.5,
+      "action": "start",
+      "effect": "vibration",
+      "mode": "up_strong"
+    },
+    {
+      "t": 81.5,
+      "action": "stop",
+      "effect": "vibration",
+      "mode": "up_mid_weak"
+    },
+    {
+      "t": 81.75,
+      "action": "start",
+      "effect": "vibration",
+      "mode": "down_mid_strong"
+    },
+    {
+      "t": 82.0,
+      "action": "start",
+      "effect": "vibration",
+      "mode": "up_mid_strong"
+    },
+    {
+      "t": 82.0,
+      "action": "stop",
+      "effect": "vibration",
+      "mode": "down_mid_strong"
+    },
+    {
+      "t": 82.0,
+      "action": "stop",
+      "effect": "vibration",
+      "mode": "up_strong"
+    },
+    {
+      "t": 82.25,
+      "action": "start",
+      "effect": "vibration",
+      "mode": "up_mid_weak"
+    },
+    {
+      "t": 82.25,
+      "action": "stop",
+      "effect": "vibration",
+      "mode": "up_mid_strong"
+    },
+    {
+      "t": 82.5,
+      "action": "start",
+      "effect": "vibration",
+      "mode": "down_mid_weak"
+    },
+    {
+      "t": 82.5,
+      "action": "start",
+      "effect": "vibration",
+      "mode": "up_weak"
+    },
+    {
+      "t": 82.5,
+      "action": "stop",
+      "effect": "vibration",
+      "mode": "up_mid_weak"
+    },
+    {
+      "t": 82.75,
+      "action": "start",
+      "effect": "vibration",
+      "mode": "down_weak"
+    },
+    {
+      "t": 82.75,
+      "action": "stop",
+      "effect": "vibration",
+      "mode": "down_mid_weak"
+    },
+    {
+      "t": 83.0,
+      "action": "stop",
+      "effect": "vibration",
+      "mode": "down_weak"
+    },
+    {
+      "t": 83.0,
+      "action": "stop",
+      "effect": "vibration",
+      "mode": "up_weak"
+    },
+    {
+      "t": 83.25,
+      "action": "start",
+      "effect": "vibration",
+      "mode": "down_mid_weak"
+    },
+    {
+      "t": 83.25,
+      "action": "start",
+      "effect": "vibration",
+      "mode": "up_mid_strong"
+    },
+    {
+      "t": 83.5,
+      "action": "start",
+      "effect": "vibration",
+      "mode": "down_strong"
+    },
+    {
+      "t": 83.5,
+      "action": "stop",
+      "effect": "vibration",
+      "mode": "down_mid_weak"
+    },
+    {
+      "t": 83.75,
+      "action": "start",
+      "effect": "vibration",
+      "mode": "up_mid_weak"
+    },
+    {
+      "t": 83.75,
+      "action": "stop",
+      "effect": "vibration",
+      "mode": "up_mid_strong"
+    },
+    {
+      "t": 84.0,
+      "action": "start",
+      "effect": "vibration",
+      "mode": "down_weak"
+    },
+    {
+      "t": 84.0,
+      "action": "stop",
+      "effect": "vibration",
+      "mode": "down_strong"
+    },
+    {
+      "t": 84.0,
+      "action": "stop",
+      "effect": "vibration",
+      "mode": "up_mid_weak"
+    },
+    {
+      "t": 84.25,
+      "action": "start",
+      "effect": "vibration",
+      "mode": "down_mid_weak"
+    },
+    {
+      "t": 84.25,
+      "action": "start",
+      "effect": "vibration",
+      "mode": "up_weak"
+    },
+    {
+      "t": 84.25,
+      "action": "stop",
+      "effect": "vibration",
+      "mode": "down_weak"
+    },
+    {
+      "t": 84.5,
+      "action": "start",
+      "effect": "vibration",
+      "mode": "down_mid_strong"
+    },
+    {
+      "t": 84.5,
+      "action": "start",
+      "effect": "vibration",
+      "mode": "up_strong"
+    },
+    {
+      "t": 84.5,
+      "action": "stop",
+      "effect": "vibration",
+      "mode": "down_mid_weak"
+    },
+    {
+      "t": 84.5,
+      "action": "stop",
+      "effect": "vibration",
+      "mode": "up_weak"
+    },
+    {
+      "t": 84.75,
+      "action": "start",
+      "effect": "vibration",
+      "mode": "down_weak"
+    },
+    {
+      "t": 84.75,
+      "action": "stop",
+      "effect": "vibration",
+      "mode": "down_mid_strong"
+    },
+    {
+      "t": 85.0,
+      "action": "start",
+      "effect": "vibration",
+      "mode": "up_mid_strong"
+    },
+    {
+      "t": 85.0,
+      "action": "stop",
+      "effect": "vibration",
+      "mode": "up_strong"
+    },
+    {
+      "t": 85.25,
+      "action": "start",
+      "effect": "vibration",
+      "mode": "up_mid_weak"
+    },
+    {
+      "t": 85.25,
+      "action": "stop",
+      "effect": "vibration",
+      "mode": "up_mid_strong"
+    },
+    {
+      "t": 85.5,
+      "action": "start",
+      "effect": "vibration",
+      "mode": "up_mid_strong"
+    },
+    {
+      "t": 85.5,
+      "action": "stop",
+      "effect": "vibration",
+      "mode": "down_weak"
+    },
+    {
+      "t": 85.5,
+      "action": "stop",
+      "effect": "vibration",
+      "mode": "up_mid_weak"
+    },
+    {
+      "t": 86.0,
+      "action": "start",
+      "effect": "vibration",
+      "mode": "down_strong"
+    },
+    {
+      "t": 86.25,
+      "action": "start",
+      "effect": "vibration",
+      "mode": "up_mid_weak"
+    },
+    {
+      "t": 86.25,
+      "action": "stop",
+      "effect": "vibration",
+      "mode": "up_mid_strong"
+    },
+    {
+      "t": 86.5,
+      "action": "start",
+      "effect": "vibration",
+      "mode": "up_mid_strong"
+    },
+    {
+      "t": 86.5,
+      "action": "stop",
+      "effect": "vibration",
+      "mode": "up_mid_weak"
+    },
+    {
+      "t": 86.75,
+      "action": "stop",
+      "effect": "mist",
+      "mode": "stream"
+    },
+    {
+      "t": 86.75,
+      "action": "stop",
+      "effect": "vibration",
+      "mode": "down_strong"
+    },
+    {
+      "t": 86.75,
+      "action": "stop",
+      "effect": "vibration",
+      "mode": "up_mid_strong"
+    },
+    {
+      "t": 87.0,
+      "action": "stop",
+      "effect": "color",
+      "mode": "blue"
+    },
+    {
+      "t": 87.0,
+      "action": "stop",
+      "effect": "flash",
+      "mode": "steady"
+    },
+    {
+      "t": 91.5,
+      "action": "start",
+      "effect": "color",
+      "mode": "white"
+    },
+    {
+      "t": 91.5,
+      "action": "start",
+      "effect": "flash",
+      "mode": "steady"
+    },
+    {
+      "t": 91.5,
+      "action": "start",
+      "effect": "vibration",
+      "mode": "down_weak"
+    },
+    {
+      "t": 92.25,
+      "action": "stop",
+      "effect": "color",
+      "mode": "white"
+    },
+    {
+      "t": 92.25,
+      "action": "stop",
+      "effect": "flash",
+      "mode": "steady"
+    },
+    {
+      "t": 92.25,
+      "action": "stop",
+      "effect": "vibration",
+      "mode": "down_weak"
+    },
+    {
+      "t": 93.75,
+      "action": "start",
+      "effect": "vibration",
+      "mode": "up_mid_weak"
+    },
+    {
+      "t": 94.25,
+      "action": "start",
+      "effect": "vibration",
+      "mode": "down_weak"
+    },
+    {
+      "t": 94.25,
+      "action": "start",
+      "effect": "vibration",
+      "mode": "up_mid_strong"
+    },
+    {
+      "t": 94.25,
+      "action": "stop",
+      "effect": "vibration",
+      "mode": "up_mid_weak"
+    },
+    {
+      "t": 94.5,
+      "action": "start",
+      "effect": "vibration",
+      "mode": "up_mid_weak"
+    },
+    {
+      "t": 94.5,
+      "action": "stop",
+      "effect": "vibration",
+      "mode": "up_mid_strong"
+    },
+    {
+      "t": 94.75,
+      "action": "start",
+      "effect": "vibration",
+      "mode": "down_mid_weak"
+    },
+    {
+      "t": 94.75,
+      "action": "start",
+      "effect": "vibration",
+      "mode": "up_weak"
+    },
+    {
+      "t": 94.75,
+      "action": "stop",
+      "effect": "vibration",
+      "mode": "down_weak"
+    },
+    {
+      "t": 94.75,
+      "action": "stop",
+      "effect": "vibration",
+      "mode": "up_mid_weak"
+    },
+    {
+      "t": 95.25,
+      "action": "start",
+      "effect": "vibration",
+      "mode": "down_weak"
+    },
+    {
+      "t": 95.25,
+      "action": "start",
+      "effect": "vibration",
+      "mode": "up_mid_weak"
+    },
+    {
+      "t": 95.25,
+      "action": "stop",
+      "effect": "vibration",
+      "mode": "down_mid_weak"
+    },
+    {
+      "t": 95.25,
+      "action": "stop",
+      "effect": "vibration",
+      "mode": "up_weak"
+    },
+    {
+      "t": 95.5,
+      "action": "stop",
+      "effect": "vibration",
+      "mode": "up_mid_weak"
+    },
+    {
+      "t": 96.0,
+      "action": "stop",
+      "effect": "vibration",
+      "mode": "down_weak"
+    },
+    {
+      "t": 96.25,
+      "action": "shot",
+      "effect": "water",
+      "mode": "burst"
+    },
+    {
+      "t": 99.75,
+      "action": "start",
+      "effect": "vibration",
+      "mode": "down_weak"
+    },
+    {
+      "t": 100.0,
+      "action": "start",
+      "effect": "color",
+      "mode": "yellow"
+    },
+    {
+      "t": 100.0,
+      "action": "start",
+      "effect": "flash",
+      "mode": "steady"
+    },
+    {
+      "t": 100.25,
+      "action": "start",
+      "effect": "mist",
+      "mode": "stream"
+    },
+    {
+      "t": 100.25,
+      "action": "start",
+      "effect": "vibration",
+      "mode": "down_mid_strong"
+    },
+    {
+      "t": 100.25,
+      "action": "stop",
+      "effect": "color",
+      "mode": "yellow"
+    },
+    {
+      "t": 100.25,
+      "action": "stop",
+      "effect": "flash",
+      "mode": "steady"
+    },
+    {
+      "t": 100.25,
+      "action": "stop",
+      "effect": "vibration",
+      "mode": "down_weak"
+    },
+    {
+      "t": 100.5,
+      "action": "start",
+      "effect": "color",
+      "mode": "orange"
+    },
+    {
+      "t": 100.5,
+      "action": "start",
+      "effect": "flash",
+      "mode": "steady"
+    },
+    {
+      "t": 100.5,
+      "action": "start",
+      "effect": "vibration",
+      "mode": "up_mid_weak"
+    },
+    {
+      "t": 100.75,
+      "action": "start",
+      "effect": "vibration",
+      "mode": "up_mid_strong"
+    },
+    {
+      "t": 100.75,
+      "action": "stop",
+      "effect": "vibration",
+      "mode": "up_mid_weak"
+    },
+    {
+      "t": 101.0,
+      "action": "start",
+      "effect": "vibration",
+      "mode": "down_mid_weak"
+    },
+    {
+      "t": 101.0,
+      "action": "stop",
+      "effect": "vibration",
+      "mode": "down_mid_strong"
+    },
+    {
+      "t": 101.25,
+      "action": "start",
+      "effect": "vibration",
+      "mode": "down_strong"
+    },
+    {
+      "t": 101.25,
+      "action": "start",
+      "effect": "vibration",
+      "mode": "up_strong"
+    },
+    {
+      "t": 101.25,
+      "action": "stop",
+      "effect": "vibration",
+      "mode": "down_mid_weak"
+    },
+    {
+      "t": 101.25,
+      "action": "stop",
+      "effect": "vibration",
+      "mode": "up_mid_strong"
+    },
+    {
+      "t": 101.75,
+      "action": "start",
+      "effect": "vibration",
+      "mode": "down_weak"
+    },
+    {
+      "t": 101.75,
+      "action": "stop",
+      "effect": "color",
+      "mode": "orange"
+    },
+    {
+      "t": 101.75,
+      "action": "stop",
+      "effect": "flash",
+      "mode": "steady"
+    },
+    {
+      "t": 101.75,
+      "action": "stop",
+      "effect": "vibration",
+      "mode": "down_strong"
+    },
+    {
+      "t": 102.0,
+      "action": "stop",
+      "effect": "mist",
+      "mode": "stream"
+    },
+    {
+      "t": 102.0,
+      "action": "stop",
+      "effect": "vibration",
+      "mode": "up_strong"
+    },
+    {
+      "t": 104.0,
+      "action": "shot",
+      "effect": "water",
+      "mode": "burst"
+    },
+    {
+      "t": 104.0,
+      "action": "start",
+      "effect": "color",
+      "mode": "white"
+    },
+    {
+      "t": 104.0,
+      "action": "start",
+      "effect": "flash",
+      "mode": "steady"
+    },
+    {
+      "t": 104.0,
+      "action": "start",
+      "effect": "mist",
+      "mode": "stream"
+    },
+    {
+      "t": 104.0,
+      "action": "start",
+      "effect": "wind",
+      "mode": "burst"
+    },
+    {
+      "t": 104.0,
+      "action": "stop",
+      "effect": "vibration",
+      "mode": "down_weak"
+    },
+    {
+      "t": 106.25,
+      "action": "stop",
+      "effect": "color",
+      "mode": "white"
+    },
+    {
+      "t": 106.25,
+      "action": "stop",
+      "effect": "flash",
+      "mode": "steady"
+    },
+    {
+      "t": 106.25,
+      "action": "stop",
+      "effect": "mist",
+      "mode": "stream"
+    },
+    {
+      "t": 106.25,
+      "action": "stop",
+      "effect": "wind",
+      "mode": "burst"
+    },
+    {
+      "t": 107.5,
+      "action": "start",
+      "effect": "color",
+      "mode": "cyan"
+    },
+    {
+      "t": 107.5,
+      "action": "start",
+      "effect": "flash",
+      "mode": "steady"
+    },
+    {
+      "t": 108.25,
+      "action": "start",
+      "effect": "vibration",
+      "mode": "down_mid_strong"
+    },
+    {
+      "t": 108.25,
+      "action": "start",
+      "effect": "vibration",
+      "mode": "up_mid_strong"
+    },
+    {
+      "t": 108.5,
+      "action": "start",
+      "effect": "vibration",
+      "mode": "down_weak"
+    },
+    {
+      "t": 108.5,
+      "action": "start",
+      "effect": "vibration",
+      "mode": "up_mid_weak"
+    },
+    {
+      "t": 108.5,
+      "action": "stop",
+      "effect": "vibration",
+      "mode": "down_mid_strong"
+    },
+    {
+      "t": 108.5,
+      "action": "stop",
+      "effect": "vibration",
+      "mode": "up_mid_strong"
+    },
+    {
+      "t": 109.0,
+      "action": "start",
+      "effect": "vibration",
+      "mode": "down_mid_weak"
+    },
+    {
+      "t": 109.0,
+      "action": "start",
+      "effect": "vibration",
+      "mode": "up_strong"
+    },
+    {
+      "t": 109.0,
+      "action": "stop",
+      "effect": "vibration",
+      "mode": "down_weak"
+    },
+    {
+      "t": 109.0,
+      "action": "stop",
+      "effect": "vibration",
+      "mode": "up_mid_weak"
+    },
+    {
+      "t": 109.5,
+      "action": "start",
+      "effect": "vibration",
+      "mode": "down_strong"
+    },
+    {
+      "t": 109.5,
+      "action": "start",
+      "effect": "vibration",
+      "mode": "up_mid_weak"
+    },
+    {
+      "t": 109.5,
+      "action": "stop",
+      "effect": "vibration",
+      "mode": "down_mid_weak"
+    },
+    {
+      "t": 109.5,
+      "action": "stop",
+      "effect": "vibration",
+      "mode": "up_strong"
+    },
+    {
+      "t": 109.75,
+      "action": "start",
+      "effect": "vibration",
+      "mode": "down_weak"
+    },
+    {
+      "t": 109.75,
+      "action": "stop",
+      "effect": "vibration",
+      "mode": "down_strong"
+    },
+    {
+      "t": 110.0,
+      "action": "start",
+      "effect": "vibration",
+      "mode": "down_strong"
+    },
+    {
+      "t": 110.0,
+      "action": "start",
+      "effect": "vibration",
+      "mode": "up_mid_strong"
+    },
+    {
+      "t": 110.0,
+      "action": "stop",
+      "effect": "vibration",
+      "mode": "down_weak"
+    },
+    {
+      "t": 110.0,
+      "action": "stop",
+      "effect": "vibration",
+      "mode": "up_mid_weak"
+    },
+    {
+      "t": 110.25,
+      "action": "start",
+      "effect": "vibration",
+      "mode": "down_weak"
+    },
+    {
+      "t": 110.25,
+      "action": "stop",
+      "effect": "vibration",
+      "mode": "down_strong"
+    },
+    {
+      "t": 110.25,
+      "action": "stop",
+      "effect": "vibration",
+      "mode": "up_mid_strong"
+    },
+    {
+      "t": 110.5,
+      "action": "start",
+      "effect": "vibration",
+      "mode": "up_mid_weak"
+    },
+    {
+      "t": 110.75,
+      "action": "start",
+      "effect": "vibration",
+      "mode": "down_mid_weak"
+    },
+    {
+      "t": 110.75,
+      "action": "stop",
+      "effect": "vibration",
+      "mode": "down_weak"
+    },
+    {
+      "t": 111.0,
+      "action": "start",
+      "effect": "vibration",
+      "mode": "down_weak"
+    },
+    {
+      "t": 111.0,
+      "action": "stop",
+      "effect": "vibration",
+      "mode": "down_mid_weak"
+    },
+    {
+      "t": 111.25,
+      "action": "start",
+      "effect": "vibration",
+      "mode": "up_mid_strong"
+    },
+    {
+      "t": 111.25,
+      "action": "stop",
+      "effect": "vibration",
+      "mode": "up_mid_weak"
+    },
+    {
+      "t": 111.5,
+      "action": "start",
+      "effect": "vibration",
+      "mode": "down_strong"
+    },
+    {
+      "t": 111.5,
+      "action": "start",
+      "effect": "vibration",
+      "mode": "up_strong"
+    },
+    {
+      "t": 111.5,
+      "action": "stop",
+      "effect": "vibration",
+      "mode": "down_weak"
+    },
+    {
+      "t": 111.5,
+      "action": "stop",
+      "effect": "vibration",
+      "mode": "up_mid_strong"
+    },
+    {
+      "t": 111.75,
+      "action": "start",
+      "effect": "vibration",
+      "mode": "down_weak"
+    },
+    {
+      "t": 111.75,
+      "action": "stop",
+      "effect": "vibration",
+      "mode": "down_strong"
+    },
+    {
+      "t": 112.0,
+      "action": "stop",
+      "effect": "vibration",
+      "mode": "down_weak"
+    },
+    {
+      "t": 112.0,
+      "action": "stop",
+      "effect": "vibration",
+      "mode": "up_strong"
+    },
+    {
+      "t": 112.25,
+      "action": "start",
+      "effect": "vibration",
+      "mode": "down_mid_weak"
+    },
+    {
+      "t": 112.25,
+      "action": "start",
+      "effect": "vibration",
+      "mode": "up_mid_weak"
+    },
+    {
+      "t": 112.75,
+      "action": "stop",
+      "effect": "vibration",
+      "mode": "down_mid_weak"
+    },
+    {
+      "t": 112.75,
+      "action": "stop",
+      "effect": "vibration",
+      "mode": "up_mid_weak"
+    },
+    {
+      "t": 116.0,
+      "action": "start",
+      "effect": "vibration",
+      "mode": "up_weak"
+    },
+    {
+      "t": 116.25,
+      "action": "start",
+      "effect": "vibration",
+      "mode": "down_weak"
+    },
+    {
+      "t": 116.25,
+      "action": "start",
+      "effect": "vibration",
+      "mode": "up_mid_weak"
+    },
+    {
+      "t": 116.25,
+      "action": "stop",
+      "effect": "vibration",
+      "mode": "up_weak"
+    },
+    {
+      "t": 116.75,
+      "action": "start",
+      "effect": "vibration",
+      "mode": "down_strong"
+    },
+    {
+      "t": 116.75,
+      "action": "start",
+      "effect": "vibration",
+      "mode": "up_strong"
+    },
+    {
+      "t": 116.75,
+      "action": "stop",
+      "effect": "vibration",
+      "mode": "down_weak"
+    },
+    {
+      "t": 116.75,
+      "action": "stop",
+      "effect": "vibration",
+      "mode": "up_mid_weak"
+    },
+    {
+      "t": 117.0,
+      "action": "stop",
+      "effect": "vibration",
+      "mode": "up_strong"
+    },
+    {
+      "t": 117.25,
+      "action": "start",
+      "effect": "vibration",
+      "mode": "up_strong"
+    },
+    {
+      "t": 117.5,
+      "action": "stop",
+      "effect": "vibration",
+      "mode": "down_strong"
+    },
+    {
+      "t": 117.5,
+      "action": "stop",
+      "effect": "vibration",
+      "mode": "up_strong"
+    },
+    {
+      "t": 117.75,
+      "action": "stop",
+      "effect": "color",
+      "mode": "cyan"
+    },
+    {
+      "t": 117.75,
+      "action": "stop",
+      "effect": "flash",
+      "mode": "steady"
+    },
+    {
+      "t": 119.25,
+      "action": "start",
+      "effect": "mist",
+      "mode": "stream"
+    },
+    {
+      "t": 119.5,
+      "action": "stop",
+      "effect": "mist",
+      "mode": "stream"
+    },
+    {
+      "t": 120.0,
+      "action": "start",
+      "effect": "mist",
+      "mode": "stream"
+    },
+    {
+      "t": 120.25,
+      "action": "start",
+      "effect": "color",
+      "mode": "white"
+    },
+    {
+      "t": 120.5,
+      "action": "stop",
+      "effect": "color",
+      "mode": "white"
+    },
+    {
+      "t": 120.5,
+      "action": "stop",
+      "effect": "mist",
+      "mode": "stream"
+    },
+    {
+      "t": 121.0,
+      "action": "start",
+      "effect": "color",
+      "mode": "yellow"
+    },
+    {
+      "t": 121.0,
+      "action": "start",
+      "effect": "flash",
+      "mode": "steady"
+    },
+    {
+      "t": 121.25,
+      "action": "start",
+      "effect": "color",
+      "mode": "yellow_green"
+    },
+    {
+      "t": 121.25,
+      "action": "start",
+      "effect": "vibration",
+      "mode": "down_weak"
+    },
+    {
+      "t": 121.25,
+      "action": "stop",
+      "effect": "color",
+      "mode": "yellow"
+    },
+    {
+      "t": 121.5,
+      "action": "start",
+      "effect": "color",
+      "mode": "orange"
+    },
+    {
+      "t": 121.5,
+      "action": "stop",
+      "effect": "color",
+      "mode": "yellow_green"
+    },
+    {
+      "t": 121.75,
+      "action": "start",
+      "effect": "color",
+      "mode": "yellow"
+    },
+    {
+      "t": 121.75,
+      "action": "stop",
+      "effect": "color",
+      "mode": "orange"
+    },
+    {
+      "t": 121.75,
+      "action": "stop",
+      "effect": "flash",
+      "mode": "steady"
+    },
+    {
+      "t": 122.0,
+      "action": "start",
+      "effect": "flash",
+      "mode": "blink"
+    },
+    {
+      "t": 122.0,
+      "action": "start",
+      "effect": "vibration",
+      "mode": "down_mid_weak"
+    },
+    {
+      "t": 122.0,
+      "action": "stop",
+      "effect": "vibration",
+      "mode": "down_weak"
+    },
+    {
+      "t": 122.25,
+      "action": "start",
+      "effect": "color",
+      "mode": "orange"
+    },
+    {
+      "t": 122.25,
+      "action": "start",
+      "effect": "mist",
+      "mode": "stream"
+    },
+    {
+      "t": 122.25,
+      "action": "start",
+      "effect": "vibration",
+      "mode": "up_mid_weak"
+    },
+    {
+      "t": 122.25,
+      "action": "stop",
+      "effect": "color",
+      "mode": "yellow"
+    },
+    {
+      "t": 122.75,
+      "action": "start",
+      "effect": "color",
+      "mode": "red"
+    },
+    {
+      "t": 122.75,
+      "action": "start",
+      "effect": "vibration",
+      "mode": "up_mid_strong"
+    },
+    {
+      "t": 122.75,
+      "action": "stop",
+      "effect": "color",
+      "mode": "orange"
+    },
+    {
+      "t": 122.75,
+      "action": "stop",
+      "effect": "vibration",
+      "mode": "up_mid_weak"
+    },
+    {
+      "t": 123.0,
+      "action": "stop",
+      "effect": "color",
+      "mode": "red"
+    },
+    {
+      "t": 123.0,
+      "action": "stop",
+      "effect": "flash",
+      "mode": "blink"
+    },
+    {
+      "t": 123.0,
+      "action": "stop",
+      "effect": "mist",
+      "mode": "stream"
+    },
+    {
+      "t": 123.0,
+      "action": "stop",
+      "effect": "vibration",
+      "mode": "down_mid_weak"
+    },
+    {
+      "t": 123.25,
+      "action": "stop",
+      "effect": "vibration",
+      "mode": "up_mid_strong"
+    },
+    {
+      "t": 124.25,
+      "action": "start",
+      "effect": "flash",
+      "mode": "breathe"
+    },
+    {
+      "t": 124.25,
+      "action": "start",
+      "effect": "vibration",
+      "mode": "down_weak"
+    },
+    {
+      "t": 126.5,
+      "action": "stop",
+      "effect": "flash",
+      "mode": "breathe"
+    },
+    {
+      "t": 127.25,
+      "action": "start",
+      "effect": "color",
+      "mode": "orange"
+    },
+    {
+      "t": 127.25,
+      "action": "start",
+      "effect": "flash",
+      "mode": "steady"
+    },
+    {
+      "t": 127.25,
+      "action": "start",
+      "effect": "mist",
+      "mode": "stream"
+    },
+    {
+      "t": 127.25,
+      "action": "start",
+      "effect": "vibration",
+      "mode": "down_strong"
+    },
+    {
+      "t": 127.25,
+      "action": "start",
+      "effect": "vibration",
+      "mode": "up_strong"
+    },
+    {
+      "t": 127.25,
+      "action": "stop",
+      "effect": "vibration",
+      "mode": "down_weak"
+    },
+    {
+      "t": 127.5,
+      "action": "start",
+      "effect": "vibration",
+      "mode": "up_mid_weak"
+    },
+    {
+      "t": 127.5,
+      "action": "stop",
+      "effect": "vibration",
+      "mode": "up_strong"
+    },
+    {
+      "t": 127.75,
+      "action": "stop",
+      "effect": "vibration",
+      "mode": "up_mid_weak"
+    },
+    {
+      "t": 128.0,
+      "action": "start",
+      "effect": "vibration",
+      "mode": "down_weak"
+    },
+    {
+      "t": 128.0,
+      "action": "start",
+      "effect": "wind",
+      "mode": "burst"
+    },
+    {
+      "t": 128.0,
+      "action": "stop",
+      "effect": "color",
+      "mode": "orange"
+    },
+    {
+      "t": 128.0,
+      "action": "stop",
+      "effect": "flash",
+      "mode": "steady"
+    },
+    {
+      "t": 128.0,
+      "action": "stop",
+      "effect": "mist",
+      "mode": "stream"
+    },
+    {
+      "t": 128.0,
+      "action": "stop",
+      "effect": "vibration",
+      "mode": "down_strong"
+    },
+    {
+      "t": 128.75,
+      "action": "start",
+      "effect": "color",
+      "mode": "orange"
+    },
+    {
+      "t": 128.75,
+      "action": "start",
+      "effect": "flash",
+      "mode": "steady"
+    },
+    {
+      "t": 128.75,
+      "action": "start",
+      "effect": "mist",
+      "mode": "stream"
+    },
+    {
+      "t": 128.75,
+      "action": "stop",
+      "effect": "wind",
+      "mode": "burst"
+    },
+    {
+      "t": 129.5,
+      "action": "start",
+      "effect": "vibration",
+      "mode": "down_strong"
+    },
+    {
+      "t": 129.5,
+      "action": "start",
+      "effect": "vibration",
+      "mode": "up_strong"
+    },
+    {
+      "t": 129.5,
+      "action": "stop",
+      "effect": "vibration",
+      "mode": "down_weak"
+    },
+    {
+      "t": 129.75,
+      "action": "stop",
+      "effect": "color",
+      "mode": "orange"
+    },
+    {
+      "t": 129.75,
+      "action": "stop",
+      "effect": "flash",
+      "mode": "steady"
+    },
+    {
+      "t": 129.75,
+      "action": "stop",
+      "effect": "mist",
+      "mode": "stream"
+    },
+    {
+      "t": 129.75,
+      "action": "stop",
+      "effect": "vibration",
+      "mode": "down_strong"
+    },
+    {
+      "t": 130.0,
+      "action": "stop",
+      "effect": "vibration",
+      "mode": "up_strong"
+    },
+    {
+      "t": 132.5,
+      "action": "start",
+      "effect": "vibration",
+      "mode": "down_weak"
+    },
+    {
+      "t": 136.25,
+      "action": "start",
+      "effect": "color",
+      "mode": "yellow"
+    },
+    {
+      "t": 136.25,
+      "action": "start",
+      "effect": "flash",
+      "mode": "steady"
+    },
+    {
+      "t": 136.25,
+      "action": "start",
+      "effect": "vibration",
+      "mode": "down_strong"
+    },
+    {
+      "t": 136.25,
+      "action": "start",
+      "effect": "vibration",
+      "mode": "up_weak"
+    },
+    {
+      "t": 136.25,
+      "action": "stop",
+      "effect": "vibration",
+      "mode": "down_weak"
+    },
+    {
+      "t": 136.5,
+      "action": "start",
+      "effect": "mist",
+      "mode": "stream"
+    },
+    {
+      "t": 136.75,
+      "action": "start",
+      "effect": "color",
+      "mode": "orange"
+    },
+    {
+      "t": 136.75,
+      "action": "stop",
+      "effect": "color",
+      "mode": "yellow"
+    },
+    {
+      "t": 137.0,
+      "action": "start",
+      "effect": "vibration",
+      "mode": "up_mid_weak"
+    },
+    {
+      "t": 137.0,
+      "action": "stop",
+      "effect": "vibration",
+      "mode": "up_weak"
+    },
+    {
+      "t": 137.25,
+      "action": "start",
+      "effect": "color",
+      "mode": "red"
+    },
+    {
+      "t": 137.25,
+      "action": "start",
+      "effect": "vibration",
+      "mode": "up_weak"
+    },
+    {
+      "t": 137.25,
+      "action": "stop",
+      "effect": "color",
+      "mode": "orange"
+    },
+    {
+      "t": 137.25,
+      "action": "stop",
+      "effect": "vibration",
+      "mode": "up_mid_weak"
+    },
+    {
+      "t": 138.0,
+      "action": "start",
+      "effect": "vibration",
+      "mode": "up_mid_strong"
+    },
+    {
+      "t": 138.0,
+      "action": "stop",
+      "effect": "vibration",
+      "mode": "up_weak"
+    },
+    {
+      "t": 140.25,
+      "action": "start",
+      "effect": "vibration",
+      "mode": "up_mid_weak"
+    },
+    {
+      "t": 140.25,
+      "action": "stop",
+      "effect": "vibration",
+      "mode": "up_mid_strong"
+    },
+    {
+      "t": 140.5,
+      "action": "start",
+      "effect": "vibration",
+      "mode": "down_mid_strong"
+    },
+    {
+      "t": 140.5,
+      "action": "stop",
+      "effect": "vibration",
+      "mode": "down_strong"
+    },
+    {
+      "t": 141.25,
+      "action": "start",
+      "effect": "vibration",
+      "mode": "down_strong"
+    },
+    {
+      "t": 141.25,
+      "action": "stop",
+      "effect": "vibration",
+      "mode": "down_mid_strong"
+    },
+    {
+      "t": 141.75,
+      "action": "start",
+      "effect": "vibration",
+      "mode": "down_mid_strong"
+    },
+    {
+      "t": 141.75,
+      "action": "stop",
+      "effect": "vibration",
+      "mode": "down_strong"
+    },
+    {
+      "t": 142.0,
+      "action": "start",
+      "effect": "vibration",
+      "mode": "up_mid_strong"
+    },
+    {
+      "t": 142.0,
+      "action": "stop",
+      "effect": "vibration",
+      "mode": "up_mid_weak"
+    },
+    {
+      "t": 142.5,
+      "action": "stop",
+      "effect": "vibration",
+      "mode": "down_mid_strong"
+    },
+    {
+      "t": 142.75,
+      "action": "start",
+      "effect": "vibration",
+      "mode": "down_mid_strong"
+    },
+    {
+      "t": 143.0,
+      "action": "start",
+      "effect": "vibration",
+      "mode": "down_strong"
+    },
+    {
+      "t": 143.0,
+      "action": "stop",
+      "effect": "vibration",
+      "mode": "down_mid_strong"
+    },
+    {
+      "t": 143.5,
+      "action": "start",
+      "effect": "wind",
+      "mode": "burst"
+    },
+    {
+      "t": 144.75,
+      "action": "start",
+      "effect": "vibration",
+      "mode": "up_strong"
+    },
+    {
+      "t": 144.75,
+      "action": "stop",
+      "effect": "vibration",
+      "mode": "up_mid_strong"
+    },
+    {
+      "t": 144.75,
+      "action": "stop",
+      "effect": "wind",
+      "mode": "burst"
+    },
+    {
+      "t": 145.25,
+      "action": "start",
+      "effect": "wind",
+      "mode": "burst"
+    },
+    {
+      "t": 147.0,
+      "action": "stop",
+      "effect": "wind",
+      "mode": "burst"
+    },
+    {
+      "t": 147.25,
+      "action": "stop",
+      "effect": "vibration",
+      "mode": "down_strong"
+    },
+    {
+      "t": 147.5,
+      "action": "start",
+      "effect": "wind",
+      "mode": "burst"
+    },
+    {
+      "t": 147.75,
+      "action": "stop",
+      "effect": "vibration",
+      "mode": "up_strong"
+    },
+    {
+      "t": 147.75,
+      "action": "stop",
+      "effect": "wind",
+      "mode": "burst"
+    },
+    {
+      "t": 149.75,
+      "action": "stop",
+      "effect": "color",
+      "mode": "red"
+    },
+    {
+      "t": 149.75,
+      "action": "stop",
+      "effect": "flash",
+      "mode": "steady"
+    },
+    {
+      "t": 149.75,
+      "action": "stop",
+      "effect": "mist",
+      "mode": "stream"
+    }
+  ]
+}

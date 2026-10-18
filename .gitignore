@@ -130,6 +130,11 @@ docker-compose.override.yml
 .dockerignore.local
 *.docker.log
 
+# connotation_tools_v3: 動画・フレーム画像は容量が大きいためリポジトリに含めない
+connotation_tools_v3/frames/
+connotation_tools_v3/videos/*.mp4
+connotation_tools_v3/videos/*.MP4
+
 # Test files and simulators (not for production)
 *test*.py
 *simulator*.py

@@ -324,6 +324,84 @@ PROMPTS = {
 - 背中とおしりが同時に振動が必要な場合（かなり強い振動） → "up_down_strong", "up_down_mid_strong", "up_down_mid_weak", "up_down_weak" のいずれか
 - シーンに応じて適切な強度を選択してください
 """,
+
+    "4dx_home_v3": """
+以下の{num_frames}枚の動画フレームを順番に解析してください。
+これは4DX@HOME 3世代目デバイス向けの解析です。0.25秒間隔で切り取られた連続フレームです。
+
+【重要】前後フレームとの差分を必ず確認し、変化（発生/消失/強弱）を明確に捉えてください。
+
+各フレームについて、以下の2つを返してください：
+1. 表現力の豊かな日本語キャプション（2-4文）
+2. 4DX効果の判定（JSON形式）
+
+【キャプションのスタイル】
+- 事実に基づきつつ、情景・動き・空気感・感情のニュアンスまで描写する
+- 動作や変化の「瞬間」を明確に書く（例: 直前/直後/一瞬/炸裂/着地）
+- カメラの動きや距離感が分かる場合は書く
+- ただし冗長にならないよう、1フレームにつき最大4文
+
+【4DX効果の種類とモード】
+
+★ 振動（vibration）★
+- "up_strong", "up_mid_strong", "up_mid_weak", "up_weak"
+- "down_strong", "down_mid_strong", "down_mid_weak", "down_weak"
+- "up_down_strong", "up_down_mid_strong", "up_down_mid_weak", "up_down_weak"
+- "heartbeat"
+
+★ 光（flash）★
+- "steady": 点灯（継続的な光）
+- "blink": 点滅（チカチカ、雷/閃光/銃火）
+- "breathe": 呼吸（ゆっくり明滅、ネオン/魔法/鼓動感）
+
+★ 色（color）★
+- "pink", "red", "orange", "yellow", "yellow_green", "green"
+- "dark_green", "cyan", "blue", "purple", "white"
+
+★ 風（wind）★
+- "burst": 風（爆風/疾走/息/風圧）
+
+★ 水（water）★
+- "burst": 水しぶき（着水/しぶき/雨粒）
+
+★ ミスト（mist）★
+- "burst": ミスト（霧/蒸気/煙/白い噴霧）
+
+【効果判定の方針】
+- 強い衝撃（爆発/激突/着地）は strong 系の振動
+- 移動・走行・飛行・乗り物は弱〜中弱の振動を継続
+- 緊張/恐怖/接近の演出は heartbeat を活用
+- 光は「特別な光」が必要なときのみ使用（銃火・雷・爆発・閃光）
+- 風は速度感/爆風/息の圧力があるときに短く
+- 水は「着水・跳ね・しぶきの瞬間」に限定
+- ミストは霧/蒸気/煙/白い噴霧がはっきり見える瞬間
+- 効果の使い過ぎは避け、静寂と動のコントラストを作る
+
+【出力形式】
+必ずJSONオブジェクトで、以下の形式で返してください：
+
+{{
+  "frames": [
+    {{
+      "caption": "フレーム1のキャプション",
+      "effects": {{
+        "flash": "blink" または null,
+        "color": "blue" または null,
+        "vibration": "down_mid_weak" または null,
+        "water": "burst" または null,
+        "wind": "burst" または null,
+        "mist": "burst" または null
+      }}
+    }},
+    {{
+      "caption": "フレーム2のキャプション",
+      "effects": {{...}}
+    }}
+  ]
+}}
+
+効果がない場合は null を返してください。未定義のモードは使わないでください。
+""",
 }
 
 # デフォルトのプロンプト名

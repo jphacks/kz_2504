@@ -92,12 +92,12 @@
 
 ### 4. `shot` - 一度きりの発射
 
-効果を一度だけ発射します。主に水の効果で使用されます。
+効果を一度だけ発射します。主に水・ミストの効果で使用されます。
 
 **必須フィールド:**
 - `t` (float): 時刻（秒）
 - `action` (string): `"shot"`
-- `effect` (string): 効果タイプ（通常は`"water"`）
+- `effect` (string): 効果タイプ（通常は`"water"` / `"mist"`）
 - `mode` (string): 効果モード（通常は`"burst"`）
 
 **例:**
@@ -159,8 +159,10 @@
 
 **利用可能なモード（mode）:**
 - `steady`: 点灯（継続的な光）
-- `slow_blink`: 遅い点滅（ゆっくりチカチカ）
-- `fast_blink`: 早い点滅（速くチカチカ）
+- `blink`: 点滅（チカチカ）
+- `slow_blink`: 遅い点滅（互換用、blinkと同じ）
+- `fast_blink`: 早い点滅（互換用、blinkと同じ）
+- `breathe`: 呼吸（ゆっくり明滅）
 
 **使用例:**
 ```json
@@ -168,7 +170,7 @@
   "t": 5.0,
   "action": "start",
   "effect": "flash",
-  "mode": "fast_blink"
+  "mode": "blink"
 }
 ```
 
@@ -179,12 +181,18 @@
 色の効果を制御します。一度に1つの色のみ有効です（新しい色を開始すると、前の色は自動的に停止されます）。
 
 **利用可能なモード（mode）:**
+- `pink`: ピンク
 - `red`: 赤
-- `green`: 緑
-- `blue`: 青
+- `orange`: オレンジ
 - `yellow`: 黄色
+- `yellow_green`: 黄緑
+- `green`: 緑
+- `dark_green`: 深緑
 - `cyan`: シアン
+- `blue`: 青
 - `purple`: 紫
+- `white`: 白
+- `off`: 消灯
 
 **使用例:**
 ```json
@@ -235,6 +243,27 @@
   "mode": "burst"
 }
 ```
+
+---
+
+### 6. `mist` - ミスト
+
+ミスト（霧・蒸気・煙・白い噴霧）の効果を制御します。通常は`shot`アクションで一度だけ発射します。
+
+**利用可能なモード（mode）:**
+- `burst`: ミスト噴射（一度きりの発射）
+
+**使用例:**
+```json
+{
+  "t": 2.0,
+  "action": "shot",
+  "effect": "mist",
+  "mode": "burst"
+}
+```
+
+**注意:** `mist`は通常`shot`アクションでのみ使用します。`start`/`stop`は使用しません。
 
 ---
 
@@ -382,16 +411,22 @@
 | `vibration` | `up_down_strong` | 上＆下同時: 強 | `start`/`stop` |
 | `vibration` | `heartbeat` | ドキドキ | `start`/`stop` |
 | `flash` | `steady` | 点灯 | `start`/`stop` |
-| `flash` | `slow_blink` | 遅い点滅 | `start`/`stop` |
-| `flash` | `fast_blink` | 早い点滅 | `start`/`stop` |
+| `flash` | `blink` | 点滅 | `start`/`stop` |
+| `flash` | `breathe` | 呼吸 | `start`/`stop` |
+| `color` | `pink` | ピンク | `start`/`stop` |
 | `color` | `red` | 赤 | `start`/`stop` |
-| `color` | `green` | 緑 | `start`/`stop` |
-| `color` | `blue` | 青 | `start`/`stop` |
+| `color` | `orange` | オレンジ | `start`/`stop` |
 | `color` | `yellow` | 黄色 | `start`/`stop` |
+| `color` | `yellow_green` | 黄緑 | `start`/`stop` |
+| `color` | `green` | 緑 | `start`/`stop` |
+| `color` | `dark_green` | 深緑 | `start`/`stop` |
 | `color` | `cyan` | シアン | `start`/`stop` |
+| `color` | `blue` | 青 | `start`/`stop` |
 | `color` | `purple` | 紫 | `start`/`stop` |
+| `color` | `white` | 白 | `start`/`stop` |
 | `water` | `burst` | 水しぶき | `shot` |
 | `wind` | `burst` | 風 | `start`/`stop` |
+| `mist` | `burst` | ミスト | `shot` |
 
 ---
 
